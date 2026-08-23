@@ -4,8 +4,8 @@
   "description": "Capture ideas. Keep moving. A fast, local-first note-taking app.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111114",
-  "theme_color": "#6e56cf",
+  "background_color": "#fdfbf7",
+  "theme_color": "#2d2d2d",
   "icons": [
     {
       "src": "/app-icon.png",

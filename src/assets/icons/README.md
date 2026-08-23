@@ -3,7 +3,7 @@
 Drop your doodles in this folder and they **replace the built-in icons
 everywhere in the app** — no code changes needed.
 
-## Current layout (your pasted set)
+## Current layout
 
 ```
 light/            ← artwork for light mode
@@ -15,9 +15,14 @@ notely_set_full.png       ← full logo (splash screen)
 notely_set_icon.png       ← standalone app icon (favicon / PWA)
 ```
 
-The `light/` and `dark/` folders drive theme variants automatically; files at
-the root of `icons/` apply to both themes. Brand marks are wired separately
-(see below) and don't need slot names.
+The `light/` and `dark/` folders drive theme variants; files at the root of
+`icons/` apply to both themes. Brand marks are wired separately (see below)
+and don't need slot names.
+
+> **Dark variants are currently disabled** — dark mode reuses the light
+> artwork (`USE_DARK_VARIANTS = false` in `src/lib/lucideShim.tsx`). Flip the
+> flag to `true` to bring per-theme artwork back; the files stay organized
+> either way.
 
 ## How to use
 

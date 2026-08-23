@@ -70,9 +70,18 @@ const SLOT_ALIASES: Record<string, string[]> = {
   app_folder: ['folder'],
   app_new: ['plus'],
   app_note: ['notebook-text', 'notebook', 'file-text'],
+  app_pin: ['pin'],
+  app_recent: ['clock'],
   app_search: ['search'],
   app_star: ['star'],
+  app_trash: ['trash-2'],
 }
+
+/**
+ * Dark-variant artwork is currently disabled — dark mode reuses the light /
+ * theme-independent doodles. Flip to true to resume per-theme resolution.
+ */
+const USE_DARK_VARIANTS = false
 
 const svgIndex = new Map<string, Map<string, string>>()
 const rasterIndex = new Map<string, Map<string, string>>()
@@ -103,6 +112,8 @@ for (const [path, url] of Object.entries(rasterUrls)) indexInto(rasterIndex, pat
 /**
  * Resolves the best file for a slot under the active theme.
  * Precedence: exact theme variant → theme-independent → opposite variant.
+ * When USE_DARK_VARIANTS is off, dark mode falls straight through to the
+ * light / plain artwork.
  */
 function resolveVariant(
   index: Map<string, Map<string, string>>,
@@ -111,6 +122,9 @@ function resolveVariant(
 ): string | undefined {
   const variants = index.get(slot.toLowerCase())
   if (!variants) return undefined
+  if (!USE_DARK_VARIANTS && isDark) {
+    return variants.get('light') ?? variants.get('')
+  }
   const want: ThemeVariant = isDark ? 'dark' : 'light'
   return variants.get(want) ?? variants.get('') ?? variants.get(isDark ? 'light' : 'dark')
 }

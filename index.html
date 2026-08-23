@@ -113,7 +113,8 @@
     </div>
     <script>
       /* Applied before first paint to avoid a flash of the wrong theme.
-         Runs at the end of <body> so the splash element already exists. */
+         Runs at the end of <body> so the splash element already exists.
+         The logo stays the light artwork in both themes by design. */
       (function () {
         try {
           var t = localStorage.getItem('notely:theme');
@@ -122,8 +123,6 @@
           document.documentElement.style.background = dark ? '#1e1d1b' : '#fdfbf7';
           var s = document.getElementById('splash');
           if (s && dark) s.classList.add('dark');
-          var logo = document.getElementById('splash-logo');
-          if (logo && dark) logo.src = '/brand-full-dark.png';
         } catch (e) {}
       })();
     </script>

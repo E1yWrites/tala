@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import brandDarkUrl from '@/assets/icons/dark/notely_set_N_dark.png'
 import brandLightUrl from '@/assets/icons/light/notely_set_N.png'
 import {
   Archive,
@@ -157,14 +156,7 @@ export function Sidebar({
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="size-full scale-[1.02] object-cover dark:hidden"
-          />
-          <img
-            src={brandDarkUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="hidden size-full scale-[1.02] object-cover dark:block"
+            className="size-full scale-[1.02] object-cover"
           />
         </button>
         {!isCollapsed && (
