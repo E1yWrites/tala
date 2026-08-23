@@ -1,0 +1,17 @@
+{
+  "name": "Notely",
+  "short_name": "Notely",
+  "description": "Capture ideas. Keep moving. A fast, local-first note-taking app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111114",
+  "theme_color": "#6e56cf",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

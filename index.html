@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Notely — Capture ideas. Keep moving. A fast, local-first note-taking app." />
+    <meta name="theme-color" content="#fdfbf7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e1d1b" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Notely</title>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background-color: #fdfbf7;
+        background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+        background-size: 24px 24px;
+        color: #2d2d2d;
+        transition: opacity 240ms ease;
+        font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+      }
+      #splash.dark {
+        background-color: #1e1d1b;
+        background-image: radial-gradient(#383530 1px, transparent 1px);
+        color: #f0ece4;
+      }
+      .splash-mark {
+        position: relative;
+        width: 132px;
+        height: auto;
+        transform: rotate(-2deg);
+        animation: splash-pop 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .splash-mark img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 18px 6px 20px 6px / 8px 16px 8px 18px;
+        box-shadow: 4px 4px 0 0 #2d2d2d;
+      }
+      #splash.dark .splash-mark img {
+        box-shadow: 3px 3px 0 0 rgb(245 240 230 / 0.14);
+      }
+      .splash-tagline {
+        font-size: 15px;
+        opacity: 0.6;
+        transform: rotate(-1deg);
+        animation: splash-fade 500ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .splash-bar {
+        width: 96px;
+        height: 5px;
+        margin-top: 8px;
+        overflow: hidden;
+        border-radius: 12px 4px 12px 4px;
+        background: #e5e0d8;
+        animation: splash-fade 400ms 300ms both;
+      }
+      #splash.dark .splash-bar {
+        background: #383530;
+      }
+      .splash-bar::after {
+        content: '';
+        display: block;
+        height: 100%;
+        width: 40%;
+        border-radius: 10px 4px 10px 4px;
+        background: #ff4d4d;
+        animation: splash-slide 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      @keyframes splash-pop {
+        from { opacity: 0; transform: scale(0.82) rotate(-9deg); }
+        to { opacity: 1; transform: scale(1) rotate(-2deg); }
+      }
+      @keyframes splash-fade {
+        from { opacity: 0; transform: translateY(5px) rotate(-1deg); }
+        to { opacity: 0.85; transform: translateY(0) rotate(-1deg); }
+      }
+      @keyframes splash-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(260%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash-mark, .splash-tagline, .splash-bar { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+        .splash-bar::after { animation: none !important; width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="splash" role="status" aria-label="Notely is loading">
+      <div class="splash-mark">
+        <img
+          id="splash-logo"
+          src="/brand-full-light.png"
+          alt=""
+          draggable="false"
+        />
+      </div>
+      <div class="splash-tagline">Capture ideas. Keep moving.</div>
+      <div class="splash-bar"></div>
+    </div>
+    <script>
+      /* Applied before first paint to avoid a flash of the wrong theme.
+         Runs at the end of <body> so the splash element already exists. */
+      (function () {
+        try {
+          var t = localStorage.getItem('notely:theme');
+          var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.background = dark ? '#1e1d1b' : '#fdfbf7';
+          var s = document.getElementById('splash');
+          if (s && dark) s.classList.add('dark');
+          var logo = document.getElementById('splash-logo');
+          if (logo && dark) logo.src = '/brand-full-dark.png';
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,176 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Check } from 'lucide-react'
+import { cn } from '@/utils/cn'
+
+export interface MenuItem {
+  id: string
+  label: string
+  onSelect: () => void
+  danger?: boolean
+  disabled?: boolean
+  /** Shows a trailing checkmark (for toggles like sort options) */
+  checked?: boolean
+}
+
+interface DropdownMenuProps {
+  items: MenuItem[]
+  /** Render-prop for the trigger; receives open state + handlers. */
+  trigger: (props: {
+    onClick: (e: React.MouseEvent) => void
+    onKeyDown: (e: React.KeyboardEvent) => void
+    'aria-haspopup': 'menu'
+    'aria-expanded': boolean
+    ref: React.Ref<HTMLButtonElement>
+  }) => ReactNode
+  align?: 'start' | 'end'
+  side?: 'top' | 'bottom'
+  className?: string
+}
+
+/** Small keyboard-accessible menu. Esc / outside click close it. */
+export function DropdownMenu({
+  items,
+  trigger,
+  align = 'end',
+  side = 'bottom',
+  className,
+}: DropdownMenuProps): ReactNode {
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  /** Flipped to open upward when there isn't room below (viewport edge). */
+  const [flipped, setFlipped] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent): void => {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  // Flip upward when the menu would overflow the bottom of the viewport
+  useLayoutEffect(() => {
+    if (!open) return
+    const root = rootRef.current
+    if (!root) return
+    const rect = root.getBoundingClientRect()
+    const estimatedHeight = items.length * 30 + 16
+    setFlipped(
+      side === 'bottom' &&
+        rect.bottom + estimatedHeight > window.innerHeight &&
+        rect.top > estimatedHeight,
+    )
+  }, [open, items.length, side])
+
+  useEffect(() => {
+    if (open) setActiveIndex(Math.max(0, items.findIndex((i) => !i.disabled)))
+  }, [open, items])
+
+  const select = (item: MenuItem): void => {
+    if (item.disabled) return
+    setOpen(false)
+    triggerRef.current?.focus()
+    item.onSelect()
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      {trigger({
+        onClick: () => setOpen((o) => !o),
+        onKeyDown: (e) => {
+          if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            if (!open) {
+              e.preventDefault()
+              setOpen(true)
+            }
+          }
+        },
+        'aria-haspopup': 'menu',
+        'aria-expanded': open,
+        ref: triggerRef,
+      })}
+      {open && (
+        <div
+          role="menu"
+          aria-orientation="vertical"
+          className={cn(
+            'absolute z-30 min-w-[180px] rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
+            align === 'end' ? 'right-0' : 'left-0',
+            side === 'top' || flipped
+              ? 'bottom-[calc(100%+4px)]'
+              : 'top-[calc(100%+4px)]',
+            className,
+          )}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              setOpen(false)
+              triggerRef.current?.focus()
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              setActiveIndex((i) => {
+                let next = i
+                for (let step = 0; step < items.length; step++) {
+                  next = (next + 1) % items.length
+                  if (!items[next].disabled) break
+                }
+                return next
+              })
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setActiveIndex((i) => {
+                let next = i
+                for (let step = 0; step < items.length; step++) {
+                  next = (next - 1 + items.length) % items.length
+                  if (!items[next].disabled) break
+                }
+                return next
+              })
+            } else if (e.key === 'Enter') {
+              e.preventDefault()
+              const item = items[activeIndex]
+              if (item) select(item)
+            }
+          }}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false)
+          }}
+        >
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              tabIndex={index === activeIndex ? 0 : -1}
+              autoFocus={index === activeIndex}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => select(item)}
+              className={cn(
+                'flex w-full items-center rounded-wobbly-sm px-2.5 py-1.5 text-left text-xs font-medium transition-colors duration-100',
+                item.danger
+                  ? 'text-accent'
+                  : 'text-muted',
+                index === activeIndex &&
+                  (item.danger
+                    ? 'bg-accent/10 text-accent'
+                    : 'bg-postit text-postit-ink'),
+                item.disabled && 'opacity-40 pointer-events-none',
+              )}
+            >
+              <span className="flex-1">{item.label}</span>
+              {item.checked && <Check size={13} aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

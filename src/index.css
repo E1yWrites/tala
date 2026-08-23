@@ -1,0 +1,497 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Notely design tokens — Hand-Drawn theme
+   Light: warm paper, soft pencil ink, red correction marker.
+   Dark:  night sketchbook — charcoal paper with chalk ink.
+   Colors are RGB channel triplets so Tailwind can apply alpha modifiers.
+--------------------------------------------------------------------------- */
+:root {
+  --c-canvas: 253 251 247;        /* #fdfbf7 warm paper       */
+  --c-panel: 255 255 255;         /* note cards / panels      */
+  --c-raise: 243 239 231;         /* hover wells, inputs      */
+  --c-overlay: 255 255 255;       /* modals / popovers        */
+  --c-line: 45 45 45;             /* pencil lead borders      */
+  --c-line-soft: 229 224 216;     /* erased pencil ruling     */
+  --c-ink: 45 45 45;              /* #2d2d2d soft pencil      */
+  --c-muted: 107 101 94;          /* pressed pencil           */
+  --c-faint: 156 150 140;         /* ghost pencil             */
+  --c-accent: 255 77 77;          /* #ff4d4d red marker       */
+  --c-accent-strong: 224 62 62;
+  --c-accent-soft: 255 235 235;   /* marker wash              */
+  --c-accent-fg: 255 255 255;
+  --c-postit: 255 249 196;        /* #fff9c4 post-it yellow   */
+  --c-postit-ink: 45 45 45;       /* text on post-its         */
+  --c-ballpoint: 45 93 161;       /* #2d5da1 blue pen         */
+  --c-ballpoint-soft: 228 237 250;
+
+  --paper-dot: 229 224 216;       /* notebook dot grid        */
+
+  /* Hard offset shadows — solid pencil in light mode */
+  --sketch-shadow-sm: 2px 2px 0 0 rgb(45 45 45);
+  --sketch-shadow: 4px 4px 0 0 rgb(45 45 45);
+  --sketch-shadow-lg: 8px 8px 0 0 rgb(45 45 45);
+
+  --editor-font-size: 15px;
+  --editor-line-height: 1.7;
+
+  color-scheme: light;
+}
+
+.dark {
+  --c-canvas: 30 29 27;           /* charcoal paper           */
+  --c-panel: 42 40 37;
+  --c-raise: 54 51 47;
+  --c-overlay: 46 44 41;
+  --c-line: 233 229 220;          /* chalk lines              */
+  --c-line-soft: 64 61 56;
+  --c-ink: 240 236 228;           /* chalk white ink          */
+  --c-muted: 194 188 177;
+  --c-faint: 138 132 122;
+  --c-accent: 255 105 105;
+  --c-accent-strong: 255 130 130;
+  --c-accent-soft: 82 48 48;
+  --c-accent-fg: 255 255 255;
+  --c-postit: 212 196 118;        /* lamp-lit mustard         */
+  --c-postit-ink: 32 30 26;
+  --c-ballpoint: 134 168 216;
+  --c-ballpoint-soft: 44 58 84;
+
+  --paper-dot: 56 53 48;
+
+  /* Moonlight lifts instead of solid offsets */
+  --sketch-shadow-sm: 2px 2px 0 0 rgb(245 240 230 / 0.10);
+  --sketch-shadow: 4px 4px 0 0 rgb(245 240 230 / 0.14);
+  --sketch-shadow-lg: 8px 8px 0 0 rgb(245 240 230 / 0.18);
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink;
+    background-image: radial-gradient(rgb(var(--paper-dot)) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  ::selection {
+    background: rgb(var(--c-accent) / 0.28);
+  }
+
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+
+  input,
+  textarea {
+    @apply bg-transparent placeholder:text-faint focus:outline-none;
+  }
+
+  /* Ballpoint-blue focus visibility for keyboard users */
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-ballpoint) / 0.8);
+    outline-offset: 2px;
+    border-radius: 8px 4px 9px 5px / 5px 9px 4px 8px;
+  }
+
+  /* Slim scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--c-line-soft)) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--c-line-soft));
+    border-radius: 8px 4px 8px 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Editor typography (Tiptap) — hybrid:
+   note bodies stay in Inter for long-form readability, but headings become
+   Kalam marker strokes and quotes read like ballpoint margin notes.
+--------------------------------------------------------------------------- */
+.tiptap {
+  outline: none;
+  caret-color: rgb(var(--c-accent));
+  font-family: '"Inter Variable"', Inter, system-ui, -apple-system, sans-serif;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  min-height: 100%;
+}
+
+.tiptap p {
+  margin: 0 0 8px;
+}
+.tiptap > *:last-child {
+  margin-bottom: 0;
+}
+
+.tiptap h1,
+.tiptap h2,
+.tiptap h3 {
+  font-family: Kalam, 'Patrick Hand', cursive;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 24px 0 8px;
+}
+.tiptap h1 { font-size: 1.8em; margin-top: 40px; }
+.tiptap h2 { font-size: 1.45em; margin-top: 32px; }
+.tiptap h3 { font-size: 1.22em; margin-top: 16px; }
+.tiptap h1:first-child,
+.tiptap h2:first-child,
+.tiptap h3:first-child {
+  margin-top: 0;
+}
+
+.tiptap ul,
+.tiptap ol {
+  padding-left: 20px;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tiptap li p { margin: 0; }
+.tiptap li > p { margin: 0; }
+.tiptap ul > li::marker { color: rgb(var(--c-accent) / 0.85); }
+.tiptap ol > li::marker { color: rgb(var(--c-ballpoint)); }
+.tiptap ul ul,
+.tiptap ol ol,
+.tiptap ul ol,
+.tiptap ol ul {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+/* Auto-columns — plain lists flow into balanced columns when the editor
+   pane is wide (container query on .editor-scroll), reducing vertical scroll.
+   Checklists keep a single column so checkbox rows stay aligned. */
+@container editor (min-width: 720px) {
+  .tiptap > ul:not([data-type='taskList']),
+  .tiptap > ol {
+    columns: 2;
+    column-gap: 40px;
+  }
+  .tiptap > ul:not([data-type='taskList']) > li,
+  .tiptap > ol > li {
+    break-inside: avoid;
+  }
+}
+
+/* Checklists */
+.tiptap ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.1em;
+}
+.tiptap ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+}
+.tiptap ul[data-type='taskList'] li > label {
+  flex: 0 0 auto;
+  margin-top: calc(0.28em);
+  user-select: none;
+}
+.tiptap ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tiptap ul[data-type='taskList'] input[type='checkbox'] {
+  appearance: none;
+  width: 1.05em;
+  height: 1.05em;
+  border: 2px solid rgb(var(--c-line));
+  border-radius: 5px 3px 6px 3px / 3px 6px 3px 5px;
+  background: rgb(var(--c-panel));
+  cursor: pointer;
+  transition: all 140ms ease;
+  position: relative;
+  vertical-align: middle;
+}
+.tiptap ul[data-type='taskList'] input[type='checkbox']:hover {
+  border-color: rgb(var(--c-accent));
+  transform: rotate(-3deg);
+}
+.tiptap ul[data-type='taskList'] input[type='checkbox']:checked {
+  background: rgb(var(--c-accent));
+  border-color: rgb(var(--c-accent));
+  transform: rotate(2deg);
+}
+.tiptap ul[data-type='taskList'] input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-7' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 78%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: rgb(var(--c-faint));
+  text-decoration: line-through;
+  text-decoration-color: rgb(var(--c-faint) / 0.6);
+}
+
+/* Code */
+.tiptap code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgb(var(--c-raise));
+  border: 1px solid rgb(var(--c-line-soft));
+  border-radius: 7px 3px 8px 4px / 4px 8px 3px 7px;
+  padding: 0.12em 0.36em;
+}
+.tiptap pre {
+  background: rgb(var(--c-raise));
+  border: 2px solid rgb(var(--c-line));
+  border-radius: 20px 8px 26px 10px / 10px 26px 8px 20px;
+  padding: 12px 16px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.6;
+}
+.tiptap pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Blockquote — a ballpoint margin note */
+.tiptap blockquote {
+  border-left: 3px dashed rgb(var(--c-ballpoint) / 0.65);
+  padding: 0 0 0 16px;
+  margin: 0 0 16px;
+  color: rgb(var(--c-ballpoint));
+  font-family: 'Patrick Hand', cursive;
+  font-size: 1.05em;
+}
+
+/* Links — ballpoint pen, wavy hand-drawn underline */
+.tiptap a {
+  color: rgb(var(--c-ballpoint));
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgb(var(--c-ballpoint) / 0.55);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+/* Images — taped-in snapshots */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 16px;
+  border: 2px solid rgb(var(--c-line));
+  border-radius: 18px 6px 22px 8px / 8px 22px 6px 18px;
+}
+.tiptap img.ProseMirror-selectednode {
+  outline: 3px solid rgb(var(--c-accent) / 0.8);
+  outline-offset: 2px;
+}
+
+/* Horizontal rule — scribbled divider */
+.tiptap hr {
+  border: none;
+  border-top: 2px dashed rgb(var(--c-faint) / 0.75);
+  margin: 24px 0;
+}
+.tiptap hr.ProseMirror-selectednode {
+  border-top-color: rgb(var(--c-accent));
+}
+
+/* Placeholder */
+.tiptap p.is-editor-empty:first-child::before,
+.tiptap h1.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: rgb(var(--c-faint));
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities
+--------------------------------------------------------------------------- */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 8px 4px 9px 4px / 4px 9px 4px 8px;
+  border: 1px solid rgb(var(--c-line));
+  background: rgb(var(--c-panel));
+  box-shadow: 1.5px 1.5px 0 0 rgb(var(--c-line));
+  font-family: inherit;
+  font-size: 11px;
+  color: rgb(var(--c-muted));
+}
+
+.skeleton {
+  border-radius: 35px 8px 45px 8px / 8px 45px 8px 35px;
+  background: rgb(var(--c-raise));
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Editor pane as a size container — content layout (auto-column lists,
+   reading grids) reacts to available width regardless of sidebar width. */
+.editor-scroll {
+  container: editor / inline-size;
+}
+
+/* Reading layout — smooth collapsible sections (grid-rows trick) */
+.rv-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 220ms ease;
+}
+.rv-collapse[data-closed='true'] {
+  grid-template-rows: 0fr;
+}
+.rv-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.theme-transition,
+.theme-transition * {
+  transition: background-color 200ms ease, border-color 200ms ease !important;
+}
+
+/* Active sidebar resize — pointer feedback + no accidental text selection */
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Washi-tape strip — position relative on the host element */
+.tape {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 88px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: rgb(120 114 104 / 0.30);
+  clip-path: polygon(3% 14%, 97% 0%, 100% 86%, 0% 100%);
+  pointer-events: none;
+}
+.dark .tape {
+  background: rgb(210 204 194 / 0.18);
+}
+
+/* ---------------------------------------------------------------------------
+   Handwriting (pen mode) layer
+--------------------------------------------------------------------------- */
+
+.ink-layer {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.ink-layer[data-active] {
+  pointer-events: auto;
+}
+
+.ink-layer svg {
+  display: block;
+  overflow: visible;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ink-tool-pen,
+.ink-tool-highlighter {
+  cursor: crosshair;
+}
+
+.ink-tool-select {
+  cursor: default;
+}
+
+/* The eraser ring replaces the system cursor */
+.ink-tool-eraser {
+  cursor: none;
+}
+
+/* Highlighter strokes: translucent, multiply so text shows through */
+.ink-hl-path {
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+}
+.dark .ink-hl-path {
+  mix-blend-mode: normal;
+  opacity: 0.4;
+}
+
+.ink-marquee {
+  fill: rgb(var(--c-ballpoint) / 0.06);
+  stroke: rgb(var(--c-ballpoint));
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.ink-selection {
+  fill: transparent;
+  stroke: rgb(var(--c-accent));
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.ink-handle {
+  fill: rgb(var(--c-overlay));
+  stroke: rgb(var(--c-accent));
+  stroke-width: 2;
+}
+
+.ink-cursor-ring {
+  fill: rgb(var(--c-accent) / 0.08);
+  stroke: rgb(var(--c-muted));
+  stroke-width: 1.25;
+}

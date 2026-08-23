@@ -1,0 +1,101 @@
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Check, Copy, Download } from 'lucide-react'
+import { useNoteStore } from '@/store/noteStore'
+import { useUIStore } from '@/store/uiStore'
+import {
+  noteToMarkdown,
+  noteToPlainText,
+  sanitizeFilename,
+  downloadTextFile,
+} from '@/utils/markdown'
+import { Modal } from '@/components/UI/Modal'
+import { Button } from '@/components/UI/Button'
+
+/** navigator.clipboard is unavailable on http:// origins — fall back gracefully. */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      ta.remove()
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
+/** Copy / download the current note as Markdown or plain text. */
+export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
+  const note = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
+  const closeAllModals = useUIStore((s) => s.closeAllModals)
+  const [copied, setCopied] = useState(false)
+
+  const markdown = useMemo(() => (note ? noteToMarkdown(note) : ''), [note])
+  const plain = useMemo(() => (note ? noteToPlainText(note) : ''), [note])
+
+  if (!note) {
+    return (
+      <Modal title="Share" onClose={closeAllModals} size="sm">
+        <p className="p-4 text-xs text-muted">This note no longer exists.</p>
+      </Modal>
+    )
+  }
+
+  async function handleCopy(): Promise<void> {
+    const ok = await copyText(markdown)
+    if (!ok) {
+      toast.error('Copy failed', { description: 'Use the .md download instead.' })
+      return
+    }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
+
+  const base = sanitizeFilename(note.title)
+
+  return (
+    <Modal
+      title="Share or export"
+      subtitle={note.title || 'Untitled'}
+      onClose={closeAllModals}
+      size="md"
+    >
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" size="sm" onClick={() => void handleCopy()}>
+          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          {copied ? 'Copied' : 'Copy Markdown'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => downloadTextFile(`${base}.md`, markdown, 'text/markdown')}
+        >
+          <Download className="size-3.5" />
+          .md file
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => downloadTextFile(`${base}.txt`, plain, 'text/plain')}
+        >
+          <Download className="size-3.5" />
+          .txt file
+        </Button>
+      </div>
+
+      <pre className="mt-3 max-h-[40vh] overflow-auto rounded-wobbly-md border-2 border-line bg-canvas p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
+        {markdown || '(empty note)'}
+      </pre>
+    </Modal>
+  )
+}

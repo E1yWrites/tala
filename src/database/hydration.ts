@@ -1,0 +1,52 @@
+import { db } from './db'
+import { noteRepository } from './repositories/noteRepository'
+import { folderRepository } from './repositories/folderRepository'
+import { tagRepository } from './repositories/tagRepository'
+import { settingsRepository } from './repositories/settingsRepository'
+import { useNoteStore } from '@/store/noteStore'
+import { useFolderStore } from '@/store/folderStore'
+import { useTagStore } from '@/store/tagStore'
+import { useSettingsStore, applyThemeToDom } from '@/store/settingsStore'
+import { seedDemoData } from '@/data/seed'
+
+/**
+ * Boots the app: loads everything from IndexedDB into the Zustand stores.
+ * On very first run (no settings row), seeds demo content first.
+ * Runs behind the splash screen — typically completes in well under 300ms.
+ * Memoized so React StrictMode's double-invoked effects can't double-seed.
+ */
+let bootPromise: Promise<void> | null = null
+
+export function bootApp(): Promise<void> {
+  bootPromise ??= doHydrate()
+  return bootPromise
+}
+
+async function doHydrate(): Promise<void> {
+  const storedSettings = await db.settings.get('app')
+  if (!storedSettings) {
+    try {
+      await seedDemoData()
+    } catch (err) {
+      console.error('[notely] seeding failed', err)
+    }
+  }
+
+  const [notes, folders, tags, settings] = await Promise.all([
+    noteRepository.all(),
+    folderRepository.all(),
+    tagRepository.all(),
+    settingsRepository.get(),
+  ])
+
+  useNoteStore.getState().hydrate(notes)
+  useFolderStore.getState().hydrate(folders)
+  useTagStore.getState().hydrate(tags)
+  applyThemeToDom(settings.theme)
+  useSettingsStore.setState({ settings })
+}
+
+/** Re-reads everything from IndexedDB into the stores (used after import/restore). */
+export async function hydrateAll(): Promise<void> {
+  await doHydrate()
+}
