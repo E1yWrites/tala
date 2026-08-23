@@ -359,6 +359,7 @@ export function Sidebar({
           {pendingFolderDelete !== null && (
             <ConfirmDialog
               open
+              standalone
               title={`Delete “${pendingFolderDelete.name}”?`}
               message={
                 pendingFolderDelete.count > 0

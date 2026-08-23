@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { KeyboardEventHandler, ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { useUIStore } from '@/store/uiStore'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -30,6 +31,12 @@ interface ModalProps {
   dismissable?: boolean
   /** Auto-focus the first focusable element on open (default true) */
   initialFocus?: boolean
+  /**
+   * Marks modals mounted outside the store stack (local confirm/link
+   * dialogs): they register in uiStore.localOverlays so global shortcuts
+   * stay suppressed, and handle their own Escape key.
+   */
+  standalone?: boolean
   /** Capture-phase key handling for arrow-key navigation (panel-scoped) */
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>
 }
@@ -51,10 +58,34 @@ export function Modal({
   align = 'center',
   dismissable = true,
   initialFocus = true,
+  standalone = false,
   onKeyDownCapture,
 }: ModalProps): ReactNode {
   const panelRef = useRef<HTMLDivElement>(null)
   const headingId = useId()
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
+  // Standalone overlays: register so global hotkeys back off, and close on Esc
+  useEffect(() => {
+    if (!standalone) return
+    const ui = useUIStore.getState()
+    ui.pushLocalOverlay()
+    // Capture phase so this wins over the global window handlers regardless
+    // of where focus currently sits.
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        onCloseRef.current()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      useUIStore.getState().popLocalOverlay()
+    }
+  }, [standalone])
 
   // Initial focus + focus trap
   useEffect(() => {

@@ -108,6 +108,12 @@ interface UIState {
   inkPrefs: InkPrefs
   /** Stack so Esc always closes the topmost modal. Entries carry stable ids. */
   modalStack: { id: number; intent: ModalIntent }[]
+  /**
+   * Count of standalone <Modal standalone> overlays mounted outside the store
+   * stack (local confirm dialogs, link dialog). They handle their own Escape;
+   * global shortcuts must treat them like stacked modals.
+   */
+  localOverlays: number
   searchQuery: string
   filterTagIds: string[]
   filterFavoritesOnly: boolean
@@ -125,6 +131,8 @@ interface UIState {
   openModal: (intent: ModalIntent) => void
   closeModal: () => void
   closeAllModals: () => void
+  pushLocalOverlay: () => void
+  popLocalOverlay: () => void
   setSearchQuery: (q: string) => void
   toggleFilterTag: (tagId: string) => void
   toggleFilterFavorites: () => void
@@ -145,6 +153,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   focusMode: false,
   inkPrefs: readInkPrefs(),
   modalStack: [],
+  localOverlays: 0,
   searchQuery: '',
   filterTagIds: [],
   filterFavoritesOnly: false,
@@ -225,6 +234,14 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   closeAllModals() {
     set({ modalStack: [] })
+  },
+
+  pushLocalOverlay() {
+    set((s) => ({ localOverlays: s.localOverlays + 1 }))
+  },
+
+  popLocalOverlay() {
+    set((s) => ({ localOverlays: Math.max(0, s.localOverlays - 1) }))
   },
 
   setSearchQuery(q) {

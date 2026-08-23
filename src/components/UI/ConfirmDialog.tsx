@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
   danger?: boolean
   onConfirm: () => void
   onCancel: () => void
+  /** Forwarded to Modal when the dialog lives outside the store stack */
+  standalone?: boolean
 }
 
 /** Destructive-action confirmation. */
@@ -23,10 +25,17 @@ export function ConfirmDialog({
   danger = true,
   onConfirm,
   onCancel,
+  standalone = false,
 }: ConfirmDialogProps): ReactNode {
   if (!open) return null
   return (
-    <Modal onClose={onCancel} ariaLabel={title} dismissable={false} className="max-w-sm">
+    <Modal
+      onClose={onCancel}
+      ariaLabel={title}
+      dismissable={false}
+      className="max-w-sm"
+      standalone={standalone}
+    >
       <div className="p-5">
         <h2 className="font-display text-xl leading-snug">{title}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted">{message}</p>

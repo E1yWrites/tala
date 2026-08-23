@@ -6,6 +6,7 @@ import { settingsRepository } from './repositories/settingsRepository'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
+import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore, applyThemeToDom } from '@/store/settingsStore'
 import { seedDemoData } from '@/data/seed'
 
@@ -44,6 +45,19 @@ async function doHydrate(): Promise<void> {
   useTagStore.getState().hydrate(tags)
   applyThemeToDom(settings.theme)
   useSettingsStore.setState({ settings })
+
+  // An import/restore can wipe the folder or tag the user is currently
+  // viewing — fall back to All Notes instead of lingering on a ghost view.
+  const view = useUIStore.getState().activeView
+  if (
+    (view.kind === 'folder' && !folders.some((f) => f.id === view.refId)) ||
+    (view.kind === 'tag' && !tags.some((t) => t.id === view.refId))
+  ) {
+    useUIStore.getState().setView({ kind: 'all' })
+    if (useUIStore.getState().selectedNoteId !== null) {
+      useUIStore.getState().selectNote(null)
+    }
+  }
 }
 
 /** Re-reads everything from IndexedDB into the stores (used after import/restore). */

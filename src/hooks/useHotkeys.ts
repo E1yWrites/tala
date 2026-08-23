@@ -36,11 +36,15 @@ export function useHotkeys(): void {
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       // ---- Escape chain -----------------------------------------------------
-      // Lower layers (drawer in AppShell, pen mode in NoteEditor, ink selection
-      // in InkLayer) each check the same stack and stay out of the way.
+      // Standalone overlays (local confirms, link dialog) close themselves via
+      // their own capture handler — stay out of the way. Lower layers (drawer
+      // in AppShell, pen mode in NoteEditor, ink selection in InkLayer) each
+      // check the same stack and stay out of the way.
       if (e.key === 'Escape' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const ui = useUIStore.getState()
-        if (ui.modalStack.length > 0) {
+        if (ui.localOverlays > 0) {
+          // handled by the overlay itself
+        } else if (ui.modalStack.length > 0) {
           e.preventDefault()
           ui.closeModal()
         } else if (ui.sidebarDrawerOpen) {
@@ -52,10 +56,12 @@ export function useHotkeys(): void {
       }
 
       const ui = useUIStore.getState()
+      const blocked =
+        ui.localOverlays > 0 || ui.modalStack.length > 0
 
       // ---- '/' focuses the list search when not typing ----------------------
       if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (!isTypingTarget(e.target) && ui.modalStack.length === 0) {
+        if (!isTypingTarget(e.target) && !blocked) {
           e.preventDefault()
           window.dispatchEvent(new CustomEvent(FOCUS_SEARCH_EVENT))
         }
@@ -65,7 +71,7 @@ export function useHotkeys(): void {
       // ---- Alt+N — new note picker ------------------------------------------
       // (Ctrl+N is reserved by some browsers, e.g. Chrome on Windows)
       if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
-        if (isTypingTarget(e.target) || ui.modalStack.length > 0) return
+        if (isTypingTarget(e.target) || blocked) return
         e.preventDefault()
         ui.openModal({ kind: 'new-note' })
         return
@@ -77,13 +83,13 @@ export function useHotkeys(): void {
       // Plain-mod combos
       switch (e.key.toLowerCase()) {
         case 'n': {
-          if (ui.modalStack.length > 0) return
+          if (blocked) return
           e.preventDefault()
           ui.openModal({ kind: 'new-note' })
           return
         }
         case 'k': {
-          if (ui.modalStack.length > 0) return
+          if (blocked) return
           e.preventDefault()
           ui.openModal({ kind: 'search' })
           return
@@ -95,7 +101,7 @@ export function useHotkeys(): void {
           return
         }
         case ',': {
-          if (ui.modalStack.length > 0) return
+          if (blocked) return
           e.preventDefault()
           ui.setView({ kind: 'settings' })
           return
@@ -106,13 +112,13 @@ export function useHotkeys(): void {
       if (!e.shiftKey) return
       switch (e.key.toLowerCase()) {
         case 'f': {
-          if (ui.modalStack.length > 0) return
+          if (blocked) return
           e.preventDefault()
           ui.openModal({ kind: 'search' })
           return
         }
         case 'p': {
-          if (ui.modalStack.length > 0) return
+          if (blocked) return
           e.preventDefault()
           ui.openModal({ kind: 'palette' })
           return

@@ -163,7 +163,7 @@ function LinkDialog({
   }
 
   return (
-    <Modal onClose={onClose} ariaLabel="Edit link" className="max-w-sm">
+    <Modal onClose={onClose} ariaLabel="Edit link" className="max-w-sm" standalone>
       <form
         className="p-5"
         onSubmit={(e) => {

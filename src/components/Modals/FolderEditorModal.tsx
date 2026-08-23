@@ -85,6 +85,7 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
     return (
       <ConfirmDialog
         open
+        standalone
         title={`Delete “${existing.name}”?`}
         message={
           count > 0
