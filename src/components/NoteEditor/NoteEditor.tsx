@@ -522,6 +522,17 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         className="editor-scroll min-h-0 flex-1 overflow-y-auto"
         onPaste={onPasteOrDrop}
         onDrop={onPasteOrDrop}
+        onClick={(e) => {
+          // tiptap renders links inert (openOnClick:false) — give them a way
+          // out of the app. In Tauri this later swaps for the shell-open API.
+          const anchor = (e.target as HTMLElement).closest?.('a[href]')
+          if (!anchor) return
+          e.preventDefault()
+          const href = anchor.getAttribute('href') ?? ''
+          if (/^(https?:|mailto:)/i.test(href)) {
+            window.open(href, '_blank', 'noopener,noreferrer')
+          }
+        }}
       >
         <div
           className="relative mx-auto w-full max-w-[720px] px-6 pb-24 pt-6 md:px-10"

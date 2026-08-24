@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "description": "Capture ideas. Keep moving.",
+  "author": "e1yu",
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "vite",

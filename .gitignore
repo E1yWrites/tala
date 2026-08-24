@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 npm-debug.log*
 .vite
+
+# Tauri (added when the desktop shell lands)
+src-tauri/target
+src-tauri/gen/schemas

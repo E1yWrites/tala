@@ -4,6 +4,9 @@ import path from 'node:path'
 
 export default defineConfig({
   plugins: [react()],
+  // Relative asset URLs so the built app works from file://, tauri:// and
+  // any sub-path deployment alike (Notely uses no URL routing).
+  base: './',
   resolve: {
     alias: [
       // Route every lucide-react import through the doodle-icon shim so
