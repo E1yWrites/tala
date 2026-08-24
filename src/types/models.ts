@@ -63,8 +63,6 @@ export interface AppSettings {
   viewDensity: ViewDensity
   sortKey: SortKey
   profile: Profile
-  /** Timestamp of demo-content seeding; null = user started fresh */
-  seededAt: number | null
 }
 
 /* ---------------------------------- Views --------------------------------- */

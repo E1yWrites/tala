@@ -109,7 +109,6 @@ function sanitizeSettings(raw: unknown): AppSettings | null {
       : s.viewDensity,
     sortKey: sortKeys.includes(raw.sortKey as string) ? (raw.sortKey as AppSettings['sortKey']) : s.sortKey,
     profile,
-    seededAt: typeof raw.seededAt === 'number' ? raw.seededAt : s.seededAt,
   }
 }
 

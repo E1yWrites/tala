@@ -10,10 +10,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   viewDensity: 'comfortable',
   sortKey: 'updated-desc',
   profile: {
-    name: 'Lorenz Lanz Malabanan',
-    role: 'Student',
+    name: '',
+    role: '',
   },
-  seededAt: null,
 }
 
 /**

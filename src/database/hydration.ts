@@ -1,4 +1,3 @@
-import { db } from './db'
 import { noteRepository } from './repositories/noteRepository'
 import { folderRepository } from './repositories/folderRepository'
 import { tagRepository } from './repositories/tagRepository'
@@ -8,13 +7,11 @@ import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore, applyThemeToDom } from '@/store/settingsStore'
-import { seedDemoData } from '@/data/seed'
 
 /**
  * Boots the app: loads everything from IndexedDB into the Zustand stores.
- * On very first run (no settings row), seeds demo content first.
  * Runs behind the splash screen — typically completes in well under 300ms.
- * Memoized so React StrictMode's double-invoked effects can't double-seed.
+ * Memoized so React StrictMode's double-invoked effects can't double-run.
  */
 let bootPromise: Promise<void> | null = null
 
@@ -24,15 +21,6 @@ export function bootApp(): Promise<void> {
 }
 
 async function doHydrate(): Promise<void> {
-  const storedSettings = await db.settings.get('app')
-  if (!storedSettings) {
-    try {
-      await seedDemoData()
-    } catch (err) {
-      console.error('[notely] seeding failed', err)
-    }
-  }
-
   const [notes, folders, tags, settings] = await Promise.all([
     noteRepository.all(),
     folderRepository.all(),
