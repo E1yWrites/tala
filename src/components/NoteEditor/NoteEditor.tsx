@@ -156,18 +156,27 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   /* ------------------------------ Autosave core --------------------------- */
 
+  type FlushResult = 'saved' | 'nothing' | 'dropped'
+
   const flush = useCallback(
-    async (opts?: { silent?: boolean }): Promise<void> => {
+    async (opts?: { silent?: boolean }): Promise<FlushResult> => {
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current)
         timerRef.current = null
       }
       const patch = pendingRef.current
-      if (!note || Object.keys(patch).length === 0 || note.isDeleted) {
-        // Refused (e.g. note is in the trash) — drop the edits, they can never save
+      const hadPending = Object.keys(patch).length > 0
+      // A permanently deleted note can never save — discard honestly.
+      // A *trashed* note still exists, though: keep edits made before the
+      // trash so restoring it brings the user's words back.
+      if (!note) {
         pendingRef.current = {}
         setStatus('idle')
-        return
+        return hadPending ? 'dropped' : 'nothing'
+      }
+      if (!hadPending) {
+        setStatus('idle')
+        return 'nothing'
       }
       pendingRef.current = {}
       setStatus('saving')
@@ -183,6 +192,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         } else {
           setStatus('saved')
         }
+        return 'saved'
       } finally {
         if (opts?.silent && Object.keys(pendingRef.current).length === 0) setStatus('idle')
       }
@@ -214,7 +224,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   // Ctrl+S force save (event dispatched by global hotkeys)
   useEffect(() => {
     const onSave = (): void => {
-      void flush().then(() => toast.success('Saved'))
+      void flush().then((result) => {
+        if (result === 'dropped') {
+          toast.error('That note was deleted — unsaved changes could not be kept')
+        } else {
+          toast.success('Saved')
+        }
+      })
     }
     window.addEventListener('notely:force-save', onSave)
     return () => window.removeEventListener('notely:force-save', onSave)
@@ -487,8 +503,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   message: `“${note.title.trim() || 'Untitled'}” will be permanently deleted.`,
                   confirmLabel: 'Delete forever',
                   onConfirm: () => {
-                    void deleteForeverAndPrune([note.id]).then(() => {
-                      toast.success('Note deleted forever')
+                    void deleteForeverAndPrune([note.id]).then((ok) => {
+                      if (ok) toast.success('Note deleted forever')
                     })
                   },
                 })

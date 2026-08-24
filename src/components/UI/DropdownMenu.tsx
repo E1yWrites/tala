@@ -88,6 +88,14 @@ export function DropdownMenu({
       {trigger({
         onClick: () => setOpen((o) => !o),
         onKeyDown: (e) => {
+          // Mouse users leave focus on the trigger; Escape must close only
+          // the menu here instead of bubbling up to a host modal.
+          if (open && e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            setOpen(false)
+            return
+          }
           if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
             if (!open) {
               e.preventDefault()

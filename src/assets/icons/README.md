@@ -11,8 +11,15 @@ light/            ← artwork for light mode
 dark/             ← artwork for dark mode (_dark suffix)
   app_star_dark.png
 notely_set_N.png          ← small brand mark (sidebar button)
-notely_set_full.png       ← full logo (splash screen)
-notely_set_icon.png       ← standalone app icon (favicon / PWA)
+```
+
+Brand marks that are NOT icon slots live in `src/assets/brand/` so the icon
+globber doesn't bundle them twice:
+
+```
+src/assets/brand/
+  notely_set_full.png       ← full logo (splash screen → public/brand-full-light.png)
+  notely_set_icon.png       ← standalone app icon (favicon / PWA → public/app-icon.png)
 ```
 
 The `light/` and `dark/` folders drive theme variants; files at the root of
@@ -53,8 +60,8 @@ slot they cover (edit `SLOT_ALIASES` in `src/lib/lucideShim.tsx` to change):
 Brand assets (wired in code, not slots):
 
 - `notely_set_N(.png / _dark.png)` → sidebar brand button (`Sidebar.tsx`)
-- `notely_set_full(.png / _dark.png)` → boot splash logo (`public/brand-full-*.png`)
-- `notely_set_icon.png` → favicon + apple-touch-icon + PWA icon (`public/app-icon.png`)
+- `src/assets/brand/notely_set_full(.png / _dark.png)` → boot splash logo (`public/brand-full-light.png`)
+- `src/assets/brand/notely_set_icon(.png / _dark.png)` → favicon + apple-touch-icon + PWA icon (`public/app-icon.png`)
 
 ## Light & dark variants
 

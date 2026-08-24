@@ -139,6 +139,17 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return () => ro.disconnect()
   }, [active])
 
+  // A pending draw frame must not fire after unmount/deactivation.
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    },
+    [],
+  )
+
   /** Transient doc so the SVG can render before the first stroke persists one. */
   const displayDoc =
     effDoc ??

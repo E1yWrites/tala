@@ -27,10 +27,22 @@ export function confirmAction(payload: {
  * Deletes notes permanently and then prunes tags left with zero references,
  * so the sidebar never accumulates ghost tags. All destructive callers
  * (list menu, trash banner, empty-trash) go through here.
+ *
+ * Resolves `false` when the delete failed (the store already restored the
+ * rows and showed an error toast) so callers never celebrate a failure.
  */
-export async function deleteForeverAndPrune(ids: string[]): Promise<void> {
+export async function deleteForeverAndPrune(ids: string[]): Promise<boolean> {
   await useNoteStore.getState().deleteForever(ids)
-  await useTagStore.getState().pruneUnused()
+  const gone = useNoteStore
+    .getState()
+    .notes.every((n) => !ids.includes(n.id))
+  if (!gone) return false
+  try {
+    await useTagStore.getState().pruneUnused()
+  } catch (err) {
+    console.error('[notely] tag prune failed', err)
+  }
+  return true
 }
 
 /**
@@ -63,8 +75,8 @@ export function buildNoteMenu(note: Note, ctx: NoteActionContext): MenuItem[] {
             message: `“${displayTitle(note)}” will be permanently deleted. This cannot be undone.`,
             confirmLabel: 'Delete forever',
             onConfirm: () => {
-              void deleteForeverAndPrune([note.id]).then(() => {
-                toast.success('Note deleted forever')
+              void deleteForeverAndPrune([note.id]).then((ok) => {
+                if (ok) toast.success('Note deleted forever')
               })
             },
           }),

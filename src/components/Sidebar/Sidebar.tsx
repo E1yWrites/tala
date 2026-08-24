@@ -22,7 +22,7 @@ import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
-import { useSettingsStore, resolveDark } from '@/store/settingsStore'
+import { useSettingsStore, useSystemDark } from '@/store/settingsStore'
 import type { ThemeMode, ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../UI/Tooltip'
@@ -71,6 +71,7 @@ export function Sidebar({
   } | null>(null)
   const settings = useSettingsStore((s) => s.settings)
   const setTheme = useSettingsStore((s) => s.setTheme)
+  const systemDark = useSystemDark()
 
   const isCollapsed = collapsed && variant === 'dock'
 
@@ -129,7 +130,7 @@ export function Sidebar({
 
   const themeLabel =
     settings.theme === 'system'
-      ? `System (${resolveDark('system') ? 'dark' : 'light'})`
+      ? `System (${systemDark ? 'dark' : 'light'})`
       : settings.theme === 'dark'
         ? 'Dark mode'
         : 'Light mode'

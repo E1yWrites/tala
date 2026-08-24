@@ -106,7 +106,26 @@ function indexInto(
   }
 }
 
-for (const [path, raw] of Object.entries(rawSvgs)) indexInto(svgIndex, path, raw)
+/**
+ * Defense-in-depth: doodle packs are local assets, but a future icon set is
+ * still untrusted input that gets inlined. Strip scripts, event handlers,
+ * foreign objects and non-fragment URLs before anything reaches innerHTML.
+ */
+function sanitizeDoodleSvg(raw: string): string {
+  return raw
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(
+      /\s(?:xlink:href|href)\s*=\s*(["'][^"']*["']|[^\s>]+)/gi,
+      (m, url: string) => (/^(["'])#[\w-]+\1$/.test(url.trim()) ? m : ''),
+    )
+    .replace(/javascript:/gi, '')
+}
+
+for (const [path, raw] of Object.entries(rawSvgs)) {
+  indexInto(svgIndex, path, sanitizeDoodleSvg(raw))
+}
 for (const [path, url] of Object.entries(rasterUrls)) indexInto(rasterIndex, path, url)
 
 /**

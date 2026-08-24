@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useSyncExternalStore } from 'react'
 import { settingsRepository } from '@/database/repositories/settingsRepository'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import type { AppSettings, ThemeMode } from '@/types/models'
@@ -9,10 +10,26 @@ interface SettingsState {
   setTheme: (mode: ThemeMode) => void
 }
 
+const systemDarkQuery =
+  typeof window !== 'undefined'
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null
+
 export function resolveDark(mode: ThemeMode): boolean {
   if (mode === 'dark') return true
   if (mode === 'light') return false
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
+  return systemDarkQuery?.matches ?? false
+}
+
+/** Reactively tracks the OS theme so "System (…)" labels never go stale. */
+export function useSystemDark(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      systemDarkQuery?.addEventListener('change', onChange)
+      return () => systemDarkQuery?.removeEventListener('change', onChange)
+    },
+    () => systemDarkQuery?.matches ?? false,
+  )
 }
 
 /** Applies the theme class to <html> and caches the preference for the splash script. */
@@ -30,12 +47,15 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
   /** Optimistic settings update with persistence. Theme changes apply to the DOM. */
   update(patch) {
-    const next = { ...get().settings, ...patch }
+    const prev = get().settings
+    const next = { ...prev, ...patch }
     if (patch.theme) applyThemeToDom(patch.theme)
     set({ settings: next })
     void settingsRepository.put(next).catch((err) => {
       console.error('[notely] failed to persist settings', err)
-      set({ settings: get().settings })
+      // Roll back the optimistic value (and DOM theme) to what was there before
+      if (patch.theme && prev.theme !== next.theme) applyThemeToDom(prev.theme)
+      set({ settings: prev })
     })
   },
 

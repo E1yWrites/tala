@@ -89,7 +89,8 @@ export function NoteRow({
       aria-current={selected ? 'true' : undefined}
       onClick={onSelect}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') {
+        if (e.target !== e.currentTarget) return // nested buttons handle their own keys
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onSelect()
         }
@@ -185,7 +186,8 @@ export function NoteGridCard({
       aria-current={selected ? 'true' : undefined}
       onClick={onSelect}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') {
+        if (e.target !== e.currentTarget) return // nested buttons handle their own keys
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onSelect()
         }

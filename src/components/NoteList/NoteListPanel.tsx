@@ -380,8 +380,8 @@ export function NoteListPanel({
                     .getState()
                     .notes.filter((n) => n.isDeleted)
                     .map((n) => n.id)
-                  void deleteForeverAndPrune(ids).then(() => {
-                    toast.success('Trash emptied')
+                  void deleteForeverAndPrune(ids).then((ok) => {
+                    if (ok) toast.success('Trash emptied')
                   })
                 },
               })

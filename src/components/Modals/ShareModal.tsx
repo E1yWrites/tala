@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Check, Copy, Download } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
@@ -25,9 +25,9 @@ async function copyText(text: string): Promise<boolean> {
       ta.style.opacity = '0'
       document.body.appendChild(ta)
       ta.select()
-      document.execCommand('copy')
+      const ok = document.execCommand('copy')
       ta.remove()
-      return true
+      return ok
     } catch {
       return false
     }
@@ -39,6 +39,10 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
   const note = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<number>(undefined)
+
+  // Clear the "Copied" flip-back timer when the modal unmounts
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), [])
 
   const markdown = useMemo(() => (note ? noteToMarkdown(note) : ''), [note])
   const plain = useMemo(() => (note ? noteToPlainText(note) : ''), [note])
@@ -58,7 +62,8 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
       return
     }
     setCopied(true)
-    window.setTimeout(() => setCopied(false), 1600)
+    window.clearTimeout(copiedTimer.current)
+    copiedTimer.current = window.setTimeout(() => setCopied(false), 1600)
   }
 
   const base = sanitizeFilename(note.title)
