@@ -1,6 +1,5 @@
 # Notely
-
-<img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/5fe9a8b6-55b8-41e1-aff1-858a3faf58b0" />
+<img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/c1371364-4f2c-45da-affe-4d1784cee5f5" />
 
 **Capture ideas. Keep moving.**
 
