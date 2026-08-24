@@ -1,0 +1,306 @@
+{
+  "app_archive": {
+    "file": "src/assets/icons/light/app_archive.png",
+    "l": 0.155,
+    "t": 0.17,
+    "r": 0.675,
+    "b": 0.8,
+    "clusters": 0
+  },
+  "app_check": {
+    "file": "src/assets/icons/light/app_check.png",
+    "l": 0.185,
+    "t": 0.165,
+    "r": 0.625,
+    "b": 0.8,
+    "clusters": 0
+  },
+  "app_edit": {
+    "file": "src/assets/icons/light/app_edit.png",
+    "l": 0.31,
+    "t": 0.085,
+    "r": 0.505,
+    "b": 0.93,
+    "clusters": 0
+  },
+  "app_folder": {
+    "file": "src/assets/icons/light/app_folder.png",
+    "l": 0.12,
+    "t": 0.17,
+    "r": 0.7,
+    "b": 0.8,
+    "clusters": 0
+  },
+  "app_new": {
+    "file": "src/assets/icons/light/app_new.png",
+    "l": 0.155,
+    "t": 0.135,
+    "r": 0.565,
+    "b": 0.8,
+    "clusters": 0
+  },
+  "app_note": {
+    "file": "src/assets/icons/light/app_note.png",
+    "l": 0.245,
+    "t": 0.185,
+    "r": 0.905,
+    "b": 0.805,
+    "clusters": 0
+  },
+  "app_pin": {
+    "file": "src/assets/icons/light/app_pin.png",
+    "l": 0.175,
+    "t": 0.16,
+    "r": 0.7,
+    "b": 0.845,
+    "clusters": 0
+  },
+  "app_recent": {
+    "file": "src/assets/icons/light/app_recent.png",
+    "l": 0.145,
+    "t": 0.17,
+    "r": 0.705,
+    "b": 0.78,
+    "clusters": 0
+  },
+  "app_search": {
+    "file": "src/assets/icons/light/app_search.png",
+    "l": 0.15,
+    "t": 0.165,
+    "r": 0.625,
+    "b": 0.86,
+    "clusters": 0
+  },
+  "app_star": {
+    "file": "src/assets/icons/light/app_star.png",
+    "l": 0.105,
+    "t": 0.095,
+    "r": 0.735,
+    "b": 0.88,
+    "clusters": 0
+  },
+  "app_trash": {
+    "file": "src/assets/icons/light/app_trash.png",
+    "l": 0.185,
+    "t": 0.16,
+    "r": 0.75,
+    "b": 0.835,
+    "clusters": 0
+  },
+  "notely_set_n": {
+    "file": "src/assets/icons/light/notely_set_N.png",
+    "l": 0.155,
+    "t": 0.165,
+    "r": 0.565,
+    "b": 0.835,
+    "clusters": 0
+  },
+  "back": {
+    "file": "src/assets/icons/light/back.png",
+    "l": 0.155,
+    "t": 0.31,
+    "r": 0.585,
+    "b": 0.66,
+    "clusters": 0
+  },
+  "desktop_setting": {
+    "file": "src/assets/icons/light/desktop_setting.png",
+    "l": 0.195,
+    "t": 0.235,
+    "r": 0.635,
+    "b": 0.735,
+    "clusters": 0
+  },
+  "dropdown": {
+    "file": "src/assets/icons/light/dropdown.png",
+    "l": 0.295,
+    "t": 0.33,
+    "r": 0.6,
+    "b": 0.665,
+    "clusters": 0
+  },
+  "expand": {
+    "file": "src/assets/icons/light/expand.png",
+    "l": 0.22,
+    "t": 0.27,
+    "r": 0.505,
+    "b": 0.715,
+    "clusters": 0
+  },
+  "filled_desktop_setting": {
+    "file": "src/assets/icons/light/filled_desktop_setting.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "filled_filter": {
+    "file": "src/assets/icons/light/filled_filter.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "filled_info": {
+    "file": "src/assets/icons/light/filled_info.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "filled_night_halfmoon": {
+    "file": "src/assets/icons/light/filled_night_halfmoon.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 3
+  },
+  "filled_pin": {
+    "file": "src/assets/icons/light/filled_pin.png",
+    "l": 0.085,
+    "t": 0.065,
+    "r": 0.7,
+    "b": 0.925,
+    "clusters": 0
+  },
+  "filled_reading_layout": {
+    "file": "src/assets/icons/light/filled_reading_layout.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "filled_saved": {
+    "file": "src/assets/icons/light/filled_saved.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "filled_sort": {
+    "file": "src/assets/icons/light/filled_sort.png",
+    "l": 0.085,
+    "t": 0.065,
+    "r": 0.7,
+    "b": 0.925,
+    "clusters": 0
+  },
+  "filled_star": {
+    "file": "src/assets/icons/light/filled_star.png",
+    "l": 0.085,
+    "t": 0.065,
+    "r": 0.7,
+    "b": 0.925,
+    "clusters": 0
+  },
+  "filled_trash": {
+    "file": "src/assets/icons/light/filled_trash.png",
+    "l": 0.0781,
+    "t": 0.0781,
+    "r": 0.9229,
+    "b": 0.9229,
+    "clusters": 1
+  },
+  "gear": {
+    "file": "src/assets/icons/light/gear.png",
+    "l": 0.29,
+    "t": 0.29,
+    "r": 0.72,
+    "b": 0.71,
+    "clusters": 0
+  },
+  "night_halfmoon": {
+    "file": "src/assets/icons/light/night_halfmoon.png",
+    "l": 0.175,
+    "t": 0.2,
+    "r": 0.68,
+    "b": 0.78,
+    "clusters": 0
+  },
+  "panel": {
+    "file": "src/assets/icons/light/panel.png",
+    "l": 0.205,
+    "t": 0.335,
+    "r": 0.375,
+    "b": 0.625,
+    "clusters": 0
+  },
+  "reading_layout": {
+    "file": "src/assets/icons/light/reading_layout.png",
+    "l": 0.15,
+    "t": 0.23,
+    "r": 0.575,
+    "b": 0.74,
+    "clusters": 0
+  },
+  "saved_check": {
+    "file": "src/assets/icons/light/saved_check.png",
+    "l": 0.125,
+    "t": 0.36,
+    "r": 0.52,
+    "b": 0.82,
+    "clusters": 0
+  },
+  "share": {
+    "file": "src/assets/icons/light/share.png",
+    "l": 0.3096,
+    "t": 0.2881,
+    "r": 0.6895,
+    "b": 0.7109,
+    "clusters": 1
+  },
+  "sun": {
+    "file": "src/assets/icons/light/sun.png",
+    "l": 0.29,
+    "t": 0.285,
+    "r": 0.775,
+    "b": 0.715,
+    "clusters": 0
+  },
+  "ui_check": {
+    "file": "src/assets/icons/light/ui_check.png",
+    "l": 0.155,
+    "t": 0.165,
+    "r": 0.625,
+    "b": 0.8,
+    "clusters": 0
+  },
+  "ui_filter": {
+    "file": "src/assets/icons/light/ui_filter.png",
+    "l": 0.15,
+    "t": 0.16,
+    "r": 0.645,
+    "b": 0.835,
+    "clusters": 0
+  },
+  "ui_info": {
+    "file": "src/assets/icons/light/ui_info.png",
+    "l": 0.195,
+    "t": 0.235,
+    "r": 0.565,
+    "b": 0.74,
+    "clusters": 0
+  },
+  "ui_sort": {
+    "file": "src/assets/icons/light/ui_sort.png",
+    "l": 0.105,
+    "t": 0.16,
+    "r": 0.59,
+    "b": 0.835,
+    "clusters": 0
+  },
+  "ui_star": {
+    "file": "src/assets/icons/light/ui_star.png",
+    "l": 0.165,
+    "t": 0.2,
+    "r": 0.575,
+    "b": 0.775,
+    "clusters": 0
+  }
+}
