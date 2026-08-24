@@ -1,5 +1,7 @@
 # Notely
 
+<img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/5fe9a8b6-55b8-41e1-aff1-858a3faf58b0" />
+
 **Capture ideas. Keep moving.**
 
 A fast, local-first note-taking app for students and makers. No account, no server,
