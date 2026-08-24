@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import {
   SIDEBAR_DEFAULT_WIDTH,
@@ -25,6 +25,18 @@ export function SidebarResizeHandle(): React.ReactNode {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
 
   const dragRef = useRef<{ startX: number; startWidth: number; collapsed: boolean } | null>(null)
+
+  // If we unmount mid-drag (focus-mode toggle, breakpoint crossing), the
+  // global drag styling and store flag must not stick around forever.
+  useEffect(
+    () => () => {
+      if (dragRef.current === null) return
+      dragRef.current = null
+      useUIStore.getState().setSidebarResizing(false)
+      document.body.classList.remove('sidebar-resizing')
+    },
+    [],
+  )
 
   const onPointerDown = useCallback(
     (e: PointerEvent<HTMLDivElement>): void => {

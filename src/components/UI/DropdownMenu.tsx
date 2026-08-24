@@ -55,16 +55,19 @@ export function DropdownMenu({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [open])
 
-  // Flip upward when the menu would overflow the bottom of the viewport
+  // Flip upward when the menu would overflow the bottom of the viewport.
+  // On mobile layouts a fixed bottom nav overlays ~64px of that space, so
+  // menus near it must flip even though they technically fit.
   useLayoutEffect(() => {
     if (!open) return
     const root = rootRef.current
     if (!root) return
     const rect = root.getBoundingClientRect()
     const estimatedHeight = items.length * 30 + 16
+    const bottomNav = window.innerWidth < 1024 ? 64 : 0
     setFlipped(
       side === 'bottom' &&
-        rect.bottom + estimatedHeight > window.innerHeight &&
+        rect.bottom + estimatedHeight > window.innerHeight - bottomNav &&
         rect.top > estimatedHeight,
     )
   }, [open, items.length, side])
@@ -101,7 +104,7 @@ export function DropdownMenu({
           role="menu"
           aria-orientation="vertical"
           className={cn(
-            'absolute z-30 min-w-[180px] rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
+            'absolute z-50 min-w-[180px] rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
             align === 'end' ? 'right-0' : 'left-0',
             side === 'top' || flipped
               ? 'bottom-[calc(100%+4px)]'

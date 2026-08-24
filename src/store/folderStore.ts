@@ -19,7 +19,7 @@ interface FolderState {
    * Deletes a folder; its live notes move back to the root (folderId = null).
    * Trashed notes keep their folderId so restoring returns them home.
    */
-  deleteFolder: (id: string) => Promise<void>
+  deleteFolder: (id: string) => Promise<boolean>
 }
 
 async function persist(folder: Folder): Promise<boolean> {
@@ -91,7 +91,7 @@ export const useFolderStore = create<FolderState>()((set, get) => ({
   async deleteFolder(id) {
     const prevFolders = get().folders
     const target = prevFolders.find((f) => f.id === id)
-    if (!target) return
+    if (!target) return false
 
     set((s) => ({ folders: s.folders.filter((f) => f.id !== id) }))
     try {
@@ -99,10 +99,9 @@ export const useFolderStore = create<FolderState>()((set, get) => ({
       // restore puts them back where they came from. One Dexie transaction
       // keeps disk state atomic.
       await db.transaction('rw', db.notes, db.folders, async () => {
-        const notesInFolder = await noteRepository.all()
-        const moved = notesInFolder.filter(
-          (n) => n.folderId === id && !n.isDeleted && n.folderId !== null,
-        )
+        // Index lookup instead of a full table scan (notes carry ink blobs)
+        const notesInFolder = await db.notes.where('folderId').equals(id).toArray()
+        const moved = notesInFolder.filter((n) => !n.isDeleted)
         if (moved.length > 0) {
           await noteRepository.bulkPut(moved.map((n) => ({ ...n, folderId: null })))
         }
@@ -125,7 +124,9 @@ export const useFolderStore = create<FolderState>()((set, get) => ({
       console.error('[notely] failed to delete folder', err)
       set({ folders: prevFolders })
       toast.error('Could not delete folder')
+      return false
     }
+    return true
   },
 }))
 

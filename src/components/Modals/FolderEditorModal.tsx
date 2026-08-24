@@ -19,6 +19,8 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
   const existing: Folder | undefined = folders.find((f) => f.id === folderId)
   const [name, setName] = useState(existing?.name ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
+  // SubmitEvent carries no isComposing — track IME state on the input itself
+  const composingRef = useRef(false)
 
   useEffect(() => {
     if (existing) return
@@ -49,7 +51,13 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
         toast.success('Folder renamed')
       }
     } else {
-      await createFolder(trimmed)
+      const duplicate = folders.some((f) => f.name.toLowerCase() === trimmed.toLowerCase())
+      if (duplicate) {
+        toast.info(`Folder “${trimmed}” already exists`)
+        return
+      }
+      const created = await createFolder(trimmed)
+      if (!created) return
       toast.success(`Folder “${trimmed}” created`)
     }
     closeAllModals()
@@ -70,7 +78,8 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
 
   async function performRemove(): Promise<void> {
     if (!existing) return
-    await deleteFolder(existing.id)
+    const ok = await deleteFolder(existing.id)
+    if (!ok) return // failure — error toast already shown by the store
     toast.success(`Folder “${existing.name}” deleted`, {
       description:
         pendingCountRef.current > 0
@@ -108,6 +117,7 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
       <form
         onSubmit={(e) => {
           e.preventDefault()
+          if (composingRef.current) return
           void submit()
         }}
       >
@@ -115,6 +125,12 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
           ref={inputRef}
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onCompositionStart={() => {
+            composingRef.current = true
+          }}
+          onCompositionEnd={() => {
+            composingRef.current = false
+          }}
           placeholder="Folder name"
           aria-label="Folder name"
           maxLength={40}

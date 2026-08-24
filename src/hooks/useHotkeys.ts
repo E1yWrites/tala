@@ -69,8 +69,9 @@ export function useHotkeys(): void {
       }
 
       // ---- Alt+N — new note picker ------------------------------------------
-      // (Ctrl+N is reserved by some browsers, e.g. Chrome on Windows)
-      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
+      // (Ctrl+N is reserved by some browsers; e.code survives macOS dead keys
+      // and non-US layouts where Option+N produces 'ñ' instead of 'n')
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyN') {
         if (isTypingTarget(e.target) || blocked) return
         e.preventDefault()
         ui.openModal({ kind: 'new-note' })

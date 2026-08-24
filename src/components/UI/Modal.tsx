@@ -102,7 +102,10 @@ export function Modal({
         return
       }
       const first = panel.querySelector<HTMLElement>(FOCUSABLE)
-      ;(first ?? panel).focus()
+      // Never land on the header's ✕ — pressing Enter would instantly close
+      // the dialog. Fall back to the panel itself instead.
+      const safe = first?.getAttribute('aria-label') === 'Close dialog' ? null : first
+      ;(safe ?? panel).focus()
     }, 0)
 
     const onKeyDown = (e: KeyboardEvent): void => {

@@ -1,4 +1,5 @@
 import type { AppSettings, Folder, Note, Tag } from '@/types/models'
+import { DEFAULT_SETTINGS } from '@/data/defaults'
 import {
   folderRepository,
   noteRepository,
@@ -59,9 +60,57 @@ export function parseBackup(text: string): BackupFile {
     throw new Error(`Unsupported backup version: ${String(b.version)}`)
   }
   const notes = b.notes.map(normalizeNote).filter((n): n is Note => n !== null)
-  const folders = b.folders.filter(isStorableRecord)
-  const tags = b.tags.filter(isStorableRecord)
-  return { ...(b as BackupFile), notes, folders, tags }
+  const folders = dedupeByName(b.folders.filter(isStorableRecord))
+  const tags = dedupeByName(b.tags.filter(isStorableRecord))
+  return { ...(b as BackupFile), notes, folders, tags, settings: sanitizeSettings(b.settings) }
+}
+
+/** Drops duplicate ids and case-insensitive duplicate names (first wins). */
+function dedupeByName<T extends { id: string; name: string }>(items: T[]): T[] {
+  const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
+  return items.filter((item) => {
+    const lowerName = item.name.toLowerCase()
+    if (seenIds.has(item.id) || seenNames.has(lowerName)) return false
+    seenIds.add(item.id)
+    seenNames.add(lowerName)
+    return true
+  })
+}
+
+/**
+ * Coerces a backup's settings into a safe AppSettings. Anything missing or
+ * of the wrong type falls back to defaults; a non-settings object yields
+ * null so restore keeps the local settings instead of persisting garbage
+ * (e.g. theme:"banana") that the app would then trust forever.
+ */
+function sanitizeSettings(raw: unknown): AppSettings | null {
+  if (!isObj(raw) || raw.key !== 'app') return null
+  const numOr = (v: unknown, fallback: number, min: number, max: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : fallback
+  const themes = ['light', 'dark', 'system']
+  const densities = ['compact', 'comfortable', 'grid']
+  const sortKeys = ['updated-desc', 'updated-asc', 'created-desc', 'title-asc', 'title-desc']
+  const s = DEFAULT_SETTINGS
+  const profile =
+    isObj(raw.profile) && typeof raw.profile.name === 'string'
+      ? { name: raw.profile.name, role: typeof raw.profile.role === 'string' ? raw.profile.role : s.profile.role }
+      : s.profile
+  return {
+    key: 'app',
+    theme: themes.includes(raw.theme as string) ? (raw.theme as AppSettings['theme']) : s.theme,
+    editorFontSize: numOr(raw.editorFontSize, s.editorFontSize, 12, 24),
+    editorLineHeight: numOr(raw.editorLineHeight, s.editorLineHeight, 1.2, 2.4),
+    autosaveEnabled: typeof raw.autosaveEnabled === 'boolean' ? raw.autosaveEnabled : s.autosaveEnabled,
+    confirmBeforeDelete:
+      typeof raw.confirmBeforeDelete === 'boolean' ? raw.confirmBeforeDelete : s.confirmBeforeDelete,
+    viewDensity: densities.includes(raw.viewDensity as string)
+      ? (raw.viewDensity as AppSettings['viewDensity'])
+      : s.viewDensity,
+    sortKey: sortKeys.includes(raw.sortKey as string) ? (raw.sortKey as AppSettings['sortKey']) : s.sortKey,
+    profile,
+    seededAt: typeof raw.seededAt === 'number' ? raw.seededAt : s.seededAt,
+  }
 }
 
 /* --------------------------- per-item validation --------------------------- */
@@ -134,5 +183,7 @@ export async function restoreBackup(
   })
 
   await hydrateAll()
+  // Open editors may hold pre-import docs — let them resync (see NoteEditor)
+  window.dispatchEvent(new CustomEvent('notely:external-sync'))
   return { notes: backup.notes.length, folders: backup.folders.length, tags: backup.tags.length }
 }

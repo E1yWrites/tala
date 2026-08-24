@@ -42,6 +42,15 @@ export function SearchModal(): React.ReactNode {
 
   useEffect(() => setActiveIdx(0), [query])
 
+  // Keep the active row visible while arrowing past the scrolled edge
+  const activeId = results[activeIdx]?.id
+  useEffect(() => {
+    if (!activeId) return
+    document
+      .getElementById(`search-result-${activeId}`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
+
   function choose(noteId: string): void {
     const note = notes.find((n) => n.id === noteId)
     if (!note) return
@@ -58,12 +67,13 @@ export function SearchModal(): React.ReactNode {
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
+    if (e.nativeEvent.isComposing) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIdx((i) => Math.min(i + 1, results.length - 1))
+      if (results.length > 0) setActiveIdx((i) => Math.min(i + 1, results.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActiveIdx((i) => Math.max(i - 1, 0))
+      if (results.length > 0) setActiveIdx((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       const pick = results[activeIdx]
@@ -88,6 +98,12 @@ export function SearchModal(): React.ReactNode {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search notes…"
           aria-label="Search notes"
+          role="combobox"
+          aria-expanded
+          aria-controls="search-results-list"
+          aria-activedescendant={
+            results[activeIdx] ? `search-result-${results[activeIdx]!.id}` : undefined
+          }
           autoComplete="off"
           spellCheck={false}
           className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-faint"
@@ -99,7 +115,6 @@ export function SearchModal(): React.ReactNode {
         className="max-h-[50vh] overflow-y-auto p-1.5"
         role="listbox"
         aria-label="Search results"
-        aria-activedescendant={results[activeIdx] ? `search-result-${results[activeIdx]!.id}` : undefined}
       >
         {results.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted">

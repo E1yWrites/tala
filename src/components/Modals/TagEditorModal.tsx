@@ -30,10 +30,31 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
       </Modal>
     )
   }
-  // Stable snapshot for use inside async callbacks
-  const currentTagIds = note.tagIds
+  /** Fresh tag ids at write time — the render snapshot goes stale mid-await. */
+  function freshTagIds(): string[] {
+    return useNoteStore.getState().notes.find((n) => n.id === noteId)?.tagIds ?? []
+  }
 
-  const tagById = new Map(tags.map((t) => [t.id, t]))
+  async function addTag(raw: string): Promise<void> {
+    const name = raw.trim().replace(/^#/, '').toLowerCase()
+    if (!name) return
+    const current = freshTagIds()
+    if (current.some((id) => tagById.get(id)?.name === name)) {
+      toast.info(`“${name}” is already on this note`)
+      return
+    }
+    const tag = await ensureTag(name)
+    if (!tag) return
+    // Re-read after the await: a rapid second add must not clobber this one
+    await patchNote(noteId, { tagIds: [...freshTagIds(), tag.id] })
+    setInput('')
+  }
+
+  async function removeTag(tagId: string): Promise<void> {
+    await patchNote(noteId, {
+      tagIds: freshTagIds().filter((id) => id !== tagId),
+    })
+  }  const tagById = new Map(tags.map((t) => [t.id, t]))
   const applied: Tag[] = []
   for (const id of note.tagIds) {
     const t = tagById.get(id)
@@ -43,28 +64,9 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
     notes.reduce((acc, n) => acc + (n.tagIds.includes(tagId) ? 1 : 0), 0)
 
   const suggestions = tags
-    .filter((t) => !currentTagIds.includes(t.id))
+    .filter((t) => !note.tagIds.includes(t.id))
     .sort((a, b) => usageCount(b.id) - usageCount(a.id))
     .slice(0, 8)
-
-  async function addTag(raw: string): Promise<void> {
-    const name = raw.trim().replace(/^#/, '').toLowerCase()
-    if (!name) return
-    if (applied.some((t) => t.name === name)) {
-      toast.info(`“${name}” is already on this note`)
-      return
-    }
-    const tag = await ensureTag(name)
-    if (!tag) return
-    await patchNote(noteId, { tagIds: [...currentTagIds, tag.id] })
-    setInput('')
-  }
-
-  async function removeTag(tagId: string): Promise<void> {
-    await patchNote(noteId, {
-      tagIds: currentTagIds.filter((id) => id !== tagId),
-    })
-  }
 
   function cycleColor(tagId: string): void {
     const tag = tagById.get(tagId)
@@ -75,6 +77,7 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    if (e.nativeEvent.isComposing) return
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
       void addTag(input)

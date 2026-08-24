@@ -477,7 +477,7 @@ function NoteRowWithMenu(props: {
   return (
     <div className="group relative">
       <NoteRow {...props} />
-      <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100">
+      <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
         <DropdownMenu
           items={buildNoteMenu(props.note, { surface: props.surface })}
           trigger={(menuProps) => (

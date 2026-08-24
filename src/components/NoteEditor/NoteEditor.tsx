@@ -148,6 +148,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   }, [penMode])
 
   const [title, setTitle] = useState(note?.title ?? '')
+  const [syncKey, setSyncKey] = useState(0)
   const [status, setStatus] = useState<SaveStatus>('idle')
 
   const pendingRef = useRef<PendingPatch>({})
@@ -219,6 +220,25 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     return () => window.removeEventListener('notely:force-save', onSave)
   }, [flush])
 
+  // Import/restore replaced the library under us — reload the open note from
+  // the store unless there are unsaved edits (those win; we keep them).
+  useEffect(() => {
+    const onExternalSync = (): void => {
+      if (status !== 'idle' || Object.keys(pendingRef.current).length > 0) {
+        toast.info('Library was imported — your unsaved edits were kept')
+        return
+      }
+      const fresh = useNoteStore.getState().notes.find((n) => n.id === noteId)
+      pendingRef.current = {}
+      setStatus('idle')
+      setTitle(fresh?.title ?? '')
+      setSyncKey((k) => k + 1)
+    }
+    window.addEventListener('notely:external-sync', onExternalSync)
+    return () => window.removeEventListener('notely:external-sync', onExternalSync)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId, status])
+
   // Warn before leaving with unsaved edits
   useEffect(() => {
     if (status !== 'dirty') return
@@ -253,7 +273,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         markDirty()
       },
     },
-    [noteId],
+    [noteId, syncKey],
   )
 
   /* `editable` only applies at editor creation — keep it in sync afterwards

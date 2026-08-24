@@ -40,6 +40,34 @@ async function doHydrate(): Promise<void> {
     settingsRepository.get(),
   ])
 
+  // Referential repair: imports/merges can leave notes pointing at folders or
+  // tags that no longer exist. Null them out and persist the fix so the UI
+  // never shows a "Set folder" ghost or dead tag chips.
+  const folderIds = new Set(folders.map((f) => f.id))
+  const tagIds = new Set(tags.map((t) => t.id))
+  const broken = notes.filter(
+    (n) =>
+      (n.folderId !== null && !folderIds.has(n.folderId)) ||
+      n.tagIds.some((id) => !tagIds.has(id)),
+  )
+  if (broken.length > 0) {
+    const repaired = broken.map((n) => ({
+      ...n,
+      folderId: n.folderId !== null && folderIds.has(n.folderId) ? n.folderId : null,
+      tagIds: n.tagIds.filter((id) => tagIds.has(id)),
+    }))
+    try {
+      await noteRepository.bulkPut(repaired)
+      const repairedById = new Map(repaired.map((n) => [n.id, n]))
+      for (let i = 0; i < notes.length; i++) {
+        const r = repairedById.get(notes[i]!.id)
+        if (r) notes[i] = r
+      }
+    } catch (err) {
+      console.error('[notely] reference repair failed', err)
+    }
+  }
+
   useNoteStore.getState().hydrate(notes)
   useFolderStore.getState().hydrate(folders)
   useTagStore.getState().hydrate(tags)

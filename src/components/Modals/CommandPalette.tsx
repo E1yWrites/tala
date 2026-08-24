@@ -125,13 +125,21 @@ export function CommandPalette(): React.ReactNode {
 
   useEffect(() => setActiveIdx(0), [query])
 
+  // Keep the active command visible while arrowing past the scrolled edge
+  const activeId = filtered[activeIdx]?.id
+  useEffect(() => {
+    if (!activeId) return
+    document.getElementById(`palette-cmd-${activeId}`)?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
+
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
+    if (e.nativeEvent.isComposing) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIdx((i) => Math.min(i + 1, filtered.length - 1))
+      if (filtered.length > 0) setActiveIdx((i) => Math.min(i + 1, filtered.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActiveIdx((i) => Math.max(i - 1, 0))
+      if (filtered.length > 0) setActiveIdx((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       filtered[activeIdx]?.run()
@@ -154,13 +162,19 @@ export function CommandPalette(): React.ReactNode {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Type a command…"
           aria-label="Command palette"
+          role="combobox"
+          aria-expanded
+          aria-controls="palette-commands-list"
+          aria-activedescendant={
+            filtered[activeIdx] ? `palette-cmd-${filtered[activeIdx]!.id}` : undefined
+          }
           autoComplete="off"
           spellCheck={false}
           className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-faint"
         />
       </div>
 
-      <div className="max-h-[46vh] overflow-y-auto p-1.5" role="listbox" aria-label="Commands">
+      <div id="palette-commands-list" className="max-h-[46vh] overflow-y-auto p-1.5" role="listbox" aria-label="Commands">
         {filtered.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted">No matching command</p>
         ) : (
@@ -168,6 +182,7 @@ export function CommandPalette(): React.ReactNode {
             <button
               key={cmd.id}
               type="button"
+              id={`palette-cmd-${cmd.id}`}
               role="option"
               aria-selected={i === activeIdx}
               onMouseMove={() => setActiveIdx(i)}
