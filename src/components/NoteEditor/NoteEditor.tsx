@@ -23,6 +23,7 @@ import {
   RotateCcw,
   Share2,
   Star,
+  StarFilled,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -413,7 +414,11 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 useNoteStore.getState().patchNote(note.id, { isFavorite: !note.isFavorite })
               }
             >
-              <Star size={15} className={cn(note.isFavorite && 'fill-current')} />
+              {note.isFavorite ? (
+                <StarFilled size={16} className="drop-shadow-sm" />
+              ) : (
+                <Star size={15} />
+              )}
             </HeaderToggle>
           )}
           <HeaderToggle

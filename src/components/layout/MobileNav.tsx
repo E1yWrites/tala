@@ -1,4 +1,4 @@
-import { House, NotebookText, Search, Settings as SettingsIcon, Star } from 'lucide-react'
+import { House, NotebookText, Search, Settings as SettingsIcon, Star, StarFilled } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import type { ViewKind } from '@/types/models'
@@ -8,12 +8,14 @@ interface Tab {
   kind: ViewKind
   label: string
   icon: LucideIcon
+  /** Solid variant shown while the tab is active. */
+  activeIcon?: LucideIcon
 }
 
 const TABS: Tab[] = [
   { kind: 'home', label: 'Home', icon: House },
   { kind: 'all', label: 'Notes', icon: NotebookText },
-  { kind: 'favorites', label: 'Favorites', icon: Star },
+  { kind: 'favorites', label: 'Favorites', icon: Star, activeIcon: StarFilled },
 ]
 
 /** Mobile bottom navigation. Search opens the global search modal. */
@@ -61,6 +63,7 @@ function NavTab({
   active: boolean
   onClick: () => void
 }): React.ReactNode {
+  const Icon = active && tab.activeIcon ? tab.activeIcon : tab.icon
   return (
     <button
       type="button"
@@ -71,7 +74,7 @@ function NavTab({
         active ? 'text-accent' : 'text-faint hover:text-muted',
       )}
     >
-      <tab.icon size={18} strokeWidth={active ? 2.75 : 2} aria-hidden="true" />
+      <Icon size={18} strokeWidth={active ? 2.75 : 2} aria-hidden="true" />
       <span
         className={cn(
           'text-[11px]',

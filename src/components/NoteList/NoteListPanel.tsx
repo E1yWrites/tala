@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef } from 'react'
 import {
   AlignJustify,
   Archive,
-  ArrowUpDown,
   CheckSquare,
+  Filter,
+  FilterActive,
   LayoutGrid,
   Menu,
   MoreHorizontal,
@@ -13,8 +14,10 @@ import {
   Rows3,
   Search,
   SlidersHorizontal,
+  Sort,
   Star,
   Trash2,
+  TrashFilled,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -328,13 +331,18 @@ export function NoteListPanel({
             className="max-h-[320px] overflow-y-auto"
             items={filterItems}
             trigger={(props) => (
-              <ToolbarButton {...props} active={hasActiveFilters} label="Filter" Icon={SlidersHorizontal} />
+              <ToolbarButton
+                {...props}
+                active={hasActiveFilters}
+                label="Filter"
+                Icon={hasActiveFilters ? FilterActive : Filter}
+              />
             )}
           />
           <DropdownMenu
             align="start"
             items={sortItems}
-            trigger={(props) => <ToolbarButton {...props} active={false} label="Sort" Icon={ArrowUpDown} />}
+            trigger={(props) => <ToolbarButton {...props} active={false} label="Sort" Icon={Sort} />}
           />
 
           <div className="ml-auto flex items-center rounded-wobbly-sm border-2 border-line bg-panel p-0.5">
@@ -387,7 +395,7 @@ export function NoteListPanel({
               })
             }
           >
-            <Trash2 size={12} />
+            <TrashFilled size={13} />
             Empty trash
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CheckSquare, Star } from 'lucide-react'
+import { CheckSquare, PinFilled, StarFilled } from 'lucide-react'
 import type { Note } from '@/types/models'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -111,9 +111,10 @@ export function NoteRow({
         />
       )}
       {note.isPinned && surface === 'live' && (
-        <span
+        <PinFilled
+          size={14}
           aria-hidden="true"
-          className="absolute right-2 top-2 grid size-2.5 place-items-center rounded-full border border-line bg-accent shadow-sm"
+          className="pointer-events-none absolute right-1.5 top-1.5 drop-shadow-sm"
         />
       )}
 
@@ -127,7 +128,7 @@ export function NoteRow({
           <Highlighted text={title} query={searchQuery} />
         </h3>
         {note.isFavorite && (
-          <Star size={11} aria-hidden="true" className="shrink-0 self-center fill-amber-400 text-amber-400" />
+          <StarFilled size={13} aria-hidden="true" className="shrink-0 self-center drop-shadow-sm" />
         )}
       </div>
 
@@ -202,9 +203,10 @@ export function NoteGridCard({
     >
       {/* Thumbtack for pinned notes */}
       {note.isPinned && surface === 'live' && (
-        <span
+        <PinFilled
+          size={18}
           aria-hidden="true"
-          className="absolute -top-2 left-1/2 z-10 size-3.5 -translate-x-1/2 rounded-full border-2 border-line bg-accent shadow-sm"
+          className="pointer-events-none absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 drop-shadow-sm"
         />
       )}
 
@@ -214,7 +216,7 @@ export function NoteGridCard({
         </h3>
         <span className="flex shrink-0 items-center gap-1 pt-0.5">
           {note.isFavorite && (
-            <Star size={12} className="fill-amber-400 text-amber-500" aria-hidden="true" />
+            <StarFilled size={15} aria-hidden="true" className="drop-shadow-sm" />
           )}
         </span>
       </div>

@@ -31,13 +31,13 @@ function StatCard({
       className={cn(
         'group rounded-wobbly-sm border border-lineSoft bg-panel px-3 py-2 outline-none',
         'transition-[transform,border-color,background-color] duration-150 ease-out',
-        'hover:-translate-y-0.5 hover:rotate-0 hover:border-accent/60 hover:bg-panel',
+        'hover:-translate-y-0.5 hover:rotate-0 hover:border-accent/60 hover:bg-canvas',
         STAT_TILTS[index % STAT_TILTS.length],
       )}
     >
       <div className="flex items-center gap-1.5 text-muted">
         <Icon size={12} strokeWidth={2.5} aria-hidden="true" />
-        <span className="text-2xs tracking-wide">{label}</span>
+        <span className="whitespace-nowrap text-2xs tracking-wide">{label}</span>
       </div>
       <p
         className={cn(
@@ -106,8 +106,12 @@ export function HomePage(): React.ReactNode {
           </Button>
         </div>
 
-        {/* Stats */}
-        <div aria-label="Dashboard statistics" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Stats — 2-up inside the narrow desktop pane; 4-up only when the
+            dashboard spans the full viewport (phones ≥420px, <768px) */}
+        <div
+          aria-label="Dashboard statistics"
+          className="grid grid-cols-2 gap-3 [@media(min-width:420px)_and_(max-width:767px)]:grid-cols-4"
+        >
           <StatCard icon={NotebookText} value={stats.notes} label="Notes" index={0} />
           <StatCard icon={Star} value={stats.favorites} label="Favorites" index={1} />
           <StatCard icon={FolderIcon} value={stats.folders} label="Folders" index={2} />

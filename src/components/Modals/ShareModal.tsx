@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Check, Copy, Download } from 'lucide-react'
+import { CheckSoft, Copy, Download } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
 import { useUIStore } from '@/store/uiStore'
 import {
@@ -77,7 +77,7 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
     >
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" size="sm" onClick={() => void handleCopy()}>
-          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          {copied ? <CheckSoft className="size-3.5" /> : <Copy className="size-3.5" />}
           {copied ? 'Copied' : 'Copy Markdown'}
         </Button>
         <Button

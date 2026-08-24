@@ -2,6 +2,7 @@ import { Component, useRef } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { toast, Toaster } from 'sonner'
+import { CheckSoft, Info } from 'lucide-react'
 import { bootApp } from '@/database/hydration'
 import { useSettingsStore } from '@/store/settingsStore'
 import { AppShell } from '@/components/layout/AppShell'
@@ -113,6 +114,7 @@ export default function App(): React.ReactNode {
         position="bottom-right"
         theme={theme}
         gap={8}
+        icons={{ success: <CheckSoft className="size-4" />, info: <Info className="size-4" /> }}
         toastOptions={{
           style: {
             background: 'rgb(var(--c-overlay))',

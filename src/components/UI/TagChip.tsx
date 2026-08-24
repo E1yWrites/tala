@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { X } from 'lucide-react'
 import { TAG_COLORS } from '@/data/defaults'
 import type { Tag } from '@/types/models'
 import { cn } from '@/utils/cn'
@@ -63,7 +64,7 @@ export function TagChip({
             onRemove()
           }}
         >
-          ×
+          <X size={10} strokeWidth={2.5} aria-hidden="true" />
         </button>
       )}
     </span>

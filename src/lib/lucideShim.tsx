@@ -75,6 +75,19 @@ const SLOT_ALIASES: Record<string, string[]> = {
   app_search: ['search'],
   app_star: ['star'],
   app_trash: ['trash-2'],
+
+  // State variants (solid glyphs) and soft UI accents from the second set
+  filled_filter: ['filter-active'],
+  filled_pin: ['pin-filled'],
+  filled_saved: ['bookmark'],
+  filled_sort: ['sort-active'],
+  filled_star: ['star-filled'],
+  filled_trash: ['trash-filled'],
+  ui_check: ['check-soft'],
+  ui_filter: ['filter'],
+  ui_info: ['info'],
+  ui_sort: ['sort'],
+  ui_star: ['star-outline'],
 }
 
 /**
@@ -233,7 +246,6 @@ function withDoodle(slot: string, Fallback: LucideIcon): LucideIcon {
 export * from 'lucide-react/dist/esm/lucide-react.mjs'
 
 /* ---- Overridable icons actually used by Notely ---- */
-
 export const AlignJustify = withDoodle('align-justify', Lucide.AlignJustify)
 export const Archive = withDoodle('archive', Lucide.Archive)
 export const ArrowLeft = withDoodle('arrow-left', Lucide.ArrowLeft)
@@ -315,3 +327,16 @@ export const Undo2 = withDoodle('undo-2', Lucide.Undo2)
 export const User = withDoodle('user', Lucide.User)
 export const Users = withDoodle('users', Lucide.Users)
 export const X = withDoodle('x', Lucide.X)
+
+/* ---- State-variant + accent doodles from the second icon set ---- */
+
+export const Bookmark = withDoodle('bookmark', Lucide.Bookmark)
+export const Filter = withDoodle('filter', Lucide.Filter)
+export const FilterActive = withDoodle('filter-active', Lucide.Filter)
+export const Info = withDoodle('info', Lucide.Info)
+export const Sort = withDoodle('sort', Lucide.ArrowUpDown)
+export const SortActive = withDoodle('sort-active', Lucide.ArrowUpDown)
+export const StarFilled = withDoodle('star-filled', Lucide.Star)
+export const PinFilled = withDoodle('pin-filled', Lucide.Pin)
+export const TrashFilled = withDoodle('trash-filled', Lucide.Trash2)
+export const CheckSoft = withDoodle('check-soft', Lucide.Check)

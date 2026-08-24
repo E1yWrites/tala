@@ -7,13 +7,11 @@ export function EditorPlaceholder(): React.ReactNode {
   const openModal = useUIStore((s) => s.openModal)
   return (
     <div className="flex h-full items-center justify-center">
-      <div>
-        <EmptyState
-          icon={FileText}
-          title="No note selected"
-          description="Pick a note from the list, or create a new one to start writing."
-        />
-        <div className="-mt-6 text-center">
+      <EmptyState
+        icon={FileText}
+        title="No note selected"
+        description="Pick a note from the list, or create a new one to start writing."
+        action={
           <button
             type="button"
             onClick={() => openModal({ kind: 'new-note' })}
@@ -21,8 +19,8 @@ export function EditorPlaceholder(): React.ReactNode {
           >
             Create a new note
           </button>
-        </div>
-      </div>
+        }
+      />
     </div>
   )
 }

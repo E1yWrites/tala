@@ -54,8 +54,28 @@ slot they cover (edit `SLOT_ALIASES` in `src/lib/lucideShim.tsx` to change):
 | `app_folder`   | `folder`                                        |
 | `app_new`      | `plus`                                          |
 | `app_note`     | `notebook-text`, `notebook`, `file-text`        |
+| `app_pin`      | `pin`                                           |
+| `app_recent`   | `clock`                                         |
 | `app_search`   | `search`                                        |
 | `app_star`     | `star`                                          |
+| `app_trash`    | `trash-2`                                       |
+
+State variants and soft accents (second set — wired via dedicated slots):
+
+| File base       | Slot(s)                        | Used for                                   |
+| --------------- | ------------------------------ | ------------------------------------------ |
+| `filled_pin`    | `pin-filled` (`PinFilled`)     | pinned indicators, active pin states       |
+| `filled_star`   | `star-filled` (`StarFilled`)   | favorited rows/cards/toggles/tabs          |
+| `filled_trash`  | `trash-filled` (`TrashFilled`) | destructive trash actions (empty-trash)    |
+| `filled_filter` | `filter-active` (`FilterActive`) | filter trigger while filters are applied |
+| `filled_sort`   | `sort-active` (`SortActive`)   | reserved: sort trigger while menu is open  |
+| `filled_saved`  | `bookmark` (`Bookmark`)        | favorites entries (command palette)        |
+| `filled_info`   | `info-solid`                   | reserved                                   |
+| `ui_filter`     | `filter` (`Filter`)            | idle filter trigger                        |
+| `ui_sort`       | `sort` (`Sort`)                | sort trigger                               |
+| `ui_star`       | `star-outline`                 | reserved outline star                      |
+| `ui_check`      | `check-soft` (`CheckSoft`)     | success states (copied chip, toasts)       |
+| `ui_info`       | `info` (`Info`)                | info toasts                                |
 
 Brand assets (wired in code, not slots):
 
