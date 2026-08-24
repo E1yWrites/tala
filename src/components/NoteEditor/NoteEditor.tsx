@@ -529,12 +529,16 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         onDrop={onPasteOrDrop}
         onClick={(e) => {
           // tiptap renders links inert (openOnClick:false) — give them a way
-          // out of the app. In Tauri this later swaps for the shell-open API.
+          // out of the app. Under Tauri the opener plugin handles it; on the
+          // web we fall back to a plain new tab.
           const anchor = (e.target as HTMLElement).closest?.('a[href]')
           if (!anchor) return
           e.preventDefault()
           const href = anchor.getAttribute('href') ?? ''
-          if (/^(https?:|mailto:)/i.test(href)) {
+          if (!/^(https?:|mailto:)/i.test(href)) return
+          if ('__TAURI_INTERNALS__' in window) {
+            void import('@tauri-apps/plugin-opener').then((m) => m.openUrl(href))
+          } else {
             window.open(href, '_blank', 'noopener,noreferrer')
           }
         }}

@@ -2,9 +2,9 @@
 
 **Capture ideas. Keep moving.**
 
-A fast, local-first note-taking app for students and makers. Everything lives in your
-browser — no account, no server, no tracking. Your notes work offline and stay on
-your device until *you* export them.
+A fast, local-first note-taking app for students and makers. No account, no server,
+no tracking. Your notes work offline and stay on your device until *you* export them —
+in the browser or as a native desktop app.
 
 Built with React 19 + TypeScript, a Tiptap rich-text editor, Zustand stores, and an
 IndexedDB (Dexie) persistence layer behind a swappable repository API.
@@ -20,6 +20,29 @@ npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build (http://localhost:4173)
 npm run typecheck  # tsc --noEmit
 ```
+
+## Desktop app (Tauri v2)
+
+The same web app wrapped in a native shell (system WebKitGTK, no bundled Chromium).
+Notes persist in the webview's IndexedDB profile keyed by the `io.notely.app` identifier.
+
+```bash
+# one-time prerequisites (Debian/Ubuntu)
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+npm run app:dev     # native window with HMR (starts vite itself)
+npm run app:build   # typecheck + build + release compile → installers
+```
+
+Build artifacts land in `src-tauri/target/release/bundle/`:
+`.deb`, `.rpm` and `.AppImage` (Linux). The window is 1100×720 (min 940×600),
+centered, with the doodle brand icon. External `http(s)`/`mailto:` links open in
+the system browser via the opener plugin; on the web they fall back to a new tab.
+
+Rust-side config lives in `src-tauri/` (`tauri.conf.json`, `Cargo.toml`,
+capabilities in `src-tauri/capabilities/`).
 
 ### Smoke test (optional)
 
