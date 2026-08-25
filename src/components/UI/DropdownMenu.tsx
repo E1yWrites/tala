@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
@@ -42,6 +42,10 @@ export function DropdownMenu({
   const [flipped, setFlipped] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Horizontal offset from default CSS position to keep menu inside viewport.
+  const [horizShift, setHorizShift] = useState(0)
 
   useEffect(() => {
     if (!open) return
@@ -55,21 +59,43 @@ export function DropdownMenu({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [open])
 
-  // Flip upward when the menu would overflow the bottom of the viewport.
+  // Flip upward when the menu would overflow the bottom of the viewport,
+  // and shift horizontally when it would overflow the left or right edges.
   // On mobile layouts a fixed bottom nav overlays ~64px of that space, so
   // menus near it must flip even though they technically fit.
   useLayoutEffect(() => {
     if (!open) return
     const root = rootRef.current
-    if (!root) return
-    const rect = root.getBoundingClientRect()
-    const estimatedHeight = items.length * 30 + 16
+    const menu = menuRef.current
+    if (!root || !menu) return
+    const triggerRect = root.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    const menuH = menuRect.height
+    const menuW = menuRect.width
     const bottomNav = window.innerWidth < 1024 ? 64 : 0
+
+    // Vertical flip
     setFlipped(
       side === 'bottom' &&
-        rect.bottom + estimatedHeight > window.innerHeight - bottomNav &&
-        rect.top > estimatedHeight,
+        triggerRect.bottom + menuH > window.innerHeight - bottomNav &&
+        triggerRect.top > menuH,
     )
+
+    // Horizontal clamping — default align="end" means CSS sets right:0,
+    // placing the menu's right edge at the trigger's right edge. Shift if
+    // the menu would extend past the viewport left or right boundary.
+    const pad = 8
+    const defaultRight = triggerRect.right
+    const wouldOverflowLeft = defaultRight - menuW < pad
+    const wouldOverflowRight = defaultRight > window.innerWidth - pad
+
+    if (wouldOverflowLeft) {
+      setHorizShift(Math.max(0, menuW - defaultRight + pad))
+    } else if (wouldOverflowRight) {
+      setHorizShift(Math.min(0, window.innerWidth - defaultRight - menuW - pad))
+    } else {
+      setHorizShift(0)
+    }
   }, [open, items.length, side])
 
   useEffect(() => {
@@ -109,10 +135,15 @@ export function DropdownMenu({
       })}
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-orientation="vertical"
+          style={{
+            // Override CSS right:0 with viewport-clamped horizontal position
+            ...(horizShift !== 0 ? { transform: `translateX(${horizShift}px)` } : undefined),
+          } as CSSProperties | undefined}
           className={cn(
-            'absolute z-50 min-w-[180px] rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
+            'absolute z-50 min-w-[180px] overflow-hidden rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
             align === 'end' ? 'right-0' : 'left-0',
             side === 'top' || flipped
               ? 'bottom-[calc(100%+4px)]'
