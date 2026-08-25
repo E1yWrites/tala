@@ -13,6 +13,7 @@ import type { Note } from '@/types/models'
 import { useNoteStore } from '@/store/noteStore'
 import { useUIStore } from '@/store/uiStore'
 import { useTagStore } from '@/store/tagStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
 import { docPreview, countTasks } from '@/utils/doc'
 import { formatRelative, formatFull } from '@/utils/dates'
@@ -40,13 +41,14 @@ function computePosition(
   const pad = 12
   const vw = document.documentElement.clientWidth
   const vh = document.documentElement.clientHeight
+  const bottomNav = vw < 768 ? 64 : 0
 
   let left = anchor.x - cardW / 2
   left = Math.max(pad, Math.min(left, vw - cardW - pad))
 
   let top = anchor.y - cardH - 8
   if (top < pad) top = anchor.y + 8
-  if (top + cardH > vh - pad) top = vh - cardH - pad
+  if (top + cardH > vh - pad - bottomNav) top = vh - cardH - pad - bottomNav
 
   return { left, top }
 }
@@ -117,14 +119,17 @@ export function NotePreviewCard({
 
   const handleTrash = () => {
     onClose()
+    const { confirmBeforeDelete } = useSettingsStore.getState().settings
+    const doTrash = (): void => {
+      useNoteStore.getState().trashNotes([note.id])
+      toast.success('Note moved to trash')
+    }
+    if (!confirmBeforeDelete) return doTrash()
     confirmAction({
       title: 'Move to trash?',
       message: `"${displayTitle(note)}" will be moved to the trash.`,
       confirmLabel: 'Move to trash',
-      onConfirm: () => {
-        useNoteStore.getState().trashNotes([note.id])
-        toast.success('Note moved to trash')
-      },
+      onConfirm: doTrash,
     })
   }
 

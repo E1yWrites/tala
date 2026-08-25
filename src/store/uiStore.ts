@@ -292,7 +292,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
 
   enterMultiSelectMode() {
-    set({ multiSelectMode: true, selectedNoteIds: [] })
+    set({ multiSelectMode: true, selectedNoteIds: [], selectedNoteId: null })
   },
 
   exitMultiSelectMode() {

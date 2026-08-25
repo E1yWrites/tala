@@ -241,12 +241,23 @@ export function PenPalette({
   const sizes = sizesForTool(prefs.tool)
 
   const pickTool = (id: ToolSpec['id']) => {
+    // Eraser and select are non-preset tools: preserve the current writing preset
+    if (id === 'eraser' || id === 'select') {
+      onPrefs({ tool: id })
+      if (view !== 'tools') setView('tools')
+      return
+    }
+    // If clicking the already-active preset-bearing tool, don't reset its size
+    if (prefs.tool === id) {
+      if (view !== 'tools') setView('tools')
+      return
+    }
     // Map tool selection to the primary preset for that tool
     const presetMap: Record<ToolSpec['id'], InkPreset> = {
       pen: 'marker',
       pencil: 'pencil',
       highlighter: 'highlighter',
-      eraser: 'marker', // eraser doesn't have a preset, keep current
+      eraser: 'marker',
       select: 'marker',
     }
     const preset = presetMap[id]

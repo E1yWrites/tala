@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 interface UseLongPressOptions {
   /** Time in ms before long-press fires. Default: 500 */
@@ -74,6 +74,9 @@ export function useLongPress({
     [clear],
   )
 
+  // Cleanup timer on unmount to prevent ghost previews
+  useEffect(() => () => clear(), [clear])
+
   return {
     onMouseDown: (e) => {
       if (e.button !== 0) return // only primary button
@@ -82,6 +85,7 @@ export function useLongPress({
     onMouseUp: end,
     onMouseMove: (e) => move(e.clientX, e.clientY),
     onTouchStart: (e) => {
+      e.preventDefault() // prevent text selection during long-press
       const t = e.touches[0]
       if (t) start(t.clientX, t.clientY, e)
     },

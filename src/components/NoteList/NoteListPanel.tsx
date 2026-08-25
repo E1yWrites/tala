@@ -111,6 +111,16 @@ export function NoteListPanel({
     return sortNotes(list, sortKey, surface === 'live')
   }, [allNotes, view, searchQuery, filterFavoritesOnly, filterTagIds, sortKey, surface])
 
+  // Prune stale selectedNoteIds when the visible list changes (search/filter)
+  useEffect(() => {
+    if (!multiSelectMode || selectedNoteIds.length === 0) return
+    const visibleIds = new Set(visibleNotes.map((n) => n.id))
+    const pruned = selectedNoteIds.filter((id) => visibleIds.has(id))
+    if (pruned.length !== selectedNoteIds.length) {
+      useUIStore.setState({ selectedNoteIds: pruned })
+    }
+  }, [visibleNotes, multiSelectMode, selectedNoteIds])
+
   const hasActiveFilters = filterFavoritesOnly || filterTagIds.length > 0
 
   /* ------------------------------- Menus ---------------------------------- */
@@ -269,6 +279,8 @@ export function NoteListPanel({
 
   const [previewNoteState, setPreviewNoteState] = useState<{ note: Note; anchor: { x: number; y: number } } | null>(null)
 
+  const closePreview = useCallback(() => setPreviewNoteState(null), [])
+
   const showPreview = useCallback((note: Note, e: React.MouseEvent | React.TouchEvent) => {
     if (multiSelectMode) return
     const clientX = 'touches' in e ? e.touches[0]?.clientX ?? 0 : e.clientX
@@ -418,7 +430,8 @@ export function NoteListPanel({
                 <button
                   type="button"
                   onClick={() => {
-                    if (selectedNoteIds.length === visibleNotes.length) {
+                    const allSelected = visibleNotes.length > 0 && visibleNotes.every((n) => selectedNoteIds.includes(n.id))
+                    if (allSelected) {
                       deselectAllNotes()
                     } else {
                       selectAllNotes(visibleNotes.map((n) => n.id))
@@ -426,7 +439,7 @@ export function NoteListPanel({
                   }}
                   className="rounded-wobbly-sm px-2 py-1 text-xs font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
                 >
-                  {selectedNoteIds.length === visibleNotes.length ? 'Deselect all' : 'Select all'}
+                  {visibleNotes.length > 0 && visibleNotes.every((n) => selectedNoteIds.includes(n.id)) ? 'Deselect all' : 'Select all'}
                 </button>
                 {selectedNoteIds.length > 0 && (
                   <Button
@@ -465,7 +478,7 @@ export function NoteListPanel({
                     }}
                   >
                     <Trash2 size={14} />
-                    Delete
+                    {surface === 'trash' ? 'Delete forever' : 'Move to trash'}
                   </Button>
                 )}
               </div>
@@ -564,7 +577,7 @@ export function NoteListPanel({
         <NotePreviewCard
           note={previewNoteState.note}
           anchor={previewNoteState.anchor}
-          onClose={() => setPreviewNoteState(null)}
+          onClose={closePreview}
           onOpen={() => setView({ kind: 'all' })}
         />
       )}

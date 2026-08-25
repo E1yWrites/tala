@@ -40,7 +40,7 @@ function nextSubtool(current: InkPreset): InkPreset {
  * Indices into the 6-slot size array to show as quick-pick dots.
  * Picks the extremes and middle values for a good spread.
  */
-const QUICK_INDICES = [0, 1, 2, 4, 5] as const
+const QUICK_INDICES = [0, 1, 2, 3, 4] as const
 
 /** Map a raw size value to a dot diameter (px) for the visual indicator. */
 function dotSize(px: number, allSizes: number[]): number {
@@ -153,7 +153,7 @@ export function PenToolbar({
             aria-label={`Writing style: ${INK_PRESETS[prefs.preset]?.label}. Click to cycle.`}
             className="pr-0.5 text-[11px] font-medium text-muted hover:text-ink transition-colors"
           >
-            {INK_PRESETS[prefs.preset]?.label ?? prefs.tool}
+            {prefs.tool === 'eraser' ? 'Eraser' : prefs.tool === 'select' ? 'Select' : INK_PRESETS[prefs.preset]?.label ?? prefs.tool}
           </button>
         </Tooltip>
 

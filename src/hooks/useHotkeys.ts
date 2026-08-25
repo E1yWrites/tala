@@ -51,6 +51,8 @@ export function useHotkeys(): void {
           ui.closeModal()
         } else if (ui.sidebarDrawerOpen) {
           ui.setSidebarDrawer(false)
+        } else if (ui.multiSelectMode) {
+          ui.exitMultiSelectMode()
         } else if (ui.focusMode) {
           ui.toggleFocusMode()
         }
