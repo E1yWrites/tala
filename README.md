@@ -1,4 +1,5 @@
 # Notely
+
 <img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/c1371364-4f2c-45da-affe-4d1784cee5f5" />
 
 **Capture ideas. Keep moving.**
@@ -12,9 +13,58 @@ IndexedDB (Dexie) persistence layer behind a swappable repository API.
 
 ---
 
-## Quick start
+## Download
+
+Pre-built installers are available on the [Releases](https://github.com/E1yWrites/notely/releases) page.
+
+| Format | File | Best for |
+| --- | --- | --- |
+| AppImage | `Notely_1.0.1_amd64.AppImage` | Any Linux distro (no install needed) |
+| .deb | `Notely_1.0.1_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
+| .rpm | `Notely-1.0.1-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
+
+### Verify your download
+
+Each release includes SHA-256 checksums. After downloading, verify the file integrity:
 
 ```bash
+# Download the checksum file from the release page, then:
+sha256sum -c SHA256SUMS
+```
+
+Or verify a single file manually:
+
+```bash
+sha256sum Notely_1.0.1_amd64.AppImage
+# Compare the output hash against the one listed in SHA256SUMS
+```
+
+**Browser security notes:**
+- Chromium-based browsers (Chrome, Edge, Brave) may show a "Dangerous file" warning for `.AppImage` and `.deb` files. This is a generic warning for all executables downloaded from the internet — click **Keep** to proceed.
+- Firefox may show a similar warning on the downloads panel. Click the file and select **Allow** to keep it.
+- The installers are not code-signed (code signing requires a paid certificate from a Certificate Authority). Verify the SHA-256 checksum to confirm the file has not been tampered with.
+
+### Install
+
+```bash
+# AppImage (any distro)
+chmod +x Notely_1.0.1_amd64.AppImage
+./Notely_1.0.1_amd64.AppImage
+
+# Debian / Ubuntu
+sudo dpkg -i Notely_1.0.1_amd64.deb
+
+# Fedora / RHEL
+sudo rpm -i Notely-1.0.1-1.x86_64.rpm
+```
+
+---
+
+## Quick start (development)
+
+```bash
+git clone https://github.com/E1yWrites/notely.git
+cd notely
 npm install
 npm run dev        # start dev server (http://localhost:5173)
 npm run build      # typecheck + production build → dist/
@@ -38,7 +88,7 @@ npm run app:build   # typecheck + build + release compile → installers
 ```
 
 Build artifacts land in `src-tauri/target/release/bundle/`:
-`.deb`, `.rpm` and `.AppImage` (Linux). The window is 1100×720 (min 940×600),
+`.deb`, `.rpm` and `.AppImage` (Linux). The window is 1100x720 (min 940x600),
 centered, with the doodle brand icon. External `http(s)`/`mailto:` links open in
 the system browser via the opener plugin; on the web they fall back to a new tab.
 
@@ -61,7 +111,10 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 - **Dashboard home** — greeting, live stats, quick actions, pinned & recently-edited rows
 - **Rich editor** — headings, lists (incl. checkboxes), quotes, code blocks with copy,
   links, images (upload / paste / drag), inline markdown as you type, word count, saved indicator
-- **Templates** — lecture notes, meeting notes, to-do list, journal, brain dump, code notes…
+- **Templates** — lecture notes, meeting notes, to-do list, journal, brain dump, code notes...
+- **Pen presets** — six named writing styles (Marker, Brush Pen, Pencil, Fine Pencil, Highlighter, Ballpoint) with inline width dots
+- **Multi-select** — batch trash, delete forever, and selection across all surfaces (live, archive, trash)
+- **Long-press preview** — floating card with note metadata, tags, task progress, and quick actions
 - **Organize** — folders, colored tags, favorites, pins, archive; sort & density controls;
   grid or list layout; filter by tag / favorites
 - **Instant search** — spotlight modal over titles, body text, tags and folders with highlighting
@@ -69,7 +122,7 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 - **Trash with restore** — soft-delete notes or the whole trash; archive is one keystroke away
 - **Distraction-free mode** — collapse everything but the editor
 - **Light / dark / auto theme**, persisted before first paint (no flash)
-- **Responsive** — three-pane desktop → drawer tablet → single-pane mobile with bottom nav
+- **Responsive** — three-pane desktop -> drawer tablet -> single-pane mobile with bottom nav
 - **Keyboard-first** — see below
 - **Data ownership** — export/import JSON backups (merge or replace), storage usage readout
 
@@ -77,14 +130,14 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 
 | Keys | Action |
 | --- | --- |
-| `Ctrl/⌘ N` · `Alt N` | New note (template picker) |
-| `Ctrl/⌘ K` · `Ctrl/⌘ ⇧ F` | Search notes |
-| `Ctrl/⌘ ⇧ P` | Command palette |
-| `Ctrl/⌘ S` | Force save |
-| `Ctrl/⌘ ⇧ D` | Toggle dark mode |
-| `Ctrl/⌘ ,` | Settings |
+| `Ctrl/Command N` / `Alt N` | New note (template picker) |
+| `Ctrl/Command K` / `Ctrl/Command Shift F` | Search notes |
+| `Ctrl/Command Shift P` | Command palette |
+| `Ctrl/Command S` | Force save |
+| `Ctrl/Command Shift D` | Toggle dark mode |
+| `Ctrl/Command ,` | Settings |
 | `/` | Focus list search |
-| `Esc` | Close dialog → exit focus mode |
+| `Esc` | Close dialog / exit focus mode / exit multi-select |
 | `Ctrl B` / `I` / `U` / `E` | Bold / italic / underline / inline code |
 
 *(Some browsers reserve `Ctrl N`; use `Alt N` there.)*
@@ -93,25 +146,25 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 
 ```
 src/
-├── components/
-│   ├── Dashboard/HomeView      # stats, pinned/recent rows, quick actions
-│   ├── Modals/*                # template picker, spotlight search, palette, share…
-│   ├── NoteEditor/*            # Tiptap setup, toolbar, placeholder, header
-│   ├── NoteList/*              # list/grid panel, rows, per-note menus
-│   ├── Sidebar/                # nav tree, folders, tags, collapse, profile
-│   ├── UI/                     # Button, Modal, DropdownMenu, Tooltip, TagChip…
-│   └── layout/                 # AppShell (responsive panes), MobileNav
-├── database/
-│   ├── db.ts                   # Dexie schema (notes/folders/tags/settings)
-│   ├── hydration.ts            # DB → stores bootstrap (+ first-run demo seed)
-│   └── repositories/           # THE ONLY code touching IndexedDB.
-│                               # Swap for a REST backend without touching UI.
-├── data/                       # defaults, templates, seed content, doc builders
-├── hooks/                      # useMediaQuery, useHotkeys
-├── pages/                      # HomePage, LibraryPage (+ presets), SettingsPage
-├── store/                      # Zustand: notes, folders, tags, settings, ui
-├── types/models.ts             # domain models — single source of truth
-└── utils/                      # cn, dates, doc, search, markdown, image, backup
++-- components/
+|   +-- Dashboard/HomeView      # stats, pinned/recent rows, quick actions
+|   +-- Modals/*                # template picker, spotlight search, palette, share...
+|   +-- NoteEditor/*            # Tiptap setup, toolbar, ink layer, pen palette
+|   +-- NoteList/*              # list/grid panel, rows, per-note menus, preview card
+|   +-- Sidebar/                # nav tree, folders, tags, collapse, profile
+|   +-- UI/                     # Button, Modal, DropdownMenu, Tooltip, TagChip...
+|   +-- layout/                 # AppShell (responsive panes), MobileNav
++-- database/
+|   +-- db.ts                   # Dexie schema (notes/folders/tags/settings)
+|   +-- hydration.ts            # DB -> stores bootstrap
+|   +-- repositories/           # THE ONLY code touching IndexedDB.
+|                               # Swap for a REST backend without touching UI.
++-- data/                       # defaults, templates, seed content, doc builders
++-- hooks/                      # useMediaQuery, useHotkeys, useLongPress
++-- pages/                      # HomePage, LibraryPage (+ presets), SettingsPage
++-- store/                      # Zustand: notes, folders, tags, settings, ui
++-- types/models.ts             # domain models -- single source of truth
++-- utils/                      # cn, dates, doc, search, markdown, image, backup
 ```
 
 Key decisions:
@@ -126,6 +179,10 @@ Key decisions:
 
 ## Roadmap ideas
 
-- Bulk multi-select actions in note lists
 - Service-worker installability for true offline shell caching
 - Note backlinks / wiki-links, export single note as PDF
+- Cross-device sync
+
+## License
+
+[MIT](LICENSE) -- (c) 2026 e1yu

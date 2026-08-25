@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "description": "Capture ideas. Keep moving.",
   "author": "e1yu",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
