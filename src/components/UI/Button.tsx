@@ -57,11 +57,12 @@ export function Button({
   size = 'md',
   className,
   children,
+  type: typeProp,
   ...rest
 }: ButtonProps): ReactNode {
   return (
     <button
-      type="button"
+      type={typeProp ?? 'button'}
       className={cn(
         'inline-flex select-none items-center justify-center whitespace-nowrap transition-all duration-100 disabled:pointer-events-none disabled:opacity-50',
         variantClasses[variant],

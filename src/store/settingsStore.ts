@@ -47,15 +47,21 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
   /** Optimistic settings update with persistence. Theme changes apply to the DOM. */
   update(patch) {
-    const prev = get().settings
-    const next = { ...prev, ...patch }
+    const next = { ...get().settings, ...patch }
     if (patch.theme) applyThemeToDom(patch.theme)
     set({ settings: next })
     void settingsRepository.put(next).catch((err) => {
       console.error('[notely] failed to persist settings', err)
-      // Roll back the optimistic value (and DOM theme) to what was there before
-      if (patch.theme && prev.theme !== next.theme) applyThemeToDom(prev.theme)
-      set({ settings: prev })
+      // Re-read the CURRENT state (not a stale snapshot) to only roll back
+      // this specific failed write, avoiding data loss from concurrent updates.
+      const current = get().settings
+      if (patch.theme && current.theme !== next.theme) applyThemeToDom(current.theme)
+      // If the current in-memory state still holds our failed value, revert
+      // to defaults. If another update() already overwrote it, leave it alone.
+      if (current === next) {
+        set({ settings: DEFAULT_SETTINGS })
+        applyThemeToDom(DEFAULT_SETTINGS.theme)
+      }
     })
   },
 

@@ -12,7 +12,7 @@ export interface Note {
   title: string
   /** Tiptap document JSON. Null for brand-new empty notes. */
   content: JSONContent | null
-  /** Handwriting layer (vector strokes). Absent/null = no handwriting. */
+  /** Legacy inline handwriting (v1 storage). Always null after migration. */
   ink?: InkDoc | null
   folderId: string | null
   tagIds: string[]
@@ -23,6 +23,12 @@ export interface Note {
   deletedAt: number | null
   createdAt: number
   updatedAt: number
+}
+
+/** Handwriting stored out-of-line (v2+), keyed by its owning note. */
+export interface InkDocRecord {
+  noteId: string
+  doc: InkDoc
 }
 
 export interface Folder {
@@ -51,6 +57,7 @@ export type SortKey =
 export interface Profile {
   name: string
   role: string
+  avatar?: string | null
 }
 
 export interface AppSettings {
@@ -63,6 +70,7 @@ export interface AppSettings {
   viewDensity: ViewDensity
   sortKey: SortKey
   profile: Profile
+  setupCompleted: boolean
 }
 
 /* ---------------------------------- Views --------------------------------- */
@@ -95,9 +103,10 @@ export type ModalIntent =
   | { kind: 'palette' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
-   | { kind: 'folder-editor'; folderId?: string }
+  | { kind: 'folder-editor'; folderId?: string }
   | { kind: 'move-note'; noteId: string }
   | { kind: 'tag-editor'; noteId: string }
+  | { kind: 'profile-picture' }
   | {
       kind: 'confirm'
       title: string

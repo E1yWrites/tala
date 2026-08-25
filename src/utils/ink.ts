@@ -1,4 +1,5 @@
 import type { InkPoint, InkStroke } from '@/types/ink'
+import { createId } from '@/utils/id'
 
 /* ---------------------------------------------------------------------------
    Geometry helpers for the handwriting layer: variable-width stroke outlines
@@ -54,6 +55,10 @@ export function polylineToPath(pts: InkPoint[]): string {
 /**
  * Build a closed, filled outline around a polyline whose width follows the
  * recorded pressure. Produces ONE path per stroke (cheap DOM, scalable).
+ *
+ * Hot path — runs every frame while drawing. Written allocation-light:
+ * flat typed arrays instead of point objects, and the path string is
+ * assembled from chunks joined once.
  */
 export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool'>): string {
   const pts = stroke.points
@@ -67,20 +72,23 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
     return circlePath(p0.x, p0.y, r)
   }
 
-  const hasPressure =
-    stroke.tool !== 'highlighter' && pts.some((pt) => pt.p !== undefined && pt.p > 0)
-
-  // Per-point half widths
-  const hw = pts.map((pt) =>
-    stroke.tool === 'highlighter'
-      ? stroke.size / 2
-      : halfWidthAt(stroke.size, pt.p, hasPressure),
-  )
-
-  // Unit tangents and normals per point
-  const nx: number[] = new Array(n)
-  const ny: number[] = new Array(n)
+  let hasPressure = false
   for (let i = 0; i < n; i++) {
+    const p = pts[i]!.p
+    if (stroke.tool !== 'highlighter' && p !== undefined && p > 0) {
+      hasPressure = true
+      break
+    }
+  }
+
+  // Per-point half widths + unit normals in flat arrays
+  const hw = new Float64Array(n)
+  const nx = new Float64Array(n)
+  const ny = new Float64Array(n)
+  const isHl = stroke.tool === 'highlighter'
+  for (let i = 0; i < n; i++) {
+    const pt = pts[i]!
+    hw[i] = isHl ? stroke.size / 2 : halfWidthAt(stroke.size, pt.p, hasPressure)
     const prev = pts[Math.max(0, i - 1)]!
     const next = pts[Math.min(n - 1, i + 1)]!
     let tx = next.x - prev.x
@@ -97,30 +105,64 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
     ny[i] = tx
   }
 
-  const left: InkPoint[] = []
-  const right: InkPoint[] = []
+  // Outline polygon as flat arrays: [start cap] left[] [end cap] right-reversed
+  // Caps sample at most 5 points each, so reserve n*2 + 10.
+  const m = n * 2 + 10
+  const outX = new Float64Array(m)
+  const outY = new Float64Array(m)
+  let k = 0
+
+  if (stroke.tool === 'pen') {
+    // Round start cap: arc from right[0] back to left[0]
+    k = arcCap(outX, outY, k, pts[0]!.x, pts[0]!.y, hw[0]!, nx[0]!, ny[0]!, true)
+  }
   for (let i = 0; i < n; i++) {
-    left.push({ x: pts[i]!.x + nx[i]! * hw[i]!, y: pts[i]!.y + ny[i]! * hw[i]! })
-    right.push({ x: pts[i]!.x - nx[i]! * hw[i]!, y: pts[i]!.y - ny[i]! * hw[i]! })
+    outX[k] = pts[i]!.x + nx[i]! * hw[i]!
+    outY[k] = pts[i]!.y + ny[i]! * hw[i]!
+    k++
   }
-
-  const outline: InkPoint[] = []
-
   if (stroke.tool === 'pen') {
-    // Round start cap: arc around pts[0] from right[0] back to left[0]
-    pushArc(outline, pts[0]!, hw[0]!, right[0]!, left[0]!)
+    k = arcCap(outX, outY, k, pts[n - 1]!.x, pts[n - 1]!.y, hw[n - 1]!, nx[n - 1]!, ny[n - 1]!, false)
   }
-  // Highlighter: butt cap — outline simply starts at left[0]
-
-  outline.push(...left)
-
-  if (stroke.tool === 'pen') {
-    pushArc(outline, pts[n - 1]!, hw[n - 1]!, left[n - 1]!, right[n - 1]!)
+  for (let i = n - 1; i >= 0; i--) {
+    outX[k] = pts[i]!.x - nx[i]! * hw[i]!
+    outY[k] = pts[i]!.y - ny[i]! * hw[i]!
+    k++
   }
 
-  for (let i = n - 1; i >= 0; i--) outline.push(right[i]!)
+  return smoothClosedPath(outX, outY, k)
+}
 
-  return smoothClosedPath(outline)
+/** Semicircular end-cap sampled as `steps` points, swept the short way. */
+function arcCap(
+  outX: Float64Array,
+  outY: Float64Array,
+  k: number,
+  cx: number,
+  cy: number,
+  r: number,
+  nx: number,
+  ny: number,
+  atStart: boolean,
+): number {
+  const rr = Math.max(0.4, r)
+  // Normal direction on the side we're leaving / entering
+  const sx = cx + (atStart ? -nx : nx) * rr
+  const sy = cy + (atStart ? -ny : ny) * rr
+  const ex = cx + (atStart ? nx : -nx) * rr
+  const ey = cy + (atStart ? ny : -ny) * rr
+  const a0 = Math.atan2(sy - cy, sx - cx)
+  let a1 = Math.atan2(ey - cy, ex - cx)
+  while (a1 - a0 > Math.PI) a1 -= Math.PI * 2
+  while (a1 - a0 < -Math.PI) a1 += Math.PI * 2
+  const steps = 5
+  for (let i = 1; i <= steps; i++) {
+    const a = a0 + ((a1 - a0) * i) / steps
+    outX[k] = cx + Math.cos(a) * rr
+    outY[k] = cy + Math.sin(a) * rr
+    k++
+  }
+  return k
 }
 
 function circlePath(cx: number, cy: number, r: number): string {
@@ -132,38 +174,21 @@ function circlePath(cx: number, cy: number, r: number): string {
   )
 }
 
-/** Append a semicircular arc (as sampled points) from `from` to `to` around center. */
-function pushArc(out: InkPoint[], c: InkPoint, r: number, from: InkPoint, to: InkPoint): void {
-  const steps = 5
-  const a0 = Math.atan2(from.y - c.y, from.x - c.x)
-  let a1 = Math.atan2(to.y - c.y, to.x - c.x)
-  // Choose the sweep that goes the "short way" around the cap
-  while (a1 - a0 > Math.PI) a1 -= Math.PI * 2
-  while (a1 - a0 < -Math.PI) a1 += Math.PI * 2
-  const rr = Math.max(0.4, r)
-  for (let i = 1; i <= steps; i++) {
-    const a = a0 + ((a1 - a0) * i) / steps
-    out.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr })
-  }
-}
-
-/** Closed-loop quadratic smoothing for outline polygons. */
-function smoothClosedPath(pts: InkPoint[]): string {
-  const n = pts.length
+/** Closed-loop quadratic smoothing for outline polygons (flat arrays). */
+function smoothClosedPath(outX: Float64Array, outY: Float64Array, n: number): string {
   if (n < 3) return ''
-  let d = ''
+  const chunks: string[] = []
   // Start at midpoint of last→first edge so curvature is even everywhere
-  const startX = (pts[n - 1]!.x + pts[0]!.x) / 2
-  const startY = (pts[n - 1]!.y + pts[0]!.y) / 2
-  d += `M ${round1(startX)} ${round1(startY)}`
+  const startX = (outX[n - 1]! + outX[0]!) / 2
+  const startY = (outY[n - 1]! + outY[0]!) / 2
+  chunks.push(`M ${round1(startX)} ${round1(startY)}`)
   for (let i = 0; i < n; i++) {
-    const cur = pts[i]!
-    const next = pts[(i + 1) % n]!
-    const mx = (cur.x + next.x) / 2
-    const my = (cur.y + next.y) / 2
-    d += ` Q ${round1(cur.x)} ${round1(cur.y)} ${round1(mx)} ${round1(my)}`
+    const j = (i + 1) % n
+    const mx = (outX[i]! + outX[j]!) / 2
+    const my = (outY[i]! + outY[j]!) / 2
+    chunks.push(` Q ${round1(outX[i]!)} ${round1(outY[i]!)} ${round1(mx)} ${round1(my)}`)
   }
-  return d + ' Z'
+  return chunks.join('') + ' Z'
 }
 
 /* ------------------------------ Simplification ---------------------------- */
@@ -253,9 +278,11 @@ export function strokeHits(
 }
 
 /**
- * Pixel eraser: split the stroke into surviving runs of points whose
- * neighbouring segments stay outside the eraser circle. Returns null when
- * nothing changed.
+ * Pixel eraser: split the stroke where the eraser circle actually crosses it.
+ * Cuts land ON the circle's edge (segment∩circle intersections are spliced
+ * into the surviving runs), so erasing mid-stroke nibbles exactly the covered
+ * arc instead of dropping whole simplified segments. Returns null when the
+ * circle misses entirely.
  */
 export function eraseStrokePartially(
   stroke: InkStroke,
@@ -266,59 +293,106 @@ export function eraseStrokePartially(
   const pts = stroke.points
   const n = pts.length
   const reach = radius + stroke.size / 2
-  const reachSq = reach * reach
 
-  // Mark points belonging to segments that pass through the eraser circle
-  const erased = new Uint8Array(n)
-  let anyErased = false
   if (n === 1) {
     const dx = pts[0]!.x - x
     const dy = pts[0]!.y - y
-    if (dx * dx + dy * dy <= reachSq) {
-      erased[0] = 1
-      anyErased = true
-    }
+    return dx * dx + dy * dy <= reach * reach ? [] : null
   }
+
+  /** Sorted t values where the circle meets segment a→b (0..2 of them). */
+  function crossings(ax: number, ay: number, bx: number, by: number): number[] {
+    const dx = bx - ax
+    const dy = by - ay
+    const fx = ax - x
+    const fy = ay - y
+    const A = dx * dx + dy * dy
+    const B = 2 * (fx * dx + fy * dy)
+    const C = fx * fx + fy * fy - reach * reach
+    if (A < 1e-9) return []
+    const disc = B * B - 4 * A * C
+    if (disc < 0) return []
+    const sq = Math.sqrt(disc)
+    const t1 = (-B - sq) / (2 * A)
+    const t2 = (-B + sq) / (2 * A)
+    const out: number[] = []
+    if (t1 >= 0 && t1 <= 1) out.push(t1)
+    if (t2 > 0 && t2 < 1 && out[out.length - 1] !== t2) out.push(t2)
+    return out
+  }
+
+  const runs: InkStroke[] = []
+  let cur: InkPoint[] = [pts[0]!]
+  let changed = false
+  // Lone-point runs are only meaningful once a real cut happened — otherwise
+  // swallowing the first segments would leave a phantom dot at the stroke head.
+  let cutSeen = false
+
+  const flush = () => {
+    if (cur.length >= 2 || (cur.length === 1 && cutSeen)) {
+      runs.push({ ...stroke, id: createId(), points: cur })
+    }
+    cur = []
+  }
+
   for (let i = 1; i < n; i++) {
     const a = pts[i - 1]!
     const b = pts[i]!
-    if (distToSegmentSq(x, y, a.x, a.y, b.x, b.y) <= reachSq) {
-      erased[i - 1] = 1
-      erased[i] = 1
-      anyErased = true
+    const aIn =
+      (a.x - x) * (a.x - x) + (a.y - y) * (a.y - y) <= reach * reach
+    const bIn =
+      (b.x - x) * (b.x - x) + (b.y - y) * (b.y - y) <= reach * reach
+
+    if (aIn && bIn) {
+      // Fully swallowed
+      flush()
+      changed = true
+      cutSeen = true
+      continue
+    }
+
+    const ts = crossings(a.x, a.y, b.x, b.y)
+
+    if (ts.length === 0) {
+      if (!aIn && !bIn) {
+        cur.push(b)
+      } else {
+        // Numerical corner (endpoint marginally inside): drop the segment
+        flush()
+        changed = true
+        cutSeen = true
+        cur = bIn ? [] : [b]
+      }
+      continue
+    }
+
+    const lerp = (t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+
+    if (aIn && !bIn) {
+      // Exiting: keep up to the exit point, restart after
+      cur.push(lerp(ts[ts.length - 1]!))
+      flush()
+      changed = true
+      cutSeen = true
+    } else if (!aIn && bIn) {
+      // Entering: keep up to the entry point, discard the rest
+      cur.push(lerp(ts[0]!))
+      flush()
+      changed = true
+      cutSeen = true
+    } else {
+      // Chord: outside → through → outside
+      if (ts.length < 2) continue // tangential graze — leave intact
+      cur.push(lerp(ts[0]!))
+      flush()
+      cur = [lerp(ts[1]!)]
+      changed = true
+      cutSeen = true
     }
   }
-  if (!anyErased) return null
+  flush()
 
-  const runs: InkStroke[] = []
-  let runStart = -1
-  for (let i = 0; i < n; i++) {
-    if (!erased[i]) {
-      if (runStart < 0) runStart = i
-    } else if (runStart >= 0) {
-      pushRun(runs, stroke, pts, runStart, i - 1)
-      runStart = -1
-    }
-  }
-  if (runStart >= 0) pushRun(runs, stroke, pts, runStart, n - 1)
-  return runs
-}
-
-function pushRun(
-  out: InkStroke[],
-  src: InkStroke,
-  pts: InkPoint[],
-  start: number,
-  end: number,
-): void {
-  const slice = pts.slice(start, end + 1)
-  if (slice.length >= 2) {
-    out.push({
-      ...src,
-      id: `s${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      points: slice,
-    })
-  }
+  return changed ? runs : null
 }
 
 /* ------------------------------- Transforms ------------------------------- */

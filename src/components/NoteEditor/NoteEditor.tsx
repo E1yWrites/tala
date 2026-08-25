@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { useNoteStore } from '@/store/noteStore'
+import { isEmptyNote, useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -47,6 +47,7 @@ import { ReadingView } from './ReadingView'
 import { InkLayer } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
 import { PenToolbar } from './ink/PenToolbar'
+import type { PenPaletteState } from './ink/PenToolbar'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
 
 /* ------------------------- Markdown-style shortcuts ------------------------ */
@@ -101,19 +102,58 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const [penMode, setPenMode] = useState(false)
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
   const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
+  /** Radial palette state — null = closed; cursor mode when opened by right-click. */
+  const [penPalette, setPenPalette] = useState<PenPaletteState | null>(null)
   const inkLayerRef = useRef<InkLayerHandle>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  /** Stable id for cleanup effects that must not re-run per render. */
+  const noteIdRef = useRef(noteId)
+  noteIdRef.current = noteId
 
-  /** Ink commits save immediately (strokes are discrete, cheap IDB puts). */
+  /** Ink commits hit the store instantly; IndexedDB write is debounced in
+   *  the store and force-flushed when this editor unmounts or the note swaps. */
+  const saveInk = useNoteStore((s) => s.saveInk)
+  const flushInk = useNoteStore((s) => s.flushInk)
   const handleInkChange = useCallback(
     (doc: InkDoc) => {
       if (!note) return
-      saveContent(note.id, { ink: doc })
+      saveInk(note.id, doc)
       markDirty()
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [note?.id, saveContent],
+    [note?.id, saveInk],
   )
+
+  // Flush pending ink before the editor lets go of a note (unmount/switch)
+  useEffect(() => {
+    return () => {
+      void flushInk(noteIdRef.current)
+    }
+  }, [flushInk])
+
+  const inkDocs = useNoteStore((s) => s.inkDocs)
+
+  /** Stable prefs object — InkLayer's effects depend on its identity. */
+  const inkLayerPrefs = useMemo(
+    () => ({
+      tool: penTool,
+      color: inkPrefs.color,
+      sizeIdx: inkPrefs.sizeIdx,
+      eraserMode: inkPrefs.eraserMode,
+    }),
+    [penTool, inkPrefs.color, inkPrefs.sizeIdx, inkPrefs.eraserMode],
+  )
+
+  /** Only fires when the undo/redo availability actually flips. */
+  const handleInkHistory = useCallback((canUndo: boolean, canRedo: boolean) => {
+    setInkHistory((prev) =>
+      prev.canUndo === canUndo && prev.canRedo === canRedo ? prev : { canUndo, canRedo },
+    )
+  }, [])
+
+  const handlePaletteRequest = useCallback((x: number, y: number) => {
+    setPenPalette({ open: true, anchor: { x, y }, mode: 'cursor' })
+  }, [])
 
   const updatePenPrefs = useCallback(
     (
@@ -148,6 +188,11 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     return () => window.removeEventListener('keydown', onKey)
   }, [penMode])
 
+  // Leaving pen mode dismisses the radial palette with it
+  useEffect(() => {
+    if (!penMode) setPenPalette(null)
+  }, [penMode])
+
   const [title, setTitle] = useState(note?.title ?? '')
   const [syncKey, setSyncKey] = useState(0)
   const [status, setStatus] = useState<SaveStatus>('idle')
@@ -167,10 +212,14 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       }
       const patch = pendingRef.current
       const hadPending = Object.keys(patch).length > 0
+      // Read note from the store directly to avoid stale closure — `note` is
+      // derived via .find() and would force this callback to be recreated on
+      // every store update.
+      const currentNote = useNoteStore.getState().notes.find((n) => n.id === noteIdRef.current)
       // A permanently deleted note can never save — discard honestly.
       // A *trashed* note still exists, though: keep edits made before the
       // trash so restoring it brings the user's words back.
-      if (!note) {
+      if (!currentNote) {
         pendingRef.current = {}
         setStatus('idle')
         return hadPending ? 'dropped' : 'nothing'
@@ -180,16 +229,25 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         return 'nothing'
       }
       pendingRef.current = {}
+      const hadRealContent = (() => {
+        // Peek at what the store will hold after this patch — an untitled,
+        // content-less note is memory-only by design, so don't claim "saved".
+        const before = useNoteStore.getState().notes.find((n) => n.id === currentNote.id)
+        const after = { ...(before ?? currentNote), ...patch }
+        return !isEmptyNote(after, useNoteStore.getState().inkDocs)
+      })()
       setStatus('saving')
       try {
-        saveContent(note.id, patch)
+        saveContent(currentNote.id, patch)
         // Brief pause so the "Saving…" state is perceivable on fast devices
         await new Promise((r) => setTimeout(r, 150))
-        if (opts?.silent) {
-          setStatus('idle')
-        } else if (Object.keys(pendingRef.current).length > 0) {
+        if (Object.keys(pendingRef.current).length > 0) {
           // Edits arrived while "saving" — keep the unsaved guard active
           setStatus('dirty')
+        } else if (!hadRealContent) {
+          setStatus('idle')
+        } else if (opts?.silent) {
+          setStatus('idle')
         } else {
           setStatus('saved')
         }
@@ -198,7 +256,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         if (opts?.silent && Object.keys(pendingRef.current).length === 0) setStatus('idle')
       }
     },
-    [note, saveContent],
+    [saveContent],
   )
 
   const flushRef = useRef(flush)
@@ -390,7 +448,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             aria-label="Back to list"
             className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
           >
-            <ArrowLeft size={16} strokeWidth={2.5} />
+            <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
         </Tooltip>
 
@@ -403,7 +461,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               active={note.isPinned}
               onClick={() => useNoteStore.getState().patchNote(note.id, { isPinned: !note.isPinned })}
             >
-              <Pin size={15} className={cn(note.isPinned && 'rotate-45')} />
+              <Pin size={HEADER_ICON_SIZE} className={cn(note.isPinned && 'rotate-45')} />
             </HeaderToggle>
           )}
           {!note.isDeleted && (
@@ -415,9 +473,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               }
             >
               {note.isFavorite ? (
-                <StarFilled size={16} className="drop-shadow-sm" />
+                <StarFilled size={HEADER_ICON_SIZE + 1} className="drop-shadow-sm" />
               ) : (
-                <Star size={15} />
+                <Star size={HEADER_ICON_SIZE} />
               )}
             </HeaderToggle>
           )}
@@ -426,7 +484,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             active={false}
             onClick={() => openModal({ kind: 'share', noteId: note.id })}
           >
-            <Share2 size={15} />
+            <Share2 size={HEADER_ICON_SIZE} />
           </HeaderToggle>
           {!note.isDeleted && !readingLayout && (
             <HeaderToggle
@@ -434,7 +492,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               active={penMode}
               onClick={() => setPenMode((m) => !m)}
             >
-              <PenTool size={15} />
+              <PenTool size={HEADER_ICON_SIZE} />
             </HeaderToggle>
           )}
           {!note.isDeleted && (
@@ -447,24 +505,30 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 toggleReadingLayout()
               }}
             >
-              <BookOpen size={15} />
+              <BookOpen size={HEADER_ICON_SIZE} />
             </HeaderToggle>
           )}
           {!focusMode ? (
             <span className="hidden md:block">
               <HeaderToggle label="Distraction-free mode" active={focusMode} onClick={toggleFocusMode}>
-                <Maximize2 size={15} />
+                <Maximize2 size={HEADER_ICON_SIZE} />
               </HeaderToggle>
             </span>
           ) : (
             <span>
               <HeaderToggle label="Exit distraction-free mode" active onClick={toggleFocusMode}>
-                <Minimize2 size={15} />
+                <Minimize2 size={HEADER_ICON_SIZE} />
               </HeaderToggle>
             </span>
           )}
           <DropdownMenu
-            items={buildNoteMenu(note, { surface })}
+            items={
+              note.isDeleted
+                ? buildNoteMenu(note, { surface }).filter(
+                    (item) => item.id !== 'restore' && item.id !== 'delete-forever',
+                  )
+                : buildNoteMenu(note, { surface })
+            }
             trigger={(props) => (
               <button
                 {...props}
@@ -472,7 +536,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 aria-label="More options"
                 className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
               >
-                <ChevronDown size={16} strokeWidth={2.5} />
+                <ChevronDown size={18} strokeWidth={2.5} />
               </button>
             )}
           />
@@ -647,6 +711,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     inkLayerRef.current?.clearAll()
                     toast.success('Handwriting cleared')
                   }}
+                  palette={
+                    penPalette ?? { open: false, anchor: { x: 0, y: 0 }, mode: 'trigger' }
+                  }
+                  onPalette={setPenPalette}
                 />
               )}
             </div>
@@ -667,23 +735,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <InkLayer
               key={note.id}
               ref={inkLayerRef}
-              ink={note.ink ?? null}
+              ink={inkDocs[note.id] ?? note.ink ?? null}
               onChange={handleInkChange}
               scrollRef={scrollRef}
               active={penMode}
-              prefs={{
-                tool: penTool,
-                color: inkPrefs.color,
-                sizeIdx: inkPrefs.sizeIdx,
-                eraserMode: inkPrefs.eraserMode,
-              }}
-              onHistoryChange={(canUndo, canRedo) =>
-                setInkHistory((prev) =>
-                  prev.canUndo === canUndo && prev.canRedo === canRedo
-                    ? prev
-                    : { canUndo, canRedo },
-                )
-              }
+              prefs={inkLayerPrefs}
+              onHistoryChange={handleInkHistory}
+              onPaletteRequest={handlePaletteRequest}
             />
           )}
         </div>
@@ -726,6 +784,9 @@ function SaveStatusChip({
   )
 }
 
+const HEADER_ICON_SIZE = 22
+const HEADER_ICON_CONTAINER = 'grid size-10 place-items-center'
+
 function HeaderToggle({
   label,
   active,
@@ -745,13 +806,15 @@ function HeaderToggle({
         aria-pressed={active}
         aria-label={label}
         className={cn(
-          'grid size-8 place-items-center rounded-wobbly-sm transition-colors duration-100',
+          'grid size-10 place-items-center rounded-wobbly-sm transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
           active
-            ? 'bg-postit text-postit-ink'
+            ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
             : 'text-muted hover:bg-raise hover:text-ink',
         )}
       >
-        {children}
+        <span className={HEADER_ICON_CONTAINER} aria-hidden="true">
+          {children}
+        </span>
       </button>
     </Tooltip>
   )

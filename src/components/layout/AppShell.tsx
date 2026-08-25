@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore } from '@/store/uiStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
 import { Sidebar } from '@/components/Sidebar/Sidebar'
@@ -11,6 +12,7 @@ import { NoteEditor } from '@/components/NoteEditor/NoteEditor'
 import { EditorPlaceholder } from '@/components/NoteEditor/EditorPlaceholder'
 import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
 import { cn } from '@/utils/cn'
 
 /** Collapsed rail width (px) — matches the sidebar minimum so nothing breaks. */
@@ -38,19 +40,6 @@ export function AppShell(): React.ReactNode {
 
   // Global keyboard shortcuts
   useHotkeys()
-
-  // Close the drawer with Escape — but only when no modal sits above it.
-  useEffect(() => {
-    if (!sidebarDrawerOpen) return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
-      const ui = useUIStore.getState()
-      if (ui.modalStack.length > 0) return
-      setSidebarDrawer(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sidebarDrawerOpen, setSidebarDrawer])
 
   // The drawer declares aria-modal — move focus in and keep Tab inside.
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -93,6 +82,13 @@ export function AppShell(): React.ReactNode {
   const openDrawer = (): void => setSidebarDrawer(true)
 
   /* ------------------------------ View content ----------------------------- */
+
+  const setupCompleted = useSettingsStore((s) => s.settings.setupCompleted)
+
+  // Show onboarding if setup is not completed
+  if (!setupCompleted) {
+    return <OnboardingPage />
+  }
 
   let viewContent: React.ReactNode
   if (activeView.kind === 'home') {
@@ -149,11 +145,14 @@ export function AppShell(): React.ReactNode {
   const showDockedSidebar = isDesktop && !focusMode
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div
+      className="flex h-full overflow-hidden"
+      style={{ '--sidebar-width': `${sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth}px` } as React.CSSProperties}
+    >
       {showDockedSidebar && (
         <>
           <aside
-            style={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth }}
+            style={{ width: 'var(--sidebar-width)' }}
             className={cn(
               'h-full shrink-0 transition-[width] duration-200 ease-out',
               sidebarResizing && 'transition-none',

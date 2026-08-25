@@ -192,7 +192,7 @@ export function CommandPalette(): React.ReactNode {
                 i === activeIdx ? 'bg-postit text-postit-ink' : 'hover:bg-canvas',
               )}
             >
-              <cmd.icon className="size-4 shrink-0 text-muted" aria-hidden="true" />
+              <cmd.icon className="size-[18px] shrink-0 overflow-visible text-muted" aria-hidden="true" />
               <span className="flex-1 truncate text-[13px]">{cmd.label}</span>
               {cmd.hint && (
                 <span className="shrink-0 font-mono text-[10px] text-faint">{cmd.hint}</span>

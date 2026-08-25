@@ -1,4 +1,5 @@
 import { noteRepository } from './repositories/noteRepository'
+import { inkRepository } from './repositories/inkRepository'
 import { folderRepository } from './repositories/folderRepository'
 import { tagRepository } from './repositories/tagRepository'
 import { settingsRepository } from './repositories/settingsRepository'
@@ -21,8 +22,10 @@ export function bootApp(): Promise<void> {
 }
 
 async function doHydrate(): Promise<void> {
-  const [notes, folders, tags, settings] = await Promise.all([
+  const [notes, inkRecords, folders, tags, settings] = await Promise.all([
     noteRepository.all(),
+    // Eager: the editor needs ink the moment a note opens, not after a roundtrip
+    inkRepository.all(),
     folderRepository.all(),
     tagRepository.all(),
     settingsRepository.get(),
@@ -57,6 +60,38 @@ async function doHydrate(): Promise<void> {
   }
 
   useNoteStore.getState().hydrate(notes)
+  useNoteStore.getState().hydrateInk(inkRecords)
+
+  // Safety net: ink writes land before the debounced note-row touch-up, so a
+  // reload in that window leaves orphaned handwriting. Materialize minimal
+  // note rows for them instead of silently dropping the user's strokes.
+  const knownIds = new Set(notes.map((n) => n.id))
+  const orphans = inkRecords.filter((r) => !knownIds.has(r.noteId) && r.doc.strokes.length > 0)
+  if (orphans.length > 0) {
+    const now = Date.now()
+    const revived = orphans.map((r) => ({
+      id: r.noteId,
+      title: '',
+      content: null,
+      ink: null,
+      folderId: null,
+      tagIds: [],
+      isPinned: false,
+      isFavorite: false,
+      isArchived: false,
+      isDeleted: false,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }))
+    try {
+      await noteRepository.bulkPut(revived)
+      useNoteStore.getState().hydrate([...notes, ...revived])
+    } catch (err) {
+      console.error('[notely] failed to revive orphaned handwriting', err)
+    }
+  }
+
   useFolderStore.getState().hydrate(folders)
   useTagStore.getState().hydrate(tags)
   applyThemeToDom(settings.theme)

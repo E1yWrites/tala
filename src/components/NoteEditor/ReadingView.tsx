@@ -325,7 +325,7 @@ function CollapsibleSection({
         className="-ml-1 flex w-full items-center gap-2 rounded-wobbly-sm px-1 py-1 text-left transition-colors duration-150 hover:bg-raise/60"
       >
         <ChevronRight
-          size={16}
+          size={18}
           strokeWidth={2.75}
           aria-hidden="true"
           className={cn(

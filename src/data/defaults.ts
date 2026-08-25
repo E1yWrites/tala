@@ -12,7 +12,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   profile: {
     name: '',
     role: '',
+    avatar: null,
   },
+  setupCompleted: false,
 }
 
 /**

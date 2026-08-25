@@ -3,10 +3,9 @@ import { format, formatDistanceToNowStrict } from 'date-fns'
 /** "Edited 10 min ago" style label. */
 export function formatRelative(timestamp: number): string {
   const diff = Date.now() - timestamp
-  if (diff < 45_000) return 'Just now'
+  if (diff >= 0 && diff < 45_000) return 'Just now'
   return formatDistanceToNowStrict(timestamp, { addSuffix: false })
     .replace(/ minutes?/, ' min')
-    .replace(/ seconds?/, ' sec')
     .replace(/ hours?/, ' hr')
     .concat(' ago')
 }

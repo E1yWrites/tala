@@ -61,7 +61,7 @@ export function docToMarkdown(docNode: JSONContent | null | undefined): string {
         first = false
       }
     })
-    lines.push('')
+    if (depth === 0) lines.push('')
   }
 
   const blockInline = (n: JSONContent): string => inlineToMarkdown(n.content)

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ModalIntent, ViewRef } from '@/types/models'
 import type { InkEraserMode, InkPointerMode } from '@/types/ink'
+import { PEN_SIZES } from '@/types/ink'
 
 const SIDEBAR_KEY = 'notely:sidebar-collapsed'
 const SIDEBAR_WIDTH_KEY = 'notely:sidebar-width'
@@ -49,16 +50,16 @@ export interface InkPrefs {
   /** Last active pen tool (what re-selects when entering pen mode). */
   tool: Exclude<InkPointerMode, 'select'>
   color: string
-  /** Index into the thickness presets (S/M/L) */
+  /** Index into the thickness presets (see PEN_SIZES / HIGHLIGHTER_SIZES) */
   sizeIdx: number
   eraserMode: InkEraserMode
 }
 
-const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'highlighter', 'eraser']
+const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'pencil', 'highlighter', 'eraser']
 
 export const DEFAULT_INK_PREFS: InkPrefs = {
   tool: 'pen',
-  color: '#2d5da1',
+  color: '#2563eb',
   sizeIdx: 1,
   eraserMode: 'stroke',
 }
@@ -77,8 +78,10 @@ function readInkPrefs(): InkPrefs {
           ? parsed.color
           : DEFAULT_INK_PREFS.color,
       sizeIdx:
-        typeof parsed.sizeIdx === 'number' && parsed.sizeIdx >= 0 && parsed.sizeIdx <= 2
-          ? Math.round(parsed.sizeIdx)
+        typeof parsed.sizeIdx === 'number' && Number.isFinite(parsed.sizeIdx)
+          ? // Clamp rather than reject: presets grew from 3 to 6 slots, and an
+            // old stored index must survive the upgrade (and any future change).
+            Math.min(Math.max(Math.round(parsed.sizeIdx), 0), PEN_SIZES.length - 1)
           : DEFAULT_INK_PREFS.sizeIdx,
       eraserMode:
         parsed.eraserMode === 'pixel' || parsed.eraserMode === 'stroke'
@@ -204,7 +207,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
 
   toggleFocusMode() {
-    set((s) => ({ focusMode: !s.focusMode }))
+    set((s) => ({ focusMode: !s.focusMode, sidebarDrawerOpen: false }))
   },
 
   setInkPrefs(patch) {

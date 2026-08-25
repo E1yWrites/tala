@@ -382,6 +382,19 @@
 }
 
 /* Reading layout — smooth collapsible sections (grid-rows trick) */
+/*
+ * react-doodle-icons wraps every glyph in <g clip-path="url(#clip0)"> whose
+ * clipPath rect equals the viewBox. That crops the hand-drawn strokes'
+ * intentional overshoot (the svg-level overflow:visible set by the shim can't
+ * help), and since every icon reuses id="clip0", all of them resolve to the
+ * first clip rect in the document, cross-clipping glyphs. Presentation
+ * attributes lose to any author rule, so this neutralises the clip for doodle
+ * slots; lucide icons never carry the .doodle-slot class.
+ */
+.doodle-slot [clip-path] {
+  clip-path: none;
+}
+
 .rv-collapse {
   display: grid;
   grid-template-rows: 1fr;
@@ -447,6 +460,7 @@ body.sidebar-resizing {
 }
 
 .ink-tool-pen,
+.ink-tool-pencil,
 .ink-tool-highlighter {
   cursor: crosshair;
 }
@@ -470,9 +484,16 @@ body.sidebar-resizing {
   opacity: 0.4;
 }
 
+/* Pencil strokes read drier/graphitic next to the solid pen */
+.ink-pencil-path {
+  opacity: 0.82;
+}
+
+/* Ink gesture overlays — all share the accent family so every transient
+   affordance reads as one system (contract: see AGENTS notes). */
 .ink-marquee {
-  fill: rgb(var(--c-ballpoint) / 0.06);
-  stroke: rgb(var(--c-ballpoint));
+  fill: rgb(var(--c-accent) / 0.06);
+  stroke: rgb(var(--c-accent));
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
@@ -492,6 +513,10 @@ body.sidebar-resizing {
 
 .ink-cursor-ring {
   fill: rgb(var(--c-accent) / 0.08);
-  stroke: rgb(var(--c-muted));
+  stroke: rgb(var(--c-accent) / 0.6);
   stroke-width: 1.25;
+}
+
+.ink-live-tip {
+  opacity: 0.35;
 }

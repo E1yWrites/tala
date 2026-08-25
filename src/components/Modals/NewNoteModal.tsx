@@ -6,7 +6,7 @@ import {
   KanbanSquare,
   Lightbulb,
   ListChecks,
-  NotebookPen,
+  Pencil,
   SquareCode,
   Users,
 } from 'lucide-react'
@@ -25,7 +25,8 @@ const TEMPLATE_ICONS: Record<string, LucideIcon> = {
   Users,
   ListChecks,
   KanbanSquare,
-  NotebookPen,
+  // templates.ts keys this slot 'NotebookPen'; render it as a plain pencil
+  NotebookPen: Pencil,
   BookOpen,
   Lightbulb,
   SquareCode,
@@ -92,12 +93,12 @@ export function NewNoteModal(): React.ReactNode {
           type="button"
           onClick={() => void createFrom(undefined)}
           className={cn(
-            'flex flex-col items-start gap-2 rounded-wobbly-sm border-2 border-line bg-panel p-3 text-left',
+            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-line bg-panel p-4 text-left',
             'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
           )}
         >
-          <span className="grid size-8 place-items-center rounded-wobbly-sm bg-postit text-postit-ink border border-line shadow-sketch-sm">
-            <FileText className="size-4" aria-hidden="true" />
+          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm bg-postit text-postit-ink border border-line shadow-sketch-sm">
+            <FileText className="size-5" aria-hidden="true" />
           </span>
           <span className="text-[13px]">Blank note</span>
           <span className="text-xs leading-snug text-muted">Just start typing</span>
@@ -109,12 +110,12 @@ export function NewNoteModal(): React.ReactNode {
             type="button"
             onClick={() => void createFrom(tpl)}
             className={cn(
-              'flex flex-col items-start gap-2 rounded-wobbly-sm border-2 border-line bg-panel p-3 text-left',
+              'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-line bg-panel p-4 text-left',
               'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
             )}
           >
-            <span className="grid size-8 place-items-center rounded-wobbly-sm border border-dashed border-line bg-canvas text-accent">
-              <Icon className="size-4" aria-hidden="true" />
+            <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm border border-dashed border-line bg-canvas text-accent">
+              <Icon className="size-5" aria-hidden="true" />
             </span>
             <span className="text-[13px]">{tpl.name}</span>
             <span className="text-xs leading-snug text-muted">{tpl.description}</span>

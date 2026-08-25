@@ -1,30 +1,46 @@
-import type { AppSettings, Folder, Note, Tag } from '@/types/models'
+import type { AppSettings, Folder, InkDocRecord, Note, Tag } from '@/types/models'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import {
   folderRepository,
+  inkRepository,
   noteRepository,
   settingsRepository,
   tagRepository,
 } from '@/database/repositories'
+import { useNoteStore } from '@/store/noteStore'
 
 export interface BackupFile {
   app: 'notely'
-  version: 1
+  /** 1 = pre-v2 inline note.ink; 2 = handwriting in inkDocs. */
+  version: 1 | 2
   exportedAt: number
   notes: Note[]
   folders: Folder[]
   tags: Tag[]
   settings: AppSettings | null
+  inkDocs?: InkDocRecord[]
 }
 
 export async function buildBackup(): Promise<BackupFile> {
-  const [notes, folders, tags, settings] = await Promise.all([
+  // Pending debounced handwriting must land before we snapshot IndexedDB
+  await useNoteStore.getState().flushInk()
+  const [notes, folders, tags, settings, inkDocs] = await Promise.all([
     noteRepository.all(),
     folderRepository.all(),
     tagRepository.all(),
     settingsRepository.get().catch(() => null),
+    inkRepository.all(),
   ])
-  return { app: 'notely', version: 1, exportedAt: Date.now(), notes, folders, tags, settings }
+  return {
+    app: 'notely',
+    version: 2,
+    exportedAt: Date.now(),
+    notes,
+    folders,
+    tags,
+    settings,
+    inkDocs,
+  }
 }
 
 function stamp(): string {
@@ -40,7 +56,9 @@ export async function downloadBackup(): Promise<void> {
   const a = document.createElement('a')
   a.href = url
   a.download = `notely-backup-${stamp()}.json`
+  document.body.appendChild(a)
   a.click()
+  a.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
@@ -56,13 +74,39 @@ export function parseBackup(text: string): BackupFile {
   if (b.app !== 'notely' || !Array.isArray(b.notes) || !Array.isArray(b.folders) || !Array.isArray(b.tags)) {
     throw new Error('That file is not a Notely backup.')
   }
-  if (b.version !== 1) {
+  if (b.version !== 1 && b.version !== 2) {
     throw new Error(`Unsupported backup version: ${String(b.version)}`)
   }
   const notes = b.notes.map(normalizeNote).filter((n): n is Note => n !== null)
   const folders = dedupeByName(b.folders.filter(isStorableRecord))
   const tags = dedupeByName(b.tags.filter(isStorableRecord))
-  return { ...(b as BackupFile), notes, folders, tags, settings: sanitizeSettings(b.settings) }
+
+  // Handwriting: v2 carries dedicated records; v1 kept ink inline per note.
+  // Both paths funnel into the same sanitized record list.
+  const byId = new Map<string, InkDocRecord>()
+  if (Array.isArray(b.inkDocs)) {
+    for (const rec of b.inkDocs) {
+      const doc = sanitizeInkDoc(rec)
+      if (doc && isStr((rec as { noteId?: unknown }).noteId)) {
+        byId.set(rec.noteId, { noteId: rec.noteId, doc })
+      }
+    }
+  }
+  for (const n of notes) {
+    if (!n.ink) continue
+    if (!byId.has(n.id)) byId.set(n.id, { noteId: n.id, doc: n.ink })
+  }
+  const inkDocs = Array.from(byId.values())
+
+  return {
+    ...(b as BackupFile),
+    version: 2,
+    notes,
+    folders,
+    tags,
+    settings: sanitizeSettings(b.settings),
+    inkDocs,
+  }
 }
 
 /** Drops duplicate ids and case-insensitive duplicate names (first wins). */
@@ -109,6 +153,7 @@ function sanitizeSettings(raw: unknown): AppSettings | null {
       : s.viewDensity,
     sortKey: sortKeys.includes(raw.sortKey as string) ? (raw.sortKey as AppSettings['sortKey']) : s.sortKey,
     profile,
+    setupCompleted: typeof raw.setupCompleted === 'boolean' ? raw.setupCompleted : s.setupCompleted,
   }
 }
 
@@ -117,6 +162,14 @@ function sanitizeSettings(raw: unknown): AppSettings | null {
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
+
+/** Minimal shape check for an out-of-line handwriting record. */
+function sanitizeInkDoc(rec: unknown): Note['ink'] {
+  if (!isObj(rec)) return null
+  const doc = rec.doc
+  if (!isObj(doc) || !Array.isArray((doc as { strokes?: unknown }).strokes)) return null
+  return doc as unknown as Note['ink']
+}
 
 function isStorableRecord(v: unknown): v is Folder | Tag {
   return isObj(v) && isStr(v.id) && isStr((v as { name?: unknown }).name)
@@ -170,14 +223,21 @@ export async function restoreBackup(
 ): Promise<{ notes: number; folders: number; tags: number }> {
   const { db } = await import('@/database/db')
   const { hydrateAll } = await import('@/database/hydration')
+  const inkDocs = backup.inkDocs ?? []
 
-  await db.transaction('rw', [db.notes, db.folders, db.tags, db.settings], async () => {
+  await db.transaction('rw', [db.notes, db.folders, db.tags, db.settings, db.inkDocs], async () => {
     if (mode === 'replace') {
-      await Promise.all([db.notes.clear(), db.folders.clear(), db.tags.clear()])
+      await Promise.all([
+        db.notes.clear(),
+        db.folders.clear(),
+        db.tags.clear(),
+        db.inkDocs.clear(),
+      ])
     }
     await db.folders.bulkPut(backup.folders)
     await db.tags.bulkPut(backup.tags)
     await db.notes.bulkPut(backup.notes)
+    if (inkDocs.length > 0) await db.inkDocs.bulkPut(inkDocs)
     if (backup.settings) await db.settings.put(backup.settings)
   })
 

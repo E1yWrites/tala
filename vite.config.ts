@@ -9,8 +9,9 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: [
-      // Route every lucide-react import through the doodle-icon shim so
-      // files dropped into src/assets/icons can override any built-in icon.
+      // Route every lucide-react import through the doodle-icon shim, which
+      // serves glyphs from the react-doodle-icons pack (with lucide
+      // fallbacks where the pack has no fitting icon).
       { find: /^lucide-react$/, replacement: path.resolve(__dirname, './src/lib/lucideShim.tsx') },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ],

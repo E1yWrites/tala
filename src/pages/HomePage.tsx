@@ -36,7 +36,7 @@ function StatCard({
       )}
     >
       <div className="flex items-center gap-1.5 text-muted">
-        <Icon size={12} strokeWidth={2.5} aria-hidden="true" />
+        <Icon size={18} strokeWidth={2.5} aria-hidden="true" />
         <span className="whitespace-nowrap text-2xs tracking-wide">{label}</span>
       </div>
       <p
@@ -93,15 +93,15 @@ export function HomePage(): React.ReactNode {
         {/* Quick actions */}
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => openModal({ kind: 'new-note' })}>
-            <Plus size={15} />
+            <Plus size={16} />
             New note
           </Button>
           <Button onClick={() => openModal({ kind: 'search' })}>
-            <Search size={15} />
+            <Search size={16} />
             Search notes
           </Button>
           <Button onClick={() => openModal({ kind: 'folder-editor' })}>
-            <FolderIcon size={15} />
+            <FolderIcon size={16} />
             New folder
           </Button>
         </div>
@@ -121,12 +121,12 @@ export function HomePage(): React.ReactNode {
         {/* Recently edited */}
         <div>
           <h2 className="mb-2 flex items-center gap-2 px-1 text-[13px] text-muted underline decoration-wavy decoration-lineSoft/70 underline-offset-4">
-            <Clock size={13} strokeWidth={2.5} aria-hidden="true" />
+            <Clock size={16} strokeWidth={2.5} aria-hidden="true" />
             Recently edited
           </h2>
           {stats.recent.length === 0 ? (
             <div className="rounded-wobbly-md border-2 border-dashed border-lineSoft bg-panel/60 px-6 py-8 text-center">
-              <NotebookText size={22} className="mx-auto -rotate-6 text-accent" aria-hidden="true" />
+              <NotebookText size={28} className="mx-auto -rotate-6 text-accent" aria-hidden="true" />
               <p className="mt-2 font-display text-lg">Nothing here yet</p>
               <p className="mt-0.5 text-sm text-muted">
                 Your recently edited notes will appear here.
@@ -137,7 +137,7 @@ export function HomePage(): React.ReactNode {
                 className="mt-4"
                 onClick={() => openModal({ kind: 'new-note' })}
               >
-                <Plus size={13} />
+                <Plus size={15} />
                 Create your first note
               </Button>
             </div>

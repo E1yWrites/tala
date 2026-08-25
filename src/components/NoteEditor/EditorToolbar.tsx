@@ -104,11 +104,14 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="no-scrollbar flex items-center gap-0.5 overflow-x-auto rounded-wobbly-md border-2 border-line bg-panel px-1.5 py-1 shadow-sketch-sm"
+      className="flex flex-wrap items-center gap-0.5 rounded-wobbly-md border-2 border-line bg-panel px-1.5 py-1 shadow-sketch-sm"
     >
       {buttons.map((btn, i) =>
         btn === 'sep' ? (
-          <span key={`sep-${i}`} aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-lineSoft" />
+          <span key={`sep-${i}`} aria-hidden="true" className="mx-0.5 grid min-w-1 flex-1 place-items-center">
+            {/* Grows with the bar so groups spread evenly; the rule stays a hairline */}
+            <span className="h-5 w-px bg-lineSoft" />
+          </span>
         ) : (
           <Tooltip key={btn.label} label={btn.label}>
             <button
@@ -118,12 +121,14 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
               aria-pressed={btn.active}
               aria-label={btn.label}
               className={cn(
-                'grid size-7 shrink-0 place-items-center rounded-wobbly-sm transition-colors duration-100',
-                btn.active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
+                'grid size-7 shrink-0 place-items-center rounded-wobbly-sm transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
+                btn.active
+                  ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+                  : 'text-muted hover:bg-raise hover:text-ink',
                 btn.disabled && 'pointer-events-none opacity-35',
               )}
             >
-              <btn.icon size={14} strokeWidth={btn.active ? 2.75 : 2} />
+              <btn.icon size={16} strokeWidth={btn.active ? 2.75 : 2} />
             </button>
           </Tooltip>
         ),

@@ -2,7 +2,7 @@ import type { JSONContent } from '@tiptap/core'
 
 /* ---------------------------------------------------------------------------
    Tiny builders for constructing Tiptap documents declaratively.
-   Used by templates and demo seed data.
+   Used by the template gallery and anywhere structured docs are needed.
 --------------------------------------------------------------------------- */
 
 export const txt = (text: string): JSONContent => ({ type: 'text', text })

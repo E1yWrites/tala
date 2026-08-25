@@ -232,7 +232,7 @@ export function NoteListPanel({
               description="Create your first note and start capturing your ideas."
               action={
                 <Button variant="primary" size="sm" onClick={() => openModal({ kind: 'new-note' })}>
-                  <Plus size={13} />
+                  <Plus size={15} />
                   Create note
                 </Button>
               }
@@ -246,7 +246,7 @@ export function NoteListPanel({
             description="This place fills up as you create and organize notes."
             action={
               <Button variant="primary" size="sm" onClick={() => openModal({ kind: 'new-note' })}>
-                <Plus size={13} />
+                <Plus size={15} />
                 New note
               </Button>
             }
@@ -271,7 +271,7 @@ export function NoteListPanel({
             aria-label="Open navigation"
             className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:bg-raise hover:text-ink lg:hidden"
           >
-            <Menu size={17} strokeWidth={2.5} />
+            <Menu size={18} strokeWidth={2.5} />
           </button>
         )}
         <div className="min-w-0 flex-1">
@@ -291,7 +291,7 @@ export function NoteListPanel({
             aria-label="New note"
             className="grid size-9 shrink-0 place-items-center rounded-wobbly-sm border-[3px] border-line bg-postit text-postit-ink shadow-sketch-sm transition-all duration-100 hover:bg-accent hover:text-accent-fg active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
           >
-            <Plus size={16} strokeWidth={2.5} />
+            <Plus size={20} strokeWidth={2.5} />
           </button>
         </Tooltip>
       </header>
@@ -300,7 +300,7 @@ export function NoteListPanel({
       <div className="flex flex-col gap-2 px-4 pb-2 pt-1">
         <div className="relative">
           <Search
-            size={14}
+            size={18}
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
           />
@@ -320,7 +320,7 @@ export function NoteListPanel({
               aria-label="Clear search"
               className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-wobbly-sm text-faint transition-colors hover:bg-raise hover:text-ink"
             >
-              <X size={12} strokeWidth={2.5} />
+              <X size={14} strokeWidth={2.5} />
             </button>
           )}
         </div>
@@ -354,13 +354,13 @@ export function NoteListPanel({
                   aria-pressed={viewDensity === value}
                   aria-label={label}
                   className={cn(
-                    'grid size-6 place-items-center rounded-[6px_3px_7px_3px] transition-colors',
+                    'grid size-7 place-items-center rounded-[6px_3px_7px_3px] transition-colors',
                     viewDensity === value
                       ? 'bg-postit text-postit-ink'
                       : 'text-faint hover:text-ink',
                   )}
                 >
-                  <Icon size={12.5} strokeWidth={2.5} />
+                  <Icon size={16} strokeWidth={2.5} />
                 </button>
               </Tooltip>
             ))}
@@ -384,10 +384,7 @@ export function NoteListPanel({
                 message: `All ${visibleNotes.length} trashed ${visibleNotes.length === 1 ? 'note' : 'notes'} will be permanently deleted. This cannot be undone.`,
                 confirmLabel: 'Empty trash',
                 onConfirm: () => {
-                  const ids = useNoteStore
-                    .getState()
-                    .notes.filter((n) => n.isDeleted)
-                    .map((n) => n.id)
+                  const ids = visibleNotes.filter((n) => n.isDeleted).map((n) => n.id)
                   void deleteForeverAndPrune(ids).then((ok) => {
                     if (ok) toast.success('Trash emptied')
                   })
@@ -395,7 +392,7 @@ export function NoteListPanel({
               })
             }
           >
-            <TrashFilled size={13} />
+            <TrashFilled size={16} />
             Empty trash
           </Button>
         </div>
@@ -469,7 +466,7 @@ function ToolbarButton({
           : 'text-muted hover:border-lineSoft hover:bg-panel hover:text-ink',
       )}
     >
-      <Icon size={12.5} aria-hidden="true" />
+      <Icon size={17} aria-hidden="true" />
       {label}
     </button>
   )
@@ -493,9 +490,9 @@ function NoteRowWithMenu(props: {
               {...menuProps}
               type="button"
               aria-label="Note options"
-              className="grid size-6 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
+              className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
             >
-              <MoreHorizontal size={12} aria-hidden="true" />
+              <MoreHorizontal size={16} aria-hidden="true" />
             </button>
           )}
         />

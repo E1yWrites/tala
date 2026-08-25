@@ -154,6 +154,7 @@ export function SidebarResizeHandle(): React.ReactNode {
       onDoubleClick={() => {
         setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)
         commitSidebarWidth()
+        if (useUIStore.getState().sidebarCollapsed) toggleSidebar()
       }}
       onKeyDown={onKeyDown}
       className="group/handle relative z-10 -ml-1.5 h-full w-1.5 shrink-0 cursor-col-resize touch-none select-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ballpoint/60"

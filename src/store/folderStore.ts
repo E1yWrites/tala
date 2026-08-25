@@ -58,7 +58,11 @@ export const useFolderStore = create<FolderState>()((set, get) => ({
     set((s) => ({
       folders: [...s.folders, folder].sort((a, b) => a.name.localeCompare(b.name)),
     }))
-    void persist(folder)
+    void persist(folder).then((ok) => {
+      if (!ok) {
+        set((s) => ({ folders: s.folders.filter((f) => f.id !== folder.id) }))
+      }
+    })
     return folder
   },
 

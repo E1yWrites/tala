@@ -1,342 +1,221 @@
 /* eslint-disable */
 /**
- * lucide-react shim — the doodle-icon layer.
+ * lucide-react shim — react-doodle-icons layer.
  *
  * Vite resolves every `import { ... } from 'lucide-react'` in the app to this
- * module (see `resolve.alias` in vite.config.ts). Each icon is wrapped so that:
+ * module (see `resolve.alias` in vite.config.ts). Icons come from the
+ * react-doodle-icons pack (hand-drawn SVG set, MIT); where the pack offers no
+ * fitting glyph — text formatting, gears/sliders, theme sun/moon, spinners —
+ * the original lucide icon renders instead, so call sites never change.
  *
- *   - if a doodle file exists for its slot (src/assets/icons/<slot>.svg or a
- *     raster image), the doodle is rendered instead of the built-in glyph;
- *   - otherwise the original lucide component renders unchanged.
+ * Two things every doodle needs:
+ *   - fill via currentColor so theme colours apply unchanged;
+ *   - `overflow: visible` on the <svg>: the hand-drawn paths intentionally
+ *     overshoot their viewBox a few units, and SVG crops overflow by default,
+ *     which sheared glyphs along their right/bottom edges. The wrapper below
+ *     forces it back on (and merges caller styles over it).
  *
- * Dropping/removing files in src/assets/icons swaps icons app-wide instantly
- * (dev hot-reloads; production builds bake them in). No call sites change.
- *
- * Slot names are kebab-case versions of the lucide names — e.g. `Trash2`
- * becomes `trash-2`. See src/assets/icons/README.md for the full list.
+ * The pack marks its main entry as side-effectful, which disables
+ * tree-shaking through it, so each icon is imported from its own file
+ * (~200 bytes apiece).
  */
-import { createElement, useSyncExternalStore } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { forwardRef } from 'react'
+import type { ComponentType, CSSProperties, SVGProps } from 'react'
 import * as Lucide from 'lucide-react/dist/esm/lucide-react.mjs'
 import type { LucideIcon } from 'lucide-react'
-import { useSettingsStore } from '@/store/settingsStore'
 
-/**
- * Doodle SVGs are inlined raw so strokes using currentColor follow the theme.
- * Files may sit at the root or inside `light/` / `dark/` theme folders.
- */
-const rawSvgs = import.meta.glob('../assets/icons/**/*.svg', {
-  eager: true,
-  query: '?raw',
-  import: 'default',
-}) as Record<string, string>
+import { ArrowLeftIcon } from 'react-doodle-icons/icons/ArrowLeftIcon'
+import { ArrowRightIcon } from 'react-doodle-icons/icons/ArrowRightIcon'
+import { BookmarkIcon } from 'react-doodle-icons/icons/BookmarkIcon'
+import { BoxIcon } from 'react-doodle-icons/icons/BoxIcon'
+import { CameraIcon } from 'react-doodle-icons/icons/CameraIcon'
+import { ChevronsDownIcon } from 'react-doodle-icons/icons/ChevronsDownIcon'
+import { ChevronsLeftIcon } from 'react-doodle-icons/icons/ChevronsLeftIcon'
+import { ChevronsRightIcon } from 'react-doodle-icons/icons/ChevronsRightIcon'
+import { ClockIcon } from 'react-doodle-icons/icons/ClockIcon'
+import { CopyIcon } from 'react-doodle-icons/icons/CopyIcon'
+import { CrossIcon } from 'react-doodle-icons/icons/CrossIcon'
+import { DeleteIcon } from 'react-doodle-icons/icons/DeleteIcon'
+import { DownloadIcon } from 'react-doodle-icons/icons/DownloadIcon'
+import { EraserIcon } from 'react-doodle-icons/icons/EraserIcon'
+import { FastForwardIcon } from 'react-doodle-icons/icons/FastForwardIcon'
+import { FastRewindIcon } from 'react-doodle-icons/icons/FastRewindIcon'
+import { FileNotesIcon } from 'react-doodle-icons/icons/FileNotesIcon'
+import { FolderAddIcon } from 'react-doodle-icons/icons/FolderAddIcon'
+import { FolderIcon } from 'react-doodle-icons/icons/FolderIcon'
+import { ForwardIcon } from 'react-doodle-icons/icons/ForwardIcon'
+import { Home1Icon } from 'react-doodle-icons/icons/Home1Icon'
+import { HomeIcon } from 'react-doodle-icons/icons/HomeIcon'
+import { InfoIcon } from 'react-doodle-icons/icons/InfoIcon'
+import { LinkIcon } from 'react-doodle-icons/icons/LinkIcon'
+import { MaximizeIcon } from 'react-doodle-icons/icons/MaximizeIcon'
+import { Menu2Icon } from 'react-doodle-icons/icons/Menu2Icon'
+import { MenuIcon } from 'react-doodle-icons/icons/MenuIcon'
+import { MinimizeIcon } from 'react-doodle-icons/icons/MinimizeIcon'
+import { NavigationIcon } from 'react-doodle-icons/icons/NavigationIcon'
+import { NoteIcon } from 'react-doodle-icons/icons/NoteIcon'
+import { PaintBrush2Icon } from 'react-doodle-icons/icons/PaintBrush2Icon'
+import { PaintBucketIcon } from 'react-doodle-icons/icons/PaintBucketIcon'
+import { PencilIcon } from 'react-doodle-icons/icons/PencilIcon'
+import { PenToolIcon } from 'react-doodle-icons/icons/PenToolIcon'
+import { PhotoIcon } from 'react-doodle-icons/icons/PhotoIcon'
+import { PinIcon } from 'react-doodle-icons/icons/PinIcon'
+import { RotateIcon } from 'react-doodle-icons/icons/RotateIcon'
+import { SendIcon } from 'react-doodle-icons/icons/SendIcon'
+import { ServerIcon } from 'react-doodle-icons/icons/ServerIcon'
+import { StarIcon } from 'react-doodle-icons/icons/StarIcon'
+import { TagIcon } from 'react-doodle-icons/icons/TagIcon'
+import { Tick2Icon } from 'react-doodle-icons/icons/Tick2Icon'
+import { TickIcon } from 'react-doodle-icons/icons/TickIcon'
+import { UnboxIcon } from 'react-doodle-icons/icons/UnboxIcon'
+import { UserIcon } from 'react-doodle-icons/icons/UserIcon'
 
-/** Raster doodles render as plain <img> embedding. */
-const rasterUrls = import.meta.glob('../assets/icons/**/*.{png,webp,jpg,jpeg,gif}', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>
-
-type ThemeVariant = 'light' | 'dark'
-
-/** Strips the extension plus an optional `_light`/`_dark` name suffix. */
-function fileName(path: string): string {
-  return path
-    .split('/')
-    .pop()!
-    .replace(/\.[^.]+$/, '')
-    .replace(/_(light|dark)$/, '')
-    .toLowerCase()
-}
-
-/** Theme comes from the folder (`light/x.png`) or a name suffix (`x.dark.png`). */
-function variantOf(path: string): ThemeVariant | undefined {
-  if (/\/light\//.test(path)) return 'light'
-  if (/\/dark\//.test(path)) return 'dark'
-  const m = /[._](light|dark)\.[^.]+$/.exec(path)
-  return m ? (m[1] as ThemeVariant) : undefined
-}
-
-/**
- * Maps the hand-drawn set's semantic file names to the app icon slots they
- * replace. One doodle can cover several slots (e.g. `app_note` stands in for
- * every note-ish glyph). Keys are the file base names in src/assets/icons/.
- */
-const SLOT_ALIASES: Record<string, string[]> = {
-  app_archive: ['archive'],
-  app_check: ['list-checks', 'check-square'],
-  app_edit: ['pencil', 'pen-tool', 'notebook-pen'],
-  app_folder: ['folder'],
-  app_new: ['plus'],
-  app_note: ['notebook-text', 'notebook', 'file-text'],
-  app_pin: ['pin'],
-  app_recent: ['clock'],
-  app_search: ['search'],
-  app_star: ['star'],
-  app_trash: ['trash-2'],
-
-  // State variants (solid glyphs) and soft UI accents from the second set
-  filled_filter: ['filter-active'],
-  filled_pin: ['pin-filled'],
-  filled_saved: ['bookmark'],
-  filled_sort: ['sort-active'],
-  filled_star: ['star-filled'],
-  filled_trash: ['trash-filled'],
-  ui_check: ['check-soft'],
-  ui_filter: ['filter'],
-  ui_info: ['info'],
-  ui_sort: ['sort'],
-  ui_star: ['star-outline'],
-}
-
-/**
- * Dark-variant artwork is currently disabled — dark mode reuses the light /
- * theme-independent doodles. Flip to true to resume per-theme resolution.
- */
-const USE_DARK_VARIANTS = false
-
-const svgIndex = new Map<string, Map<string, string>>()
-const rasterIndex = new Map<string, Map<string, string>>()
-
-function indexInto(
-  index: Map<string, Map<string, string>>,
-  path: string,
-  value: string,
-): void {
-  const slot = fileName(path)
-  const variant = variantOf(path)
-  // Register under the literal name plus every alias slot it covers
-  const slots = [slot, ...(SLOT_ALIASES[slot] ?? [])]
-  for (const s of slots) {
-    let variants = index.get(s)
-    if (!variants) {
-      variants = new Map()
-      index.set(s, variants)
-    }
-    // '' = theme-independent file
-    variants.set(variant ?? '', value)
-  }
-}
-
-/**
- * Defense-in-depth: doodle packs are local assets, but a future icon set is
- * still untrusted input that gets inlined. Strip scripts, event handlers,
- * foreign objects and non-fragment URLs before anything reaches innerHTML.
- */
-function sanitizeDoodleSvg(raw: string): string {
-  return raw
-    .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(
-      /\s(?:xlink:href|href)\s*=\s*(["'][^"']*["']|[^\s>]+)/gi,
-      (m, url: string) => (/^(["'])#[\w-]+\1$/.test(url.trim()) ? m : ''),
-    )
-    .replace(/javascript:/gi, '')
-}
-
-for (const [path, raw] of Object.entries(rawSvgs)) {
-  indexInto(svgIndex, path, sanitizeDoodleSvg(raw))
-}
-for (const [path, url] of Object.entries(rasterUrls)) indexInto(rasterIndex, path, url)
-
-/**
- * Resolves the best file for a slot under the active theme.
- * Precedence: exact theme variant → theme-independent → opposite variant.
- * When USE_DARK_VARIANTS is off, dark mode falls straight through to the
- * light / plain artwork.
- */
-function resolveVariant(
-  index: Map<string, Map<string, string>>,
-  slot: string,
-  isDark: boolean,
-): string | undefined {
-  const variants = index.get(slot.toLowerCase())
-  if (!variants) return undefined
-  if (!USE_DARK_VARIANTS && isDark) {
-    return variants.get('light') ?? variants.get('')
-  }
-  const want: ThemeVariant = isDark ? 'dark' : 'light'
-  return variants.get(want) ?? variants.get('') ?? variants.get(isDark ? 'light' : 'dark')
-}
-
-/** True when any doodle overrides this slot. */
-export function hasDoodle(slot: string): boolean {
-  const lower = slot.toLowerCase()
-  return svgIndex.has(lower) || rasterIndex.has(lower)
-}
-
-interface DoodleProps {
+interface DoodleProps extends SVGProps<SVGSVGElement> {
   size?: number | string
-  className?: string
-  style?: CSSProperties
+  /** Fill colour; defaults to currentColor like the rest of the app. */
+  color?: string
 }
 
+type DoodleComponent = ComponentType<DoodleProps>
+
 /**
- * Renders an overriding doodle for `slot`, or null when none exists.
- * SVG doodles are inlined (currentColor-aware); rasters render via <img>.
- * `isDark` picks between `.dark`/`.light` artwork variants.
+ * Presents a doodle under its lucide slot identity. Besides forwarding props
+ * it pins `overflow: visible` onto the glyph so overshooting hand-drawn
+ * strokes are never cropped (call-site styles still win via merge order).
  */
-export function Doodle(slot: string, props: DoodleProps, isDark: boolean): ReactNode {
-  const size = props.size ?? 24
-  const px = typeof size === 'number' ? `${size}px` : size
-  const svg = resolveVariant(svgIndex, slot, isDark)
-  if (svg !== undefined) {
+function doodle(C: DoodleComponent): LucideIcon {
+  const Wrapped = forwardRef<SVGSVGElement, DoodleProps>(function DoodleSlot(props, ref) {
+    const { style, className, ...rest } = props
     return (
-      <span
-        aria-hidden="true"
-        className={props.className}
-        style={{ display: 'inline-block', width: px, height: px, lineHeight: 0, ...props.style }}
-        dangerouslySetInnerHTML={{
-          __html: svg.replace('<svg', '<svg focusable="false" tabindex="-1"'),
-        }}
+      <C
+        ref={ref}
+        {...rest}
+        className={className ? `doodle-slot ${className}` : 'doodle-slot'}
+        style={{ overflow: 'visible', ...(style as CSSProperties | undefined) }}
       />
     )
-  }
-  const url = resolveVariant(rasterIndex, slot, isDark)
-  if (url === undefined) return null
-  return (
-    <img
-      src={url}
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-      width={typeof size === 'number' ? size : undefined}
-      height={typeof size === 'number' ? size : undefined}
-      className={props.className}
-      style={{ width: px, height: px, objectFit: 'contain', ...props.style }}
-    />
-  )
-}
-
-type AnyProps = { size?: number | string; className?: string; style?: CSSProperties } & Record<string, unknown>
-
-/** Subscribes to the app theme (and OS-level changes under "system"). */
-function useIsDark(): boolean {
-  const theme = useSettingsStore((s) => s.settings.theme)
-  const prefersDark = useSyncExternalStore(
-    (onStoreChange) => {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      mq.addEventListener('change', onStoreChange)
-      return () => mq.removeEventListener('change', onStoreChange)
-    },
-    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-    () => false,
-  )
-  return theme === 'dark' || (theme !== 'light' && prefersDark)
-}
-
-/**
- * Wraps a lucide component with doodle override behaviour.
- * No doodle present → the original component renders untouched.
- */
-function withDoodle(slot: string, Fallback: LucideIcon): LucideIcon {
-  const Wrapped = (props: AnyProps): ReactNode => {
-    const { size, className, style, ...rest } = props
-    // Hook order is stable whether or not a doodle exists for this slot.
-    const isDark = useIsDark()
-    if (hasDoodle(slot)) return <>{Doodle(slot, { size, className, style }, isDark)}</>
-    return createElement(Fallback, rest as never, null)
-  }
-  Wrapped.displayName = `Doodle(${slot})`
+  })
   return Wrapped as unknown as LucideIcon
 }
 
 export * from 'lucide-react/dist/esm/lucide-react.mjs'
 
-/* ---- Overridable icons actually used by Notely ---- */
-export const AlignJustify = withDoodle('align-justify', Lucide.AlignJustify)
-export const Archive = withDoodle('archive', Lucide.Archive)
-export const ArrowLeft = withDoodle('arrow-left', Lucide.ArrowLeft)
-export const ArrowLeftRight = withDoodle('arrow-left-right', Lucide.ArrowLeftRight)
-export const ArrowUpDown = withDoodle('arrow-up-down', Lucide.ArrowUpDown)
-export const Bold = withDoodle('bold', Lucide.Bold)
-export const BookOpen = withDoodle('book-open', Lucide.BookOpen)
-export const Braces = withDoodle('braces', Lucide.Braces)
-export const Check = withDoodle('check', Lucide.Check)
-export const CheckSquare = withDoodle('check-square', Lucide.CheckSquare)
-export const ChevronDown = withDoodle('chevron-down', Lucide.ChevronDown)
-export const ChevronLeft = withDoodle('chevron-left', Lucide.ChevronLeft)
-export const ChevronRight = withDoodle('chevron-right', Lucide.ChevronRight)
-export const Clock = withDoodle('clock', Lucide.Clock)
-export const Code = withDoodle('code', Lucide.Code)
-export const Command = withDoodle('command', Lucide.Command)
-export const Copy = withDoodle('copy', Lucide.Copy)
-export const CornerDownLeft = withDoodle('corner-down-left', Lucide.CornerDownLeft)
-export const Download = withDoodle('download', Lucide.Download)
-export const Eraser = withDoodle('eraser', Lucide.Eraser)
-export const FileText = withDoodle('file-text', Lucide.FileText)
-export const Folder = withDoodle('folder', Lucide.Folder)
-export const FolderInput = withDoodle('folder-input', Lucide.FolderInput)
-export const FolderPlus = withDoodle('folder-plus', Lucide.FolderPlus)
-export const GraduationCap = withDoodle('graduation-cap', Lucide.GraduationCap)
-export const HardDrive = withDoodle('hard-drive', Lucide.HardDrive)
-export const Hash = withDoodle('hash', Lucide.Hash)
-export const Heading1 = withDoodle('heading-1', Lucide.Heading1)
-export const Heading2 = withDoodle('heading-2', Lucide.Heading2)
-export const Heading3 = withDoodle('heading-3', Lucide.Heading3)
-export const Highlighter = withDoodle('highlighter', Lucide.Highlighter)
-export const Home = withDoodle('home', Lucide.Home)
-export const House = withDoodle('house', Lucide.House)
-export const ImagePlus = withDoodle('image-plus', Lucide.ImagePlus)
-export const Import = withDoodle('import', Lucide.Import)
-export const Italic = withDoodle('italic', Lucide.Italic)
-export const KanbanSquare = withDoodle('kanban-square', Lucide.KanbanSquare)
-export const Keyboard = withDoodle('keyboard', Lucide.Keyboard)
-export const LayoutGrid = withDoodle('layout-grid', Lucide.LayoutGrid)
-export const Lightbulb = withDoodle('lightbulb', Lucide.Lightbulb)
-export const Link2 = withDoodle('link-2', Lucide.Link2)
-export const List = withDoodle('list', Lucide.List)
-export const ListChecks = withDoodle('list-checks', Lucide.ListChecks)
-export const ListOrdered = withDoodle('list-ordered', Lucide.ListOrdered)
-export const LoaderCircle = withDoodle('loader-circle', Lucide.LoaderCircle)
-export const Maximize2 = withDoodle('maximize-2', Lucide.Maximize2)
-export const Menu = withDoodle('menu', Lucide.Menu)
-export const Minimize2 = withDoodle('minimize-2', Lucide.Minimize2)
-export const Minus = withDoodle('minus', Lucide.Minus)
-export const Monitor = withDoodle('monitor', Lucide.Monitor)
-export const Moon = withDoodle('moon', Lucide.Moon)
-export const MoreHorizontal = withDoodle('more-horizontal', Lucide.MoreHorizontal)
-export const MousePointer2 = withDoodle('mouse-pointer-2', Lucide.MousePointer2)
-export const Notebook = withDoodle('notebook', Lucide.Notebook)
-export const NotebookPen = withDoodle('notebook-pen', Lucide.NotebookPen)
-export const NotebookText = withDoodle('notebook-text', Lucide.NotebookText)
-export const Palette = withDoodle('palette', Lucide.Palette)
-export const PenTool = withDoodle('pen-tool', Lucide.PenTool)
-export const Pencil = withDoodle('pencil', Lucide.Pencil)
-export const Pin = withDoodle('pin', Lucide.Pin)
-export const Plus = withDoodle('plus', Lucide.Plus)
-export const Quote = withDoodle('quote', Lucide.Quote)
-export const Redo2 = withDoodle('redo-2', Lucide.Redo2)
-export const RotateCcw = withDoodle('rotate-ccw', Lucide.RotateCcw)
-export const Rows3 = withDoodle('rows-3', Lucide.Rows3)
-export const Search = withDoodle('search', Lucide.Search)
-export const Settings = withDoodle('settings', Lucide.Settings)
-export const Settings2 = withDoodle('settings-2', Lucide.Settings2)
-export const Share2 = withDoodle('share-2', Lucide.Share2)
-export const SlidersHorizontal = withDoodle('sliders-horizontal', Lucide.SlidersHorizontal)
-export const SquareCode = withDoodle('square-code', Lucide.SquareCode)
-export const Star = withDoodle('star', Lucide.Star)
-export const Strikethrough = withDoodle('strikethrough', Lucide.Strikethrough)
-export const Sun = withDoodle('sun', Lucide.Sun)
-export const SunMoon = withDoodle('sun-moon', Lucide.SunMoon)
-export const Trash2 = withDoodle('trash-2', Lucide.Trash2)
-export const Underline = withDoodle('underline', Lucide.Underline)
-export const Undo2 = withDoodle('undo-2', Lucide.Undo2)
-export const User = withDoodle('user', Lucide.User)
-export const Users = withDoodle('users', Lucide.Users)
-export const X = withDoodle('x', Lucide.X)
+/* ---- Mapped slots: react-doodle-icons serves the glyph ---- */
+export const AlignJustify = doodle(MenuIcon)
+export const Archive = doodle(BoxIcon)
+export const ArrowLeft = doodle(ArrowLeftIcon)
+export const ArrowRight = doodle(ArrowRightIcon)
+export const Bookmark = doodle(BookmarkIcon)
+export const Camera = doodle(CameraIcon)
+export const Check = doodle(TickIcon)
+export const CheckSoft = doodle(Tick2Icon)
+export const ChevronDown = doodle(ChevronsDownIcon)
+export const ChevronLeft = doodle(ChevronsLeftIcon)
+export const ChevronRight = doodle(ChevronsRightIcon)
+export const Clock = doodle(ClockIcon)
+export const Copy = doodle(CopyIcon)
+export const CornerDownLeft = doodle(ForwardIcon)
+export const Download = doodle(DownloadIcon)
+export const Eraser = doodle(EraserIcon)
+export const Folder = doodle(FolderIcon)
+export const FolderInput = doodle(FolderAddIcon)
+export const FolderPlus = doodle(FolderAddIcon)
+export const HardDrive = doodle(ServerIcon)
+export const Hash = doodle(TagIcon)
+export const Highlighter = doodle(PaintBrush2Icon)
+export const Home = doodle(Home1Icon)
+export const House = doodle(HomeIcon)
+export const ImagePlus = doodle(PhotoIcon)
+export const Import = doodle(UnboxIcon)
+export const Info = doodle(InfoIcon)
+export const Link2 = doodle(LinkIcon)
+export const Maximize2 = doodle(MaximizeIcon)
+export const Menu = doodle(MenuIcon)
+export const Minimize2 = doodle(MinimizeIcon)
+export const MoreHorizontal = doodle(Menu2Icon)
+export const MousePointer2 = doodle(NavigationIcon)
+export const Notebook = doodle(FileNotesIcon)
+export const NotebookText = doodle(NoteIcon)
+export const Palette = doodle(PaintBucketIcon)
+export const PenTool = doodle(PenToolIcon)
+export const Pencil = doodle(PencilIcon)
+export const Pin = doodle(PinIcon)
+export const PinFilled = doodle(PinIcon)
+export const Redo2 = doodle(FastForwardIcon)
+export const RotateCcw = doodle(RotateIcon)
+export const Share2 = doodle(SendIcon)
+export const Star = doodle(StarIcon)
+export const StarFilled = doodle(StarIcon)
+export const Trash2 = doodle(DeleteIcon)
+export const TrashFilled = doodle(DeleteIcon)
+export const Undo2 = doodle(FastRewindIcon)
+export const User = doodle(UserIcon)
 
-/* ---- State-variant + accent doodles from the second icon set ---- */
+/**
+ * The pack ships no bare “+” glyph, but its X (“Cross”) rotated 45° becomes a
+ * hand-drawn plus — keeping the new-note actions in the same stroke style.
+ */
+export const Plus = forwardRef<SVGSVGElement, DoodleProps>(function Plus(props, ref) {
+  const { style, className, ...rest } = props
+  return (
+    <span
+      className={className}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        lineHeight: 0,
+        transform: 'rotate(45deg)',
+      }}
+    >
+      <CrossIcon
+        ref={ref}
+        {...rest}
+        style={{ overflow: 'visible', ...(style as CSSProperties | undefined) }}
+      />
+    </span>
+  )
+}) as unknown as LucideIcon
 
-export const Bookmark = withDoodle('bookmark', Lucide.Bookmark)
-export const Filter = withDoodle('filter', Lucide.Filter)
-export const FilterActive = withDoodle('filter-active', Lucide.Filter)
-export const Info = withDoodle('info', Lucide.Info)
-export const Sort = withDoodle('sort', Lucide.ArrowUpDown)
-export const SortActive = withDoodle('sort-active', Lucide.ArrowUpDown)
-export const StarFilled = withDoodle('star-filled', Lucide.Star)
-export const PinFilled = withDoodle('pin-filled', Lucide.Pin)
-export const TrashFilled = withDoodle('trash-filled', Lucide.Trash2)
-export const CheckSoft = withDoodle('check-soft', Lucide.Check)
+/* ---- Slots where the pack has no trustworthy glyph: lucide renders ---- */
+export const Bold = Lucide.Bold
+export const ArrowLeftRight = Lucide.ArrowLeftRight
+export const BookOpen = Lucide.BookOpen
+export const Braces = Lucide.Braces
+export const CheckSquare = Lucide.CheckSquare
+export const Code = Lucide.Code
+export const Command = Lucide.Command
+export const FileText = Lucide.FileText
+export const Filter = Lucide.Filter
+export const FilterActive = Lucide.Filter
+export const GraduationCap = Lucide.GraduationCap
+export const Heading1 = Lucide.Heading1
+export const Heading2 = Lucide.Heading2
+export const Heading3 = Lucide.Heading3
+export const Italic = Lucide.Italic
+export const KanbanSquare = Lucide.KanbanSquare
+export const Keyboard = Lucide.Keyboard
+export const Lightbulb = Lucide.Lightbulb
+export const List = Lucide.List
+export const ListChecks = Lucide.ListChecks
+export const ListOrdered = Lucide.ListOrdered
+export const LoaderCircle = Lucide.LoaderCircle
+export const LayoutGrid = Lucide.LayoutGrid
+export const Minus = Lucide.Minus
+export const Monitor = Lucide.Monitor
+export const Moon = Lucide.Moon
+export const NotebookPen = Lucide.NotebookPen
+export const Quote = Lucide.Quote
+export const Rows3 = Lucide.Rows3
+export const Search = Lucide.Search
+export const Settings = Lucide.Settings
+export const Settings2 = Lucide.Settings2
+export const SlidersHorizontal = Lucide.SlidersHorizontal
+export const Sort = Lucide.ArrowUpDown
+export const SortActive = Lucide.ArrowUpDown
+export const SquareCode = Lucide.SquareCode
+export const Strikethrough = Lucide.Strikethrough
+export const Sun = Lucide.Sun
+export const SunMoon = Lucide.SunMoon
+export const Underline = Lucide.Underline
+export const Users = Lucide.Users

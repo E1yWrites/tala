@@ -86,7 +86,7 @@ export function NoteRow({
     <div
       role="button"
       tabIndex={0}
-      aria-current={selected ? 'true' : undefined}
+      aria-current={selected ? 'page' : undefined}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return // nested buttons handle their own keys
@@ -184,7 +184,7 @@ export function NoteGridCard({
     <div
       role="button"
       tabIndex={0}
-      aria-current={selected ? 'true' : undefined}
+      aria-current={selected ? 'page' : undefined}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return // nested buttons handle their own keys

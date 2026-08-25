@@ -90,7 +90,7 @@ export function SearchModal(): React.ReactNode {
       initialFocus={false}
     >
       <div className="flex items-center gap-2 border-b-2 border-line px-4">
-        <Search className="size-4 shrink-0 text-faint" aria-hidden="true" />
+        <Search className="size-[18px] shrink-0 text-faint" aria-hidden="true" />
         <input
           ref={inputRef}
           autoFocus

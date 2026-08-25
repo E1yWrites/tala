@@ -138,8 +138,10 @@ export function Modal({
   return createPortal(
     <div
       className={cn(
-        'fixed inset-0 z-40 flex justify-center bg-black/40 px-4 pb-4 animate-fade-in',
-        align === 'center' ? 'items-center' : 'items-start pt-[12vh]',
+        // Auto-margin centering (not items-center): a panel taller than the
+        // viewport must stay fully reachable, so the overlay scrolls instead
+        // of clipping both ends.
+        'fixed inset-0 z-40 flex justify-center overflow-y-auto bg-black/40 px-4 py-4 animate-fade-in',
       )}
       onMouseDown={(e) => {
         if (dismissable && e.target === e.currentTarget) onClose()
@@ -156,6 +158,7 @@ export function Modal({
         className={cn(
           'relative w-full outline-none animate-scale-in',
           SIZE_CLASSES[size],
+          align === 'center' ? 'my-auto' : 'mt-[12vh]',
           className,
         )}
       >

@@ -7,6 +7,7 @@ import {
   Keyboard,
   Moon,
   Palette,
+  RotateCcw,
   Settings2,
   SlidersHorizontal,
   Sun,
@@ -27,6 +28,7 @@ import { db } from '@/database/db'
 import { downloadBackup, parseBackup, restoreBackup, type BackupFile } from '@/utils/exportImport'
 import { Button } from '@/components/UI/Button'
 import { cn } from '@/utils/cn'
+import { Avatar } from '@/components/UI/Avatar'
 
 /* ------------------------------ Small pieces ------------------------------ */
 
@@ -45,7 +47,7 @@ function Section({
     <section className="rounded-wobbly-md border-2 border-line bg-panel p-4 shadow-sketch-sm sm:p-5">
       <header className="mb-4 flex items-start gap-3">
         <span className="mt-0.5 grid size-9 shrink-0 -rotate-3 place-items-center rounded-full border-2 border-dashed border-line bg-canvas text-accent">
-          <Icon className="size-4" strokeWidth={2.5} />
+          <Icon className="size-5" strokeWidth={2.5} />
         </span>
         <div>
           <h2 className="font-display text-xl leading-snug">{title}</h2>
@@ -67,12 +69,19 @@ function SettingRow({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+    <div
+      data-row
+      className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_var(--control-w,15rem)]"
+    >
       <div className="min-w-0">
         <p className="text-xs font-medium">{label}</p>
         {hint && <p className="mt-0.5 text-[11px] leading-snug text-faint">{hint}</p>}
       </div>
-      <div className="shrink-0">{children}</div>
+      {/* Shared control column — every control in the card lands on the same
+          right edge; sliders/inputs stretch to fill it. */}
+      <div className="flex min-w-0 items-center justify-start sm:justify-end [&>*]:max-w-full">
+        {children}
+      </div>
     </div>
   )
 }
@@ -102,7 +111,7 @@ function Segmented<T extends string>({
             value === opt.value ? 'bg-postit text-postit-ink' : 'text-muted hover:text-ink',
           )}
         >
-          {opt.icon && <opt.icon className="size-3.5" strokeWidth={2.5} />}
+          {opt.icon && <opt.icon className="size-4" strokeWidth={2.5} />}
           {opt.label}
         </button>
       ))}
@@ -169,7 +178,7 @@ function SidebarWidthRow(): React.ReactNode {
         onPointerUp={commitSidebarWidth}
         onKeyUp={commitSidebarWidth}
         aria-label="Sidebar width"
-        className="w-40 accent-[rgb(var(--c-accent))]"
+        className="w-full accent-[rgb(var(--c-accent))]"
       />
     </SettingRow>
   )
@@ -260,16 +269,32 @@ export function SettingsPage(): React.ReactNode {
     })
   }
 
+  /** Dev-safe onboarding replay — flips setupCompleted only; nothing is erased. */
+  function confirmResetSetup(): void {
+    openModal({
+      kind: 'confirm',
+      title: 'Re-run the setup wizard?',
+      message: 'The welcome flow will play again on the next launch. Your notes, folders and profile are kept.',
+      confirmLabel: 'Re-run wizard',
+      onConfirm: () => {
+        update({ setupCompleted: false })
+        setView({ kind: 'home' })
+      },
+    })
+  }
+
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-2xl space-y-4 p-4 pb-16 sm:p-6">
+      {/* Content grid: begins right after the sidebar with a stable gutter and
+          a bounded column — never centered into a wide dead zone. */}
+      <div className="w-full max-w-[47rem] space-y-4 px-5 py-6 pb-16 sm:px-10 sm:py-8">
         {/* Header */}
         <header className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setView({ kind: 'home' })}
-            aria-label="Back to home"
+            onClick={() => setView({ kind: 'all' })}
+            aria-label="Back to notes"
           >
             <ChevronLeft className="size-4" />
             Back
@@ -283,6 +308,33 @@ export function SettingsPage(): React.ReactNode {
           title="Profile"
           description="Shown on the home greeting and sidebar."
         >
+          <SettingRow label="Profile picture" hint="Managed here — click the picture to change or remove it">
+            <div className="flex max-w-full items-center gap-3">
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openModal({ kind: 'profile-picture' })}
+                  aria-label="Change profile picture"
+                  className="relative block rounded-full outline-none"
+                >
+                  <Avatar
+                    src={settings.profile.avatar}
+                    name={settings.profile.name}
+                    size="lg"
+                    showEditOverlay
+                  />
+                </button>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {settings.profile.name || 'No name set'}
+                </p>
+                <p className="truncate text-xs text-faint">
+                  {settings.profile.avatar ? 'Click the picture to change' : 'Click to add a picture'}
+                </p>
+              </div>
+            </div>
+          </SettingRow>
           <SettingRow label="Name" hint="Used for the greeting, e.g. “Good morning, Sam”">
             <input
               type="text"
@@ -291,7 +343,7 @@ export function SettingsPage(): React.ReactNode {
               placeholder="Your name"
               aria-label="Profile name"
               maxLength={40}
-              className="h-9 w-44 rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             />
           </SettingRow>
           <SettingRow label="Role or tagline" hint="Optional — shown under your name in the sidebar">
@@ -302,7 +354,7 @@ export function SettingsPage(): React.ReactNode {
               placeholder="Student, Writer…"
               aria-label="Profile role"
               maxLength={40}
-              className="h-9 w-44 rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             />
           </SettingRow>
         </Section>
@@ -355,7 +407,7 @@ export function SettingsPage(): React.ReactNode {
               value={settings.editorFontSize}
               onChange={(e) => update({ editorFontSize: Number(e.target.value) })}
               aria-label="Editor font size"
-              className="w-40 accent-[rgb(var(--c-accent))]"
+              className="w-full accent-[rgb(var(--c-accent))]"
             />
           </SettingRow>
           <SettingRow label="Line height">
@@ -397,7 +449,7 @@ export function SettingsPage(): React.ReactNode {
               value={settings.sortKey}
               onChange={(e) => update({ sortKey: e.target.value as SortKey })}
               aria-label="Default sort order"
-              className="h-10 rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-10 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -432,14 +484,14 @@ export function SettingsPage(): React.ReactNode {
         >
           <SettingRow label="Export backup" hint="Download a JSON snapshot you can re-import anywhere">
             <Button variant="outline" size="sm" onClick={() => void downloadBackup()}>
-              <Download className="size-3.5" />
+              <Download className="size-4" />
               Export JSON
             </Button>
           </SettingRow>
 
           <SettingRow label="Import backup" hint="Merge into your library or replace everything">
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Import className="size-3.5" />
+              <Import className="size-4" />
               Choose file…
             </Button>
             <input
@@ -482,8 +534,18 @@ export function SettingsPage(): React.ReactNode {
             hint="Erase every note, folder and tag from this browser"
           >
             <Button variant="danger-outline" size="sm" onClick={confirmClearAll}>
-              <Trash2 className="size-3.5" />
+              <Trash2 className="size-4" />
               Clear…
+            </Button>
+          </SettingRow>
+
+          <SettingRow
+            label="Re-run setup wizard"
+            hint="Replays the welcome flow. Your notes and profile are kept."
+          >
+            <Button variant="outline" size="sm" onClick={confirmResetSetup}>
+              <RotateCcw className="size-4" />
+              Re-run…
             </Button>
           </SettingRow>
         </Section>

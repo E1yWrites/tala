@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 
+const IS_DEV = import.meta.env.DEV
+
 /** True while the user is typing in a text field (used to gate '/' etc.). */
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -132,6 +134,14 @@ export function useHotkeys(): void {
             (settings.theme === 'system' &&
               window.matchMedia('(prefers-color-scheme: dark)').matches)
           setTheme(dark ? 'light' : 'dark')
+          return
+        }
+        case 'r': {
+          if (IS_DEV && e.ctrlKey) {
+            e.preventDefault()
+            useSettingsStore.getState().update({ setupCompleted: false })
+            window.location.reload()
+          }
           return
         }
       }

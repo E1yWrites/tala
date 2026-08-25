@@ -18,12 +18,18 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+
+const ICON_SIZE = 24
+const ICON_CONTAINER = 'grid size-7 shrink-0 place-items-center overflow-visible'
+const BOTTOM_ICON_SIZE = 26
+const BOTTOM_ICON_CONTAINER = 'grid size-full place-items-center overflow-visible'
+import { Avatar } from '../UI/Avatar'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore, useSystemDark } from '@/store/settingsStore'
-import type { ThemeMode, ViewRef } from '@/types/models'
+import type { ThemeMode, ViewKind, ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../UI/Tooltip'
 import { useTick } from '@/hooks/useTick'
@@ -31,19 +37,11 @@ import { DropdownMenu } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
 
 interface NavItemSpec {
-  view: ViewRef
+  /** Stable identity for list keys / aria. */
+  id: string
   label: string
   icon: LucideIcon
   count?: number
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('')
 }
 
 const THEME_ORDER: ThemeMode[] = ['light', 'dark', 'system']
@@ -97,12 +95,12 @@ export function Sidebar({
   }, [notes])
 
   const libraryItems: NavItemSpec[] = [
-    { view: { kind: 'all' }, label: 'All Notes', icon: NotebookText, count: counts.all },
-    { view: { kind: 'favorites' }, label: 'Favorites', icon: Star, count: counts.favorites },
-    { view: { kind: 'pinned' }, label: 'Pinned', icon: Pin, count: counts.pinned },
-    { view: { kind: 'recent' }, label: 'Recent', icon: Clock, count: counts.recent },
-    { view: { kind: 'archive' }, label: 'Archive', icon: Archive, count: counts.archive },
-    { view: { kind: 'trash' }, label: 'Trash', icon: Trash2, count: counts.trash },
+    { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
+    { id: 'favorites', label: 'Favorites', icon: Star, count: counts.favorites },
+    { id: 'pinned', label: 'Pinned', icon: Pin, count: counts.pinned },
+    { id: 'recent', label: 'Recent', icon: Clock, count: counts.recent },
+    { id: 'archive', label: 'Archive', icon: Archive, count: counts.archive },
+    { id: 'trash', label: 'Trash', icon: Trash2, count: counts.trash },
   ]
 
   const topTags = useMemo(
@@ -173,14 +171,14 @@ export function Sidebar({
       {/* New note */}
       <div className={cn('mt-4', isCollapsed && 'mt-3')}>
         {isCollapsed ? (
-          <Tooltip label="New note" side="bottom">
+          <Tooltip label="New note" side="right">
             <button
               type="button"
               onClick={() => openModal({ kind: 'new-note' })}
               aria-label="New note"
               className="grid size-9 place-items-center rounded-wobbly-sm border-[3px] border-line bg-postit text-postit-ink shadow-sketch-sm transition-all duration-100 hover:bg-accent hover:text-accent-fg active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
             >
-              <Plus size={17} strokeWidth={2.5} />
+              <Plus size={20} strokeWidth={2.5} />
             </button>
           </Tooltip>
         ) : (
@@ -189,7 +187,9 @@ export function Sidebar({
             onClick={() => openModal({ kind: 'new-note' })}
             className="flex h-10 w-full items-center gap-2 rounded-wobbly border-[3px] border-line bg-postit px-4 text-[15px] text-postit-ink shadow-sketch transition-all duration-100 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
           >
-            <Plus size={17} strokeWidth={2.5} />
+            <span className={ICON_CONTAINER} aria-hidden="true">
+              <Plus size={ICON_SIZE} strokeWidth={2.5} />
+            </span>
             New Note
           </button>
         )}
@@ -198,12 +198,12 @@ export function Sidebar({
       {/* Library */}
       <ul className="mt-4 flex flex-col gap-0.5 overflow-y-auto no-scrollbar">
         {libraryItems.map((item) => (
-          <li key={item.view.kind}>
+          <li key={item.id}>
             <NavItemButton
               item={item}
-              active={activeView.kind === item.view.kind}
+              active={activeView.kind === item.id}
               collapsed={isCollapsed}
-              onSelect={() => navigate(item.view)}
+              onSelect={() => navigate({ kind: item.id as ViewKind })}
             />
           </li>
         ))}
@@ -228,7 +228,7 @@ export function Sidebar({
                     <NavItemInline
                       active={active}
                       onClick={() => navigate({ kind: 'folder', refId: folder.id })}
-                      icon={<FolderIcon size={14} strokeWidth={2} />}
+                      icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
                       label={folder.name}
                       count={counts.perFolder.get(folder.id)}
                     />
@@ -307,14 +307,12 @@ export function Sidebar({
       {/* Bottom area */}
       <div className={cn('mt-auto flex flex-col gap-0.5 pt-3', isCollapsed ? 'items-center' : '')}>
         {!isCollapsed && (
-          <>
-            <NavItemInline
-              active={false}
-              onClick={() => openModal({ kind: 'palette' })}
-              icon={<Plus size={14} strokeWidth={2} />}
-              label={<span className="flex-1">Quick actions…</span>}
-            />
-          </>
+          <NavItemButton
+            item={{ id: 'quick-actions', label: 'Quick actions…', icon: Plus }}
+            active={false}
+            collapsed={isCollapsed}
+            onSelect={() => openModal({ kind: 'palette' })}
+          />
         )}
         <div className={cn('flex items-center gap-1', isCollapsed ? 'flex-col' : '')}>
           <ThemeToggleButton
@@ -329,32 +327,32 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Profile */}
+        {/* Profile — display only. Editing lives in Settings → Profile. */}
         {isCollapsed ? (
-          <Tooltip label={settings.profile.name} side="top">
-            <button
-              type="button"
-              onClick={() => navigate({ kind: 'settings' })}
-              aria-label="Profile settings"
-              className="mt-2 grid size-8 rotate-3 place-items-center rounded-wobbly-blob border border-line bg-accent/15 text-[11px] text-accent"
-            >
-              {initials(settings.profile.name) || '?'}
-            </button>
+          <Tooltip label={settings.profile.name || 'Profile'} side="right">
+            <span className="mt-2 inline-flex" title={settings.profile.name}>
+              <Avatar
+                src={settings.profile.avatar}
+                name={settings.profile.name}
+                size="sm"
+                className="rotate-3"
+              />
+            </span>
           </Tooltip>
         ) : (
-          <button
-            type="button"
-            onClick={() => navigate({ kind: 'settings' })}
-            className="mt-2 flex items-center gap-2.5 rounded-wobbly-sm p-2 text-left transition-colors hover:bg-raise"
-          >
-            <span className="grid size-9 shrink-0 -rotate-2 place-items-center rounded-wobbly-blob border border-line bg-accent/15 text-xs text-accent">
-              {initials(settings.profile.name) || '?'}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm leading-tight">{settings.profile.name}</span>
-              <span className="block truncate text-xs text-faint">{settings.profile.role}</span>
-            </span>
-          </button>
+          <div className="mt-2">
+            <div className="flex items-center gap-2.5 rounded-wobbly-sm p-1.5">
+              <Avatar
+                src={settings.profile.avatar}
+                name={settings.profile.name}
+                size="md"
+              />
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm leading-tight">{settings.profile.name}</span>
+                <span className="block truncate text-xs text-faint">{settings.profile.role}</span>
+              </span>
+            </div>
+          </div>
         )}
       </div>
           {pendingFolderDelete !== null && (
@@ -403,7 +401,9 @@ function NavItemButton({
         active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
-      <item.icon size={15} strokeWidth={active ? 2.5 : 2} className="shrink-0" aria-hidden="true" />
+      <span className={ICON_CONTAINER} aria-hidden="true">
+        <item.icon size={ICON_SIZE} strokeWidth={active ? 2.5 : 2} />
+      </span>
       {!collapsed && (
         <>
           <span className="flex-1 truncate text-left">{item.label}</span>
@@ -422,7 +422,7 @@ function NavItemButton({
     </button>
   )
   return collapsed ? (
-    <Tooltip label={item.label} side="bottom">
+    <Tooltip label={item.label} side="right">
       {content}
     </Tooltip>
   ) : (
@@ -449,11 +449,11 @@ function NavItemInline({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-wobbly-sm pl-2 pr-1.5 text-xs transition-colors',
+        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-wobbly-sm pl-1.5 pr-1.5 text-xs transition-colors',
         active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
-      <span className={cn('shrink-0', active ? 'text-accent' : 'text-faint')}>{icon}</span>
+      <span className={cn(ICON_CONTAINER, active ? 'text-accent' : 'text-faint')}>{icon}</span>
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {!!count && count > 0 && <span className="text-[10px] tabular-nums text-faint">{count}</span>}
     </button>
@@ -507,15 +507,17 @@ function ThemeToggleButton({
       onClick={onClick}
       aria-label={`Theme: ${label}. Click to switch.`}
       className={cn(
-        'grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
+        'grid size-9 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
         collapsed ? '' : '',
       )}
     >
-      <Icon size={15} />
+      <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
+        <Icon size={BOTTOM_ICON_SIZE} />
+      </span>
     </button>
   )
   return collapsed ? (
-    <Tooltip label={label} side="top">
+    <Tooltip label={label} side="right">
       {btn}
     </Tooltip>
   ) : (
@@ -536,14 +538,16 @@ function SettingsButton({
       onClick={onClick}
       aria-label="Settings"
       className={cn(
-        'grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
+        'grid size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
       )}
     >
-      <SettingsIcon size={15} />
+      <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
+        <SettingsIcon size={BOTTOM_ICON_SIZE} />
+      </span>
     </button>
   )
   return collapsed ? (
-    <Tooltip label="Settings" side="top">
+    <Tooltip label="Settings" side="right">
       {btn}
     </Tooltip>
   ) : (
@@ -564,22 +568,16 @@ function CollapseButton({
         type="button"
         onClick={onClick}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="hidden size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
+        className="hidden size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
       >
-        {collapsed ? (
-          <PanelRightIcon />
-        ) : (
-          <PanelLeftIcon />
-        )}
+        <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
+          {collapsed ? (
+            <PanelRight size={BOTTOM_ICON_SIZE} strokeWidth={2} />
+          ) : (
+            <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />
+          )}
+        </span>
       </button>
     </Tooltip>
   )
-}
-
-function PanelLeftIcon(): ReactNode {
-  return <PanelLeft size={15} strokeWidth={2} />
-}
-
-function PanelRightIcon(): ReactNode {
-  return <PanelRight size={15} strokeWidth={2} />
 }

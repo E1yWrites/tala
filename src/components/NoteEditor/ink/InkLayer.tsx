@@ -24,6 +24,7 @@ import {
   translateStroke,
 } from '@/utils/ink'
 import type { InkDoc, InkEraserMode, InkPointerMode, InkPoint, InkStroke } from '@/types/ink'
+import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, sizesForTool } from '@/types/ink'
 
 /* ---------------------------------------------------------------------------
    The handwriting canvas: an SVG overlay covering the note's content column.
@@ -33,14 +34,40 @@ import type { InkDoc, InkEraserMode, InkPointerMode, InkPoint, InkStroke } from 
    at first stroke); the SVG viewBox scales strokes when the note resizes.
 --------------------------------------------------------------------------- */
 
-/** Thickness presets (capture-space px) — S/M/L */
-export const PEN_SIZES = [2.5, 4.5, 8]
-export const HIGHLIGHTER_SIZES = [14, 20, 28]
+// Thickness presets live in types/ink.ts (next to the data model they feed);
+// re-exported here for the tool UI which has always imported them from here.
+export { PEN_SIZES, HIGHLIGHTER_SIZES, ERASER_SIZES }
 
-const ERASER_RADIUS_CSS = { stroke: 8, pixel: 14 } satisfies Record<InkEraserMode, number>
 /** Extra room kept below the lowest stroke. */
 const HEIGHT_SLACK = 96
 const MIN_DRAW_DIST_SQ = 1.2 * 1.2
+
+/** Round to 0.1 capture-units — keeps persisted payloads small. */
+const r01 = (v: number): number => Math.round(v * 10) / 10
+
+/** Moving-average pressure over a ±2 window — raw stylus pressure jitters. */
+function smoothPressure(pts: InkPoint[]): InkPoint[] {
+  let any = false
+  for (const p of pts)
+    if (p.p !== undefined && p.p > 0) {
+      any = true
+      break
+    }
+  if (!any) return pts
+  return pts.map((pt, i) => {
+    if (pt.p === undefined) return pt
+    let sum = 0
+    let cnt = 0
+    for (let j = Math.max(0, i - 2); j <= Math.min(pts.length - 1, i + 2); j++) {
+      const q = pts[j]!.p
+      if (q !== undefined) {
+        sum += q
+        cnt++
+      }
+    }
+    return { ...pt, p: Math.round((sum / cnt) * 100) / 100 }
+  })
+}
 
 export interface InkPrefsSnapshot {
   tool: InkPointerMode
@@ -64,6 +91,12 @@ interface InkLayerProps {
   active: boolean
   prefs: InkPrefsSnapshot
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void
+  /**
+   * Right-click / secondary-click on the canvas while pen mode is active.
+   * The browser menu is suppressed here — and only here, since the svg mounts
+   * solely while pen mode is active — so the rest of the app keeps its menus.
+   */
+  onPaletteRequest?: (clientX: number, clientY: number) => void
 }
 
 interface InkOp {
@@ -90,20 +123,30 @@ interface Pt {
   pointerType: string
   pressure: number
   pointerId: number
+  getCoalescedEvents?(): Pt[]
+  getPredictedEvents?(): Pt[]
 }
 
 const EMPTY_STROKES: InkStroke[] = []
 
 export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLayer(
-  { ink, onChange, scrollRef, active, prefs, onHistoryChange },
+  { ink, onChange, scrollRef, active, prefs, onHistoryChange, onPaletteRequest },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const livePathRef = useRef<SVGPathElement | null>(null)
+  const liveTipRef = useRef<SVGCircleElement | null>(null)
+
+  /** Cached getBoundingClientRect — refreshed once per event batch, never per
+   *  coalesced sample (layout reads were the hottest no-op in the loop). */
+  const svgRectRef = useRef<DOMRect | null>(null)
 
   const gestureRef = useRef<Gesture | null>(null)
   const rafRef = useRef<number | null>(null)
+  /** Live-rebuild throttle bookkeeping (see renderLive). */
+  const liveBuiltLenRef = useRef(0)
+  const liveBuiltAtRef = useRef(-1e9)
   const undoStack = useRef<InkOp[]>([])
   const redoStack = useRef<InkOp[]>([])
   const touchIds = useRef<number[]>([])
@@ -127,24 +170,56 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const [erasingStrokes, setErasingStrokes] = useState<InkStroke[] | null>(null)
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
 
+  /**
+   * Transient gesture visuals (eraser ring, erase preview, marquee, move
+   * preview) are queued here and flushed at most once per animation frame —
+   * pointermove fires far more often than paint.
+   */
+  interface UiPending {
+    cursor?: { x: number; y: number } | null
+    erasing?: InkStroke[] | null
+    marquee?: { x0: number; y0: number; x1: number; y1: number } | null
+    move?: { dx: number; dy: number } | null
+  }
+  const uiFrameRef = useRef<number | null>(null)
+  const uiPendingRef = useRef<UiPending>({})
+
+  const flushUi = useCallback(() => {
+    uiFrameRef.current = null
+    const p = uiPendingRef.current
+    uiPendingRef.current = {}
+    if ('cursor' in p) setCursorPos(p.cursor ?? null)
+    if ('erasing' in p) setErasingStrokes(p.erasing ?? null)
+    if ('marquee' in p) setMarquee(p.marquee ?? null)
+    if ('move' in p) setMovePreview(p.move ?? null)
+  }, [])
+
+  const scheduleUi = useCallback(() => {
+    if (uiFrameRef.current === null) uiFrameRef.current = requestAnimationFrame(flushUi)
+  }, [flushUi])
+
   /** Observed content-box size in CSS px. */
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
 
   useEffect(() => {
     const el = wrapRef.current
-    if (!el || !active) return
+    if (!el) return
     const ro = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el)
     setBox({ w: el.clientWidth, h: el.clientHeight })
     return () => ro.disconnect()
-  }, [active])
+  }, [])
 
-  // A pending draw frame must not fire after unmount/deactivation.
+  // A pending draw/UI frame must not fire after unmount/deactivation.
   useEffect(
     () => () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
+      }
+      if (uiFrameRef.current !== null) {
+        cancelAnimationFrame(uiFrameRef.current)
+        uiFrameRef.current = null
       }
     },
     [],
@@ -178,14 +253,14 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   useEffect(notifyHistory, [notifyHistory])
 
   const commit = useCallback(
-    (nextStrokes: InkStroke[], before: InkStroke[]) => {
+    (nextStrokes: InkStroke[], before: InkStroke[], growToY1?: number) => {
       const doc = inkRef.current
       if (!doc) return
-      let maxY = 0
-      for (const s of nextStrokes) {
-        const b = strokeBBox(s)
-        if (b.y1 > maxY) maxY = b.y1
-      }
+      // The previous height already encodes the lowest stroke so far — only a
+      // caller that can GROW it (new stroke, move/scale down) passes growToY1.
+      // This keeps commits O(1) instead of rescanning every stroke bbox.
+      let maxY = doc.height > HEIGHT_SLACK ? doc.height - HEIGHT_SLACK : 0
+      if (growToY1 !== undefined && growToY1 > maxY) maxY = growToY1
       const visibleCaptureH = box.w > 0 ? (box.h * doc.width) / box.w : 0
       const height = Math.max(
         nextStrokes.length > 0 ? maxY + HEIGHT_SLACK : 0,
@@ -251,15 +326,20 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   /* --------------------------- Coordinate mapping -------------------------- */
 
+  /** Refresh the cached SVG rect once per event batch (down / each move). */
+  const refreshSvgRect = useCallback(() => {
+    svgRectRef.current = svgRef.current?.getBoundingClientRect() ?? null
+  }, [])
+
   const toLocal = useCallback((e: Pt): InkPoint => {
-    const rect = svgRef.current?.getBoundingClientRect()
+    const rect = svgRectRef.current
     const s =
       rect && rect.width > 0 && inkRef.current ? inkRef.current.width / rect.width : 1
     const pressure =
       e.pointerType === 'pen' && e.pressure > 0 ? Math.round(e.pressure * 100) / 100 : undefined
     return {
-      x: (e.clientX - (rect?.left ?? 0)) * s,
-      y: (e.clientY - (rect?.top ?? 0)) * s,
+      x: r01((e.clientX - (rect?.left ?? 0)) * s),
+      y: r01((e.clientY - (rect?.top ?? 0)) * s),
       ...(pressure !== undefined ? { p: pressure } : {}),
     }
   }, [])
@@ -271,8 +351,42 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     const g = gestureRef.current
     const pathEl = livePathRef.current
     if (!g || g.kind !== 'draw' || !pathEl) return
+
+    const n = g.stroke.points.length
+    // Rebuilding the outline allocates; skip frames that only added a point or
+    // two. The final stroke always gets a full rebuild on pointerup.
+    const now = performance.now()
+    if (
+      n >= 8 &&
+      n - liveBuiltLenRef.current < 3 &&
+      now - liveBuiltAtRef.current < 32
+    )
+      return
+    liveBuiltLenRef.current = n
+    liveBuiltAtRef.current = now
+
     pathEl.setAttribute('d', strokeOutlineD(g.stroke))
-  }, [])
+
+    // Predicted-events ghost tip: shows where the OS expects the pen next,
+    // hiding input latency without polluting recorded geometry.
+    const tipEl = liveTipRef.current
+    if (tipEl && prefs.tool === 'pen') {
+      let shown = false
+      const last = lastNativeRef.current
+      if (last?.getPredictedEvents) {
+        const preds = last.getPredictedEvents()
+        if (preds.length > 0) {
+          const p = toLocal(preds[0]!)
+          const halfW = g.stroke.size / 2
+          tipEl.setAttribute('cx', String(p.x))
+          tipEl.setAttribute('cy', String(p.y))
+          tipEl.setAttribute('r', String(halfW))
+          shown = true
+        }
+      }
+      if (!shown) tipEl.setAttribute('r', '0')
+    }
+  }, [prefs.tool, toLocal])
 
   const scheduleRenderLive = useCallback(() => {
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
@@ -288,23 +402,27 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const finishDraw = useCallback((g: Extract<Gesture, { kind: 'draw' }>): void => {
     if (livePathRef.current) livePathRef.current.setAttribute('d', '')
-    const pts = simplifyPoints(g.pts)
+    if (liveTipRef.current) liveTipRef.current.setAttribute('r', '0')
+    const pts = simplifyPoints(smoothPressure(g.pts))
     if (pts.length === 0) return
     const finished: InkStroke = { ...g.stroke, points: pts }
     const doc = inkRef.current!
-    commit([...doc.strokes, finished], doc.strokes)
+    commit([...doc.strokes, finished], doc.strokes, strokeBBox(finished).y1)
   }, [commit])
 
   /* ------------------------------ Erase pipeline --------------------------- */
 
-  const eraserRadiusCapture = (): number =>
-    ERASER_RADIUS_CSS[prefs.eraserMode] / (scale || 1)
+  /** Single source of truth: ring, hit-testing and the palette all read this. */
+  const eraserRadiusCapture = useCallback(
+    (): number => (sizesForTool('eraser')[prefs.sizeIdx] ?? 24) / 2 / (scale || 1),
+    [prefs.sizeIdx, scale],
+  )
 
   const eraseAt = useCallback(
     (x: number, y: number) => {
       const g = gestureRef.current
       if (!g || g.kind !== 'erase') return
-      const r = ERASER_RADIUS_CSS[prefs.eraserMode] / (scale || 1)
+      const r = eraserRadiusCapture()
       let changed = false
       const working: InkStroke[] = []
       for (const s of g.working) {
@@ -321,17 +439,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       if (changed) {
         g.working = working
         g.changed = true
-        setErasingStrokes(working)
+        uiPendingRef.current.erasing = working
+        scheduleUi()
       }
     },
-    [prefs.eraserMode, scale],
+    [eraserRadiusCapture, prefs.eraserMode, scheduleUi],
   )
 
-  const finishErase = useCallback((g: Gesture & { kind: 'erase' }): void => {
-    setErasingStrokes(null)
-    if (!g.changed) return
-    commit(g.working, g.base)
-  }, [commit])
+  const finishErase = useCallback(
+    (g: Gesture & { kind: 'erase' }): void => {
+      flushUi()
+      setErasingStrokes(null)
+      uiPendingRef.current.erasing = null
+      if (!g.changed) return
+      // Erasing can only shrink content — no growToY1.
+      commit(g.working, g.base)
+    },
+    [commit, flushUi],
+  )
 
   /* ------------------------- Selection interactions ------------------------ */
 
@@ -353,33 +478,43 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return bb
   }, [selected, strokes])
 
-  const finishSelectMove = useCallback((g: Gesture & { kind: 'select-move' }): void => {
-    setMovePreview(null)
-    if (g.dx === 0 && g.dy === 0) return
-    const doc = inkRef.current!
-    const next = doc.strokes.map((s) =>
-      selected.has(s.id) ? translateStroke(s, g.dx, g.dy) : s,
-    )
-    commit(next, doc.strokes)
-  }, [commit, selected])
+  const finishSelectMove = useCallback(
+    (g: Gesture & { kind: 'select-move' }): void => {
+      flushUi()
+      setMovePreview(null)
+      uiPendingRef.current.move = null
+      if (g.dx === 0 && g.dy === 0) return
+      const doc = inkRef.current!
+      const next = doc.strokes.map((s) =>
+        selected.has(s.id) ? translateStroke(s, g.dx, g.dy) : s,
+      )
+      // Moved selection may have grown downward
+      commit(next, doc.strokes, (selectionBBox?.y1 ?? 0) + g.dy)
+    },
+    [commit, flushUi, selectionBBox, selected],
+  )
 
-  const finishSelectScale = useCallback((g: Gesture & { kind: 'select-scale' }): void => {
-    const endPt = lastNativeRef.current
-    if (!endPt) return
-    const end = toLocal(endPt)
-    const doc = inkRef.current!
-    const MIN = 24
-    const to = {
-      x0: g.origin.x0,
-      y0: g.origin.y0,
-      x1: Math.max(end.x, g.anchor.x + MIN),
-      y1: Math.max(end.y, g.anchor.y + MIN),
-    }
-    const next = doc.strokes.map((s) =>
-      selected.has(s.id) ? scaleStrokeInto(s, g.origin, to) : s,
-    )
-    commit(next, doc.strokes)
-  }, [commit, selected, toLocal])
+  const finishSelectScale = useCallback(
+    (g: Gesture & { kind: 'select-scale' }): void => {
+      flushUi()
+      const endPt = lastNativeRef.current
+      if (!endPt) return
+      const end = toLocal(endPt)
+      const doc = inkRef.current!
+      const MIN = 24
+      const to = {
+        x0: g.origin.x0,
+        y0: g.origin.y0,
+        x1: Math.max(end.x, g.anchor.x + MIN),
+        y1: Math.max(end.y, g.anchor.y + MIN),
+      }
+      const next = doc.strokes.map((s) =>
+        selected.has(s.id) ? scaleStrokeInto(s, g.origin, to) : s,
+      )
+      commit(next, doc.strokes, to.y1)
+    },
+    [commit, flushUi, selected, toLocal],
+  )
 
   /* ------------------------------ Pointer events --------------------------- */
 
@@ -396,7 +531,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>): void => {
     if (!active) return
-    if (e.pointerType !== 'mouse' && e.button !== 0) return
+    // Primary button only — right-click opens the pen palette via
+    // onContextMenu, and must never start a draw/erase gesture.
+    if (e.button !== 0) return
     e.preventDefault()
 
     if (beginPanIfNeeded(e.nativeEvent)) return
@@ -417,6 +554,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       inkRef.current = draftRef.current
     }
 
+    refreshSvgRect()
     const p = toLocal(e.nativeEvent)
 
     if (prefs.tool === 'eraser') {
@@ -426,7 +564,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         working: inkRef.current.strokes,
         changed: false,
       }
-      setCursorPos(p)
+      uiPendingRef.current.cursor = p
+      scheduleUi()
       eraseAt(p.x, p.y)
       return
     }
@@ -456,15 +595,17 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       } else {
         setSelected(new Set())
         gestureRef.current = { kind: 'marquee', x0: p.x, y0: p.y, x1: p.x, y1: p.y }
-        setMarquee({ x0: p.x, y0: p.y, x1: p.x, y1: p.y })
+        uiPendingRef.current.marquee = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+        scheduleUi()
       }
       return
     }
 
     // Draw (pen / highlighter)
     const size =
-      (prefs.tool === 'highlighter' ? HIGHLIGHTER_SIZES : PEN_SIZES)[prefs.sizeIdx] ??
-      PEN_SIZES[1]!
+      sizesForTool(prefs.tool)[prefs.sizeIdx] ?? PEN_SIZES[1]!
+    liveBuiltLenRef.current = 0
+    liveBuiltAtRef.current = -1e9
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
@@ -480,9 +621,13 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
     const g = gestureRef.current
 
+    // One rect read per event batch — coalesced samples reuse the cache.
+    refreshSvgRect()
+
     // Eraser ring follows the pointer even before pressing
     if (!g && prefs.tool === 'eraser') {
-      setCursorPos(toLocal(native))
+      uiPendingRef.current.cursor = toLocal(native)
+      scheduleUi()
       return
     }
     if (!g) return
@@ -515,8 +660,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
     switch (g.kind) {
       case 'erase':
-        setCursorPos(p)
+        uiPendingRef.current.cursor = p
         eraseAt(p.x, p.y)
+        scheduleUi()
         break
       case 'pan': {
         const scroller = scrollRef.current
@@ -528,14 +674,16 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         g.dx += p.x - g.last.x
         g.dy += p.y - g.last.y
         g.last = p
-        setMovePreview({ dx: g.dx, dy: g.dy })
+        uiPendingRef.current.move = { dx: g.dx, dy: g.dy }
+        scheduleUi()
         break
       case 'select-scale':
         break
       case 'marquee':
         g.x1 = p.x
         g.y1 = p.y
-        setMarquee({ x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 })
+        uiPendingRef.current.marquee = { x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 }
+        scheduleUi()
         break
     }
   }
@@ -580,6 +728,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           }
         }
         setSelected(picked)
+        uiPendingRef.current.marquee = null
         setMarquee(null)
         break
       }
@@ -658,7 +807,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   return (
     <div ref={wrapRef} data-active={active || undefined} className="ink-layer" aria-hidden={!active}>
-      {active && displayDoc && box.w > 0 && (
+      {/* Strokes stay visible while typing (layer is pointer-inert until pen
+          mode re-activates), so ink never "vanishes" between modes. */}
+      {displayDoc && box.w > 0 && (
         <svg
           ref={svgRef}
           className={`ink-svg ink-tool-${prefs.tool}`}
@@ -666,12 +817,14 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           height={dispViewH * dispScale}
           viewBox={`0 0 ${displayDoc.width} ${Math.max(displayDoc.height, box.h / (scale || 1))}`}
           role="application"
-          aria-label="Handwriting canvas"
-          onPointerDown={onPointerDown}
+          aria-label="Handwriting canvas"          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            onPaletteRequest?.(e.clientX, e.clientY)
+          }}
         >
           {/* Highlighters beneath pen strokes */}
           {highlights.map(renderStroke)}
@@ -680,9 +833,18 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           {/* In-progress stroke */}
           <path
             ref={livePathRef}
-            className={`ink-live${prefs.tool === 'highlighter' ? ' ink-hl-path' : ''}`}
+            className={`ink-live${
+              prefs.tool === 'highlighter'
+                ? ' ink-hl-path'
+                : prefs.tool === 'pencil'
+                  ? ' ink-pencil-path'
+                  : ''
+            }`}
             fill={prefs.color}
           />
+
+          {/* Predicted-input ghost tip (pen only) — visual latency compensation */}
+          <circle ref={liveTipRef} r={0} className="ink-live-tip" fill={prefs.color} />
 
           {marquee && (
             <rect
@@ -715,7 +877,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
             </>
           )}
 
-          {cursorPos && prefs.tool === 'eraser' && (
+          {active && cursorPos && prefs.tool === 'eraser' && (
             <circle
               cx={cursorPos.x}
               cy={cursorPos.y}
@@ -753,7 +915,9 @@ const StrokePath = memo(function StrokePath({
     <path
       d={strokeOutlineD(stroke)}
       fill={stroke.color}
-      className={isHl ? 'ink-hl-path' : undefined}
+      className={
+        isHl ? 'ink-hl-path' : stroke.tool === 'pencil' ? 'ink-pencil-path' : undefined
+      }
       transform={
         previewDx !== 0 || previewDy !== 0 ? `translate(${previewDx} ${previewDy})` : undefined
       }

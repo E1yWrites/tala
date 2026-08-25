@@ -104,11 +104,35 @@ So you can mix: some icons with two variants, others with a single file.
   strokes to match the app's ink color (light/dark theme), draw them with
   `stroke="currentColor"` (or `fill="currentColor"`); the file is inlined,
   so `currentColor` follows the surrounding text color.
-- Square artwork around a 24×24 viewBox looks best. Anything else is scaled
-  to fit (`object-fit: contain` for rasters).
+- Square artwork looks best. Rasters are auto-centred from their measured
+  glyph bounds (see "Raster geometry" below) — no manual sizing needed.
 - Deleting the file instantly restores the built-in icon.
 - Missing slots are fine — partial sets work; everything else keeps the
   built-in look.
+
+## Raster geometry (auto-centring)
+
+Rasters are **not** scaled by guesswork. `scripts/measure-png.mjs` scans every
+PNG and writes each glyph's bounding box to `raster-meta.json`
+(`[l, t, r, b]` as canvas fractions). The shim then sizes/offsets the `<img>`
+so the *visible artwork* — not the canvas margins — lands exactly centred in
+the icon box, filling ~88% of its larger axis (`ART_FILL` in
+`src/lib/lucideShim.tsx`). Strokes mathematically cannot be clipped.
+
+Some source assets were exported with a stray duplicate of the artwork shifted
+right/down plus ghost fill layers; those files have hand-curated boxes in
+`MANUAL_BBOXES` inside the measurer (read off pixel maps with
+`node scripts/view-png.mjs <file> [cols]`). If a new icon renders off-centre,
+add it there and re-run `node scripts/measure-png.mjs`.
+
+When several files claim one slot, registration priority decides:
+`gear` (legacy) < `filled_*` state variants < first-set/accents < second-set
+primaries (`desktop_setting`, `night_halfmoon`, `reading_layout`, …) — see
+`fileRank` in the shim. Theme resolution checks a `_light`/`_dark` name suffix
+before the folder, so `light/x_dark.png` counts as dark artwork.
+
+The layout audit (`scripts/layout-audit.mjs`) asserts every rendered doodle
+loads, stays centred, fills 80–96% of its box, and never escapes it.
 
 ## Available slots
 
