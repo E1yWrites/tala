@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import type { WheelEvent as ReactWheelEvent } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Eraser, Highlighter, MousePointer2, PenTool, Pencil } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -7,14 +6,12 @@ import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { INK_PRESETS, sizesForTool } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../../UI/Tooltip'
-import { SIZE_LABELS, PenPalette } from './PenPalette'
+import { PenPalette } from './PenPalette'
 
 /* ---------------------------------------------------------------------------
-   Compact pen-mode pill: one small control that shows the selected tool and
-   opens the radial PenPalette. Scrolling over it steps through thickness
-   presets with a transient tooltip — no large bar, no extra chrome. The
-   palette can also be opened by right-clicking the ink canvas (NoteEditor
-   forwards that here via controlled palette state).
+   Compact pen-mode pill: tool icon + preset label + 5 width-dot selectors.
+   Clicking the label cycles subtools (marker / brush-pen / ballpoint).
+   Clicking a dot sets the width. Clicking the icon opens the radial palette.
 --------------------------------------------------------------------------- */
 
 const TOOL_ICONS: Record<InkPointerMode, LucideIcon> = {
@@ -37,6 +34,20 @@ function nextSubtool(current: InkPreset): InkPreset {
   if (!group || group.length <= 1) return current
   const idx = group.indexOf(current)
   return group[(idx + 1) % group.length]
+}
+
+/**
+ * Indices into the 6-slot size array to show as quick-pick dots.
+ * Picks the extremes and middle values for a good spread.
+ */
+const QUICK_INDICES = [0, 1, 2, 4, 5] as const
+
+/** Map a raw size value to a dot diameter (px) for the visual indicator. */
+function dotSize(px: number, allSizes: number[]): number {
+  const min = allSizes[0] ?? 1
+  const max = allSizes[allSizes.length - 1] ?? 14
+  const t = max > min ? (px - min) / (max - min) : 0.5
+  return 6 + t * 8 // 6px – 14px
 }
 
 export interface PenToolbarPrefs {
@@ -77,7 +88,6 @@ export function PenToolbar({
   onPalette,
 }: PenToolbarProps): ReactNode {
   const sizes = sizesForTool(prefs.tool)
-  const strokeW = Math.min(Math.max(sizes[prefs.sizeIdx] ?? 4, 1.2), 7)
   const ToolIcon = TOOL_ICONS[prefs.tool]
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -87,34 +97,6 @@ export function PenToolbar({
     if (wasOpen.current && !palette.open) triggerRef.current?.focus()
     wasOpen.current = palette.open
   }, [palette.open])
-
-  /* --------------------- Scroll-wheel thickness control -------------------- */
-
-  const [hint, setHint] = useState<string | null>(null)
-  const hintTimer = useRef<number | null>(null)
-  useEffect(
-    () => () => {
-      if (hintTimer.current !== null) window.clearTimeout(hintTimer.current)
-    },
-    [],
-  )
-
-  const flashHint = (text: string) => {
-    setHint(text)
-    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current)
-    hintTimer.current = window.setTimeout(() => setHint(null), 900)
-  }
-
-  const onWheelSize = (e: ReactWheelEvent<HTMLDivElement>): void => {
-    const next = Math.min(
-      sizes.length - 1,
-      Math.max(0, prefs.sizeIdx + (e.deltaY > 0 ? 1 : -1)),
-    )
-    e.preventDefault()
-    if (next === prefs.sizeIdx) return
-    onPrefs({ sizeIdx: next })
-    flashHint(`${SIZE_LABELS[next]} · ${Math.round(sizes[next]!)} px`)
-  }
 
   const openAtTrigger = () => {
     const r = triggerRef.current?.getBoundingClientRect()
@@ -127,25 +109,13 @@ export function PenToolbar({
 
   return (
     <div className="relative mt-1.5 w-fit">
-      {/* Transient size readout while scrolling */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          'absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-wobbly-sm bg-ink px-1.5 py-0.5 text-[11px] font-medium text-canvas shadow-sketch-sm transition-opacity duration-150',
-          hint ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-      >
-        {hint}
-      </span>
       <div
         role="toolbar"
         aria-label="Pen tools"
-        onWheel={onWheelSize}
         className="inline-flex w-fit items-center gap-1 rounded-full border-2 border-line bg-panel px-1 py-0.5 shadow-sketch-sm"
       >
-        {/* Plain span as Tooltip's direct child: Tooltip clones its child and
-            overwrites props.ref, so the button keeps its own ref this way. */}
-        <Tooltip label="Pen tools — scroll here to resize">
+        {/* Tool icon — opens radial palette */}
+        <Tooltip label="Open pen palette">
           <span className="inline-flex">
             <button
               ref={triggerRef}
@@ -171,6 +141,7 @@ export function PenToolbar({
           </span>
         </Tooltip>
 
+        {/* Preset label — click to cycle subtools */}
         <Tooltip label="Click to switch writing style">
           <button
             type="button"
@@ -188,24 +159,34 @@ export function PenToolbar({
 
         <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-lineSoft" />
 
-        {/* Current thickness preview */}
-        <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" role="img"
-          aria-label={`Stroke thickness ${Math.round(sizes[prefs.sizeIdx] ?? 4)} pixels`}>
-          <line
-            x1="2"
-            y1="4"
-            x2="18"
-            y2="4"
-            stroke="currentColor"
-            strokeWidth={strokeW}
-            strokeLinecap="round"
-            className="text-faint"
-          />
-        </svg>
+        {/* 5 width dots — quick pick */}
+        <div className="flex items-center gap-0.5" role="radiogroup" aria-label="Stroke width">
+          {QUICK_INDICES.map((qi) => {
+            const sizeVal = sizes[qi]
+            if (sizeVal === undefined) return null
+            const isActive = prefs.sizeIdx === qi
+            const dot = dotSize(sizeVal, sizes)
+            return (
+              <Tooltip key={qi} label={`${Math.round(sizeVal)} px`}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  aria-label={`${Math.round(sizeVal)} pixels`}
+                  onClick={() => onPrefs({ sizeIdx: qi })}
+                  className={cn(
+                    'rounded-full transition-[background-color,transform] duration-100 hover:scale-110 active:scale-90',
+                    isActive
+                      ? 'bg-ink'
+                      : 'bg-faint hover:bg-muted',
+                  )}
+                  style={{ width: dot, height: dot }}
+                />
+              </Tooltip>
+            )
+          })}
+        </div>
       </div>
-      <span aria-live="polite" className="sr-only">
-        {hint}
-      </span>
 
       <PenPalette
         open={palette.open}
