@@ -14,8 +14,8 @@ import {
   Undo2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { InkEraserMode, InkPointerMode } from '@/types/ink'
-import { sizesForTool } from '@/types/ink'
+import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
+import { INK_PRESETS, sizesForTool } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../../UI/Tooltip'
 
@@ -58,7 +58,7 @@ interface ToolSpec {
 }
 
 const TOOLS: ToolSpec[] = [
-  { id: 'pen', icon: PenTool, label: 'Pen', tone: 'text-ballpoint dark:text-ballpoint' },
+  { id: 'pen', icon: PenTool, label: 'Marker', tone: 'text-ballpoint dark:text-ballpoint' },
   { id: 'pencil', icon: Pencil, label: 'Pencil', tone: 'text-[#6f665a] dark:text-[#a89f92]' },
   { id: 'highlighter', icon: Highlighter, label: 'Highlighter', tone: 'text-[#d69e04] dark:text-[#f0b429]' },
   { id: 'eraser', icon: Eraser, label: 'Eraser', tone: 'text-[#db4a8c] dark:text-[#ec4899]' },
@@ -70,6 +70,7 @@ export interface PenPalettePrefs {
   color: string
   sizeIdx: number
   eraserMode: InkEraserMode
+  preset: InkPreset
 }
 
 type View = 'tools' | 'color' | 'size'
@@ -240,7 +241,17 @@ export function PenPalette({
   const sizes = sizesForTool(prefs.tool)
 
   const pickTool = (id: ToolSpec['id']) => {
-    onPrefs({ tool: id })
+    // Map tool selection to the primary preset for that tool
+    const presetMap: Record<ToolSpec['id'], InkPreset> = {
+      pen: 'marker',
+      pencil: 'pencil',
+      highlighter: 'highlighter',
+      eraser: 'marker', // eraser doesn't have a preset, keep current
+      select: 'marker',
+    }
+    const preset = presetMap[id]
+    const spec = INK_PRESETS[preset]
+    onPrefs({ tool: id, preset, sizeIdx: spec.defaultSizeIdx })
     if (view !== 'tools') setView('tools')
   }
 

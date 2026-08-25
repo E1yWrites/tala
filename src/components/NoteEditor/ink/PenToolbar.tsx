@@ -3,8 +3,8 @@ import type { WheelEvent as ReactWheelEvent } from 'react'
 import type { ReactNode } from 'react'
 import { Eraser, Highlighter, MousePointer2, PenTool, Pencil } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { InkEraserMode, InkPointerMode } from '@/types/ink'
-import { sizesForTool } from '@/types/ink'
+import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
+import { INK_PRESETS, sizesForTool } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../../UI/Tooltip'
 import { SIZE_LABELS, PenPalette } from './PenPalette'
@@ -25,12 +25,18 @@ const TOOL_ICONS: Record<InkPointerMode, LucideIcon> = {
   select: MousePointer2,
 }
 
-const TOOL_LABELS: Record<InkPointerMode, string> = {
-  pen: 'Pen',
-  pencil: 'Pencil',
-  highlighter: 'Highlighter',
-  eraser: 'Eraser',
-  select: 'Select',
+/** Subtool groups — tools that share a rendering pipeline but have distinct presets. */
+const SUBTOOL_GROUPS: Record<string, InkPreset[]> = {
+  pen: ['marker', 'brush-pen', 'ballpoint'],
+  pencil: ['pencil', 'fine-pencil'],
+}
+
+function nextSubtool(current: InkPreset): InkPreset {
+  const spec = INK_PRESETS[current]
+  const group = SUBTOOL_GROUPS[spec.tool]
+  if (!group || group.length <= 1) return current
+  const idx = group.indexOf(current)
+  return group[(idx + 1) % group.length]
 }
 
 export interface PenToolbarPrefs {
@@ -38,6 +44,7 @@ export interface PenToolbarPrefs {
   color: string
   sizeIdx: number
   eraserMode: InkEraserMode
+  preset: InkPreset
 }
 
 export interface PenPaletteState {
@@ -164,9 +171,20 @@ export function PenToolbar({
           </span>
         </Tooltip>
 
-        <span aria-hidden="true" className="pr-0.5 text-[11px] font-medium text-muted">
-          {TOOL_LABELS[prefs.tool]}
-        </span>
+        <Tooltip label="Click to switch writing style">
+          <button
+            type="button"
+            onClick={() => {
+              const next = nextSubtool(prefs.preset)
+              const spec = INK_PRESETS[next]
+              onPrefs({ preset: next, tool: spec.tool, sizeIdx: spec.defaultSizeIdx })
+            }}
+            aria-label={`Writing style: ${INK_PRESETS[prefs.preset]?.label}. Click to cycle.`}
+            className="pr-0.5 text-[11px] font-medium text-muted hover:text-ink transition-colors"
+          >
+            {INK_PRESETS[prefs.preset]?.label ?? prefs.tool}
+          </button>
+        </Tooltip>
 
         <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-lineSoft" />
 

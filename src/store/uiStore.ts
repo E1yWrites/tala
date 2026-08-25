@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { ModalIntent, ViewRef } from '@/types/models'
-import type { InkEraserMode, InkPointerMode } from '@/types/ink'
+import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { PEN_SIZES } from '@/types/ink'
 
 const SIDEBAR_KEY = 'notely:sidebar-collapsed'
@@ -53,15 +53,22 @@ export interface InkPrefs {
   /** Index into the thickness presets (see PEN_SIZES / HIGHLIGHTER_SIZES) */
   sizeIdx: number
   eraserMode: InkEraserMode
+  /** Named preset — drives the toolbar label and default sizes. */
+  preset: InkPreset
 }
 
 const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'pencil', 'highlighter', 'eraser']
 
+const VALID_PRESETS = new Set<string>([
+  'marker', 'pencil', 'brush-pen', 'fine-pencil', 'highlighter', 'ballpoint',
+])
+
 export const DEFAULT_INK_PREFS: InkPrefs = {
   tool: 'pen',
   color: '#2563eb',
-  sizeIdx: 1,
+  sizeIdx: 3,
   eraserMode: 'stroke',
+  preset: 'marker',
 }
 
 function readInkPrefs(): InkPrefs {
@@ -87,6 +94,10 @@ function readInkPrefs(): InkPrefs {
         parsed.eraserMode === 'pixel' || parsed.eraserMode === 'stroke'
           ? parsed.eraserMode
           : DEFAULT_INK_PREFS.eraserMode,
+      preset:
+        typeof parsed.preset === 'string' && VALID_PRESETS.has(parsed.preset)
+          ? (parsed.preset as InkPreset)
+          : DEFAULT_INK_PREFS.preset,
     }
   } catch {
     return DEFAULT_INK_PREFS
@@ -121,6 +132,11 @@ interface UIState {
   filterTagIds: string[]
   filterFavoritesOnly: boolean
 
+  /** Multi-select mode for batch operations on notes. */
+  multiSelectMode: boolean
+  /** IDs of notes selected in multi-select mode. */
+  selectedNoteIds: string[]
+
   setView: (view: ViewRef) => void
   selectNote: (id: string | null) => void
   toggleSidebar: () => void
@@ -140,6 +156,12 @@ interface UIState {
   toggleFilterTag: (tagId: string) => void
   toggleFilterFavorites: () => void
   clearFilters: () => void
+
+  enterMultiSelectMode: () => void
+  exitMultiSelectMode: () => void
+  toggleNoteSelection: (id: string) => void
+  selectAllNotes: (ids: string[]) => void
+  deselectAllNotes: () => void
 }
 
 /** Monotonic id source for stable modal keys across stack shifts. */
@@ -160,9 +182,11 @@ export const useUIStore = create<UIState>()((set, get) => ({
   searchQuery: '',
   filterTagIds: [],
   filterFavoritesOnly: false,
+  multiSelectMode: false,
+  selectedNoteIds: [],
 
   setView(view) {
-    set({ activeView: view, selectedNoteId: null, searchQuery: '', filterTagIds: [], filterFavoritesOnly: false })
+    set({ activeView: view, selectedNoteId: null, searchQuery: '', filterTagIds: [], filterFavoritesOnly: false, multiSelectMode: false, selectedNoteIds: [] })
   },
 
   selectNote(id) {
@@ -265,6 +289,33 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   clearFilters() {
     set({ filterTagIds: [], filterFavoritesOnly: false })
+  },
+
+  enterMultiSelectMode() {
+    set({ multiSelectMode: true, selectedNoteIds: [] })
+  },
+
+  exitMultiSelectMode() {
+    set({ multiSelectMode: false, selectedNoteIds: [] })
+  },
+
+  toggleNoteSelection(id) {
+    set((s) => {
+      const has = s.selectedNoteIds.includes(id)
+      return {
+        selectedNoteIds: has
+          ? s.selectedNoteIds.filter((nid) => nid !== id)
+          : [...s.selectedNoteIds, id],
+      }
+    })
+  },
+
+  selectAllNotes(ids) {
+    set({ selectedNoteIds: ids })
+  },
+
+  deselectAllNotes() {
+    set({ selectedNoteIds: [] })
   },
 }))
 

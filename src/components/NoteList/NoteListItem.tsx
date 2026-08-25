@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CheckSquare, PinFilled, StarFilled } from 'lucide-react'
+import { CheckSquare, CheckCircle2, PinFilled, StarFilled } from 'lucide-react'
 import type { Note } from '@/types/models'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -64,6 +64,7 @@ interface NoteRowProps {
   surface: 'live' | 'archive' | 'trash'
   density: 'compact' | 'comfortable'
   selected: boolean
+  multiSelected?: boolean
   onSelect: () => void
 }
 
@@ -72,6 +73,7 @@ export function NoteRow({
   surface,
   density,
   selected,
+  multiSelected,
   onSelect,
 }: NoteRowProps): React.ReactNode {
   const tags = useTagStore((s) => s.tags)
@@ -99,12 +101,21 @@ export function NoteRow({
         'group relative w-full cursor-pointer rounded-wobbly-md border-2 px-3 transition-all duration-100 outline-none',
         'focus-visible:ring-2 focus-visible:ring-ballpoint/60 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas focus-visible:border-transparent',
         density === 'compact' ? 'py-2' : 'py-2.5',
-        selected
-          ? 'border-line bg-postit/50'
-          : 'border-transparent hover:border-lineSoft hover:bg-panel',
+        multiSelected
+          ? 'border-accent bg-accent/[0.08]'
+          : selected
+            ? 'border-line bg-postit/50'
+            : 'border-transparent hover:border-lineSoft hover:bg-panel',
       )}
     >
-      {!selected && (
+      {multiSelected && (
+        <CheckCircle2
+          size={18}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1.5 top-1.5 text-accent"
+        />
+      )}
+      {!selected && !multiSelected && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-3 bottom-0 border-t-2 border-dashed border-lineSoft/70"
@@ -169,6 +180,7 @@ export function NoteGridCard({
   note,
   surface,
   selected,
+  multiSelected,
   onSelect,
   index = 0,
 }: Omit<NoteRowProps, 'density'> & { index?: number }): React.ReactNode {
@@ -198,9 +210,19 @@ export function NoteGridCard({
         TILTS[index % TILTS.length],
         'hover:rotate-0 hover:-translate-y-1 hover:shadow-sketch',
         'focus-visible:ring-2 focus-visible:ring-ballpoint/60',
-        selected && 'border-accent border-[3px] shadow-sketch',
+        multiSelected && 'border-accent border-[3px] bg-accent/[0.08]',
+        selected && !multiSelected && 'border-accent border-[3px] shadow-sketch',
       )}
     >
+      {/* Selection indicator */}
+      {multiSelected && (
+        <CheckCircle2
+          size={20}
+          aria-hidden="true"
+          className="pointer-events-none absolute right-2 top-2 z-10 text-accent"
+        />
+      )}
+
       {/* Thumbtack for pinned notes */}
       {note.isPinned && surface === 'live' && (
         <PinFilled

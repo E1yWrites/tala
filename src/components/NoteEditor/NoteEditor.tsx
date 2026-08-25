@@ -162,6 +162,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         color: string
         sizeIdx: number
         eraserMode: 'stroke' | 'pixel'
+        preset: import('@/types/ink').InkPreset
       }>,
     ) => {
       if (patch.tool !== undefined) setPenTool(patch.tool)
@@ -169,6 +170,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       if (patch.color !== undefined) persistPatch.color = patch.color
       if (patch.sizeIdx !== undefined) persistPatch.sizeIdx = patch.sizeIdx
       if (patch.eraserMode !== undefined) persistPatch.eraserMode = patch.eraserMode
+      if (patch.preset !== undefined) persistPatch.preset = patch.preset
       if (patch.tool !== undefined && patch.tool !== 'select') persistPatch.tool = patch.tool
       if (Object.keys(persistPatch).length > 0) setInkPrefs(persistPatch)
     },
@@ -701,6 +703,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     color: inkPrefs.color,
                     sizeIdx: inkPrefs.sizeIdx,
                     eraserMode: inkPrefs.eraserMode,
+                    preset: inkPrefs.preset,
                   }}
                   onPrefs={updatePenPrefs}
                   canUndo={inkHistory.canUndo}

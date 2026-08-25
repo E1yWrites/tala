@@ -7,6 +7,37 @@ export type InkToolId = 'pen' | 'pencil' | 'highlighter'
 export type InkPointerMode = 'pen' | 'pencil' | 'highlighter' | 'eraser' | 'select'
 export type InkEraserMode = 'stroke' | 'pixel'
 
+/**
+ * Named writing presets — each maps to a rendering tool + default thickness.
+ * Subtools (brush-pen, fine-pencil, ballpoint) share the pen/pencil rendering
+ * pipeline but differ in their default size.
+ */
+export type InkPreset =
+  | 'marker'
+  | 'pencil'
+  | 'brush-pen'
+  | 'fine-pencil'
+  | 'highlighter'
+  | 'ballpoint'
+
+export interface InkPresetSpec {
+  tool: Exclude<InkPointerMode, 'select' | 'eraser'>
+  label: string
+  /** Default sizeIdx for this preset (index into the size row). */
+  defaultSizeIdx: number
+}
+
+export const INK_PRESETS: Record<InkPreset, InkPresetSpec> = {
+  marker:        { tool: 'pen',        label: 'Marker',      defaultSizeIdx: 3 },
+  pencil:        { tool: 'pencil',     label: 'Pencil',      defaultSizeIdx: 2 },
+  'brush-pen':   { tool: 'pen',        label: 'Brush Pen',   defaultSizeIdx: 2 },
+  'fine-pencil': { tool: 'pencil',     label: 'Fine Pencil', defaultSizeIdx: 0 },
+  highlighter:   { tool: 'highlighter', label: 'Highlighter', defaultSizeIdx: 3 },
+  ballpoint:     { tool: 'pen',        label: 'Ballpoint',   defaultSizeIdx: 0 },
+}
+
+export const INK_PRESET_IDS = Object.keys(INK_PRESETS) as InkPreset[]
+
 /* Thickness presets in capture-space px, indexed by InkPrefs.sizeIdx.
    Every row shares a length so one relative slot (S…XL) maps cleanly onto
    any tool. Pencil renders through the pen pipeline (slightly translucent

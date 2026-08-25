@@ -113,6 +113,11 @@ export function buildNoteMenu(note: Note, ctx: NoteActionContext): MenuItem[] {
         toast.success('Note duplicated')
       },
     },
+    {
+      id: 'share',
+      label: 'Share…',
+      onSelect: () => openModal({ kind: 'share', noteId: note.id }),
+    },
   ]
 
   if (ctx.surface === 'live') {

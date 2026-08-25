@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   AlignJustify,
   Archive,
@@ -37,6 +37,8 @@ import { EmptyState } from '../UI/EmptyState'
 import { Skeleton } from '../UI/Skeleton'
 import { Tooltip } from '../UI/Tooltip'
 import { NoteGridCard, NoteRow } from './NoteListItem'
+import { NotePreviewCard } from './NotePreviewCard'
+import { useLongPress } from '@/hooks/useLongPress'
 
 interface NoteListPanelProps {
   view: ViewRef
@@ -70,6 +72,14 @@ export function NoteListPanel({
   const selectedNoteId = useUIStore((s) => s.selectedNoteId)
   const selectNote = useUIStore((s) => s.selectNote)
   const openModal = useUIStore((s) => s.openModal)
+  const setView = useUIStore((s) => s.setView)
+  const multiSelectMode = useUIStore((s) => s.multiSelectMode)
+  const selectedNoteIds = useUIStore((s) => s.selectedNoteIds)
+  const enterMultiSelectMode = useUIStore((s) => s.enterMultiSelectMode)
+  const exitMultiSelectMode = useUIStore((s) => s.exitMultiSelectMode)
+  const toggleNoteSelection = useUIStore((s) => s.toggleNoteSelection)
+  const selectAllNotes = useUIStore((s) => s.selectAllNotes)
+  const deselectAllNotes = useUIStore((s) => s.deselectAllNotes)
 
   const viewDensity = useSettingsStore((s) => s.settings.viewDensity)
   const sortKey = useSettingsStore((s) => s.settings.sortKey)
@@ -257,6 +267,15 @@ export function NoteListPanel({
 
   /* -------------------------------- Render -------------------------------- */
 
+  const [previewNoteState, setPreviewNoteState] = useState<{ note: Note; anchor: { x: number; y: number } } | null>(null)
+
+  const showPreview = useCallback((note: Note, e: React.MouseEvent | React.TouchEvent) => {
+    if (multiSelectMode) return
+    const clientX = 'touches' in e ? e.touches[0]?.clientX ?? 0 : e.clientX
+    const clientY = 'touches' in e ? e.touches[0]?.clientY ?? 0 : e.clientY
+    setPreviewNoteState({ note, anchor: { x: clientX, y: clientY } })
+  }, [multiSelectMode])
+
   return (
     <section
       aria-label={`${meta.title} — note list`}
@@ -326,45 +345,132 @@ export function NoteListPanel({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <DropdownMenu
-            align="start"
-            className="max-h-[320px] overflow-y-auto"
-            items={filterItems}
-            trigger={(props) => (
-              <ToolbarButton
-                {...props}
-                active={hasActiveFilters}
-                label="Filter"
-                Icon={hasActiveFilters ? FilterActive : Filter}
+          {!multiSelectMode ? (
+            <>
+              <DropdownMenu
+                align="start"
+                className="max-h-[320px] overflow-y-auto"
+                items={filterItems}
+                trigger={(props) => (
+                  <ToolbarButton
+                    {...props}
+                    active={hasActiveFilters}
+                    label="Filter"
+                    Icon={hasActiveFilters ? FilterActive : Filter}
+                  />
+                )}
               />
-            )}
-          />
-          <DropdownMenu
-            align="start"
-            items={sortItems}
-            trigger={(props) => <ToolbarButton {...props} active={false} label="Sort" Icon={Sort} />}
-          />
+              <DropdownMenu
+                align="start"
+                items={sortItems}
+                trigger={(props) => <ToolbarButton {...props} active={false} label="Sort" Icon={Sort} />}
+              />
 
-          <div className="ml-auto flex items-center rounded-wobbly-sm border-2 border-line bg-panel p-0.5">
-            {densities.map(({ value, icon: Icon, label }) => (
-              <Tooltip key={value} label={label}>
+              <div className="ml-auto flex items-center gap-1">
+                {visibleNotes.length > 0 && (
+                  <Tooltip label="Select notes" side="bottom">
+                    <button
+                      type="button"
+                      onClick={enterMultiSelectMode}
+                      aria-label="Select notes"
+                      className="grid size-7 place-items-center rounded-[6px_3px_7px_3px] text-faint hover:text-ink transition-colors"
+                    >
+                      <CheckSquare size={16} strokeWidth={2.5} />
+                    </button>
+                  </Tooltip>
+                )}
+                <div className="flex items-center rounded-wobbly-sm border-2 border-line bg-panel p-0.5">
+                  {densities.map(({ value, icon: Icon, label }) => (
+                    <Tooltip key={value} label={label}>
+                      <button
+                        type="button"
+                        onClick={() => updateSettings({ viewDensity: value })}
+                        aria-pressed={viewDensity === value}
+                        aria-label={label}
+                        className={cn(
+                          'grid size-7 place-items-center rounded-[6px_3px_7px_3px] transition-colors',
+                          viewDensity === value
+                            ? 'bg-postit text-postit-ink'
+                            : 'text-faint hover:text-ink',
+                        )}
+                      >
+                        <Icon size={16} strokeWidth={2.5} />
+                      </button>
+                    </Tooltip>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex w-full items-center gap-2">
+              <button
+                type="button"
+                onClick={exitMultiSelectMode}
+                className="grid size-7 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:text-ink transition-colors"
+                aria-label="Cancel selection"
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+              <span className="text-sm font-medium text-ink">
+                {selectedNoteIds.length} selected
+              </span>
+              <div className="ml-auto flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => updateSettings({ viewDensity: value })}
-                  aria-pressed={viewDensity === value}
-                  aria-label={label}
-                  className={cn(
-                    'grid size-7 place-items-center rounded-[6px_3px_7px_3px] transition-colors',
-                    viewDensity === value
-                      ? 'bg-postit text-postit-ink'
-                      : 'text-faint hover:text-ink',
-                  )}
+                  onClick={() => {
+                    if (selectedNoteIds.length === visibleNotes.length) {
+                      deselectAllNotes()
+                    } else {
+                      selectAllNotes(visibleNotes.map((n) => n.id))
+                    }
+                  }}
+                  className="rounded-wobbly-sm px-2 py-1 text-xs font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
                 >
-                  <Icon size={16} strokeWidth={2.5} />
+                  {selectedNoteIds.length === visibleNotes.length ? 'Deselect all' : 'Select all'}
                 </button>
-              </Tooltip>
-            ))}
-          </div>
+                {selectedNoteIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      const count = selectedNoteIds.length
+                      const label = count === 1 ? 'note' : 'notes'
+                      if (surface === 'trash') {
+                        confirmAction({
+                          title: `Delete ${count} ${label} forever?`,
+                          message: `This will permanently delete ${count} ${label}. This cannot be undone.`,
+                          confirmLabel: 'Delete forever',
+                          onConfirm: () => {
+                            void deleteForeverAndPrune([...selectedNoteIds]).then((ok) => {
+                              if (ok) {
+                                toast.success(`${count} ${label} deleted`)
+                                exitMultiSelectMode()
+                              }
+                            })
+                          },
+                        })
+                      } else {
+                        confirmAction({
+                          title: `Move ${count} ${label} to trash?`,
+                          message: `${count} ${label} will be moved to the trash. You can restore them later.`,
+                          confirmLabel: 'Move to trash',
+                          onConfirm: () => {
+                            const { trashNotes } = useNoteStore.getState()
+                            trashNotes(selectedNoteIds)
+                            toast.success(`${count} ${label} moved to trash`)
+                            exitMultiSelectMode()
+                          },
+                        })
+                      }
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -415,31 +521,53 @@ export function NoteListPanel({
         ) : viewDensity === 'grid' ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-4 p-4 pt-3 xl:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
             {visibleNotes.map((note, i) => (
-              <NoteGridCard
-                key={note.id}
-                note={note}
-                surface={surface}
-                index={i}
-                selected={selectedNoteId === note.id}
-                onSelect={() => selectNote(note.id)}
-              />
+              <LongPressWrapper key={note.id} note={note} onPreview={showPreview}>
+                <NoteGridCardWithMenu
+                  note={note}
+                  surface={surface}
+                  index={i}
+                  selected={selectedNoteId === note.id}
+                  multiSelected={multiSelectMode && selectedNoteIds.includes(note.id)}
+                  onSelect={() =>
+                    multiSelectMode
+                      ? toggleNoteSelection(note.id)
+                      : selectNote(note.id)
+                  }
+                />
+              </LongPressWrapper>
             ))}
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 px-2.5 pb-8 pt-0.5">
             {visibleNotes.map((note) => (
-              <NoteRowWithMenu
-                key={note.id}
-                note={note}
-                surface={surface}
-                density={viewDensity === 'compact' ? 'compact' : 'comfortable'}
-                selected={selectedNoteId === note.id}
-                onSelect={() => selectNote(note.id)}
-              />
+              <LongPressWrapper key={note.id} note={note} onPreview={showPreview}>
+                <NoteRowWithMenu
+                  note={note}
+                  surface={surface}
+                  density={viewDensity === 'compact' ? 'compact' : 'comfortable'}
+                  selected={selectedNoteId === note.id}
+                  multiSelected={multiSelectMode && selectedNoteIds.includes(note.id)}
+                  onSelect={() =>
+                    multiSelectMode
+                      ? toggleNoteSelection(note.id)
+                      : selectNote(note.id)
+                  }
+                />
+              </LongPressWrapper>
             ))}
           </div>
         )}
       </div>
+
+      {/* Long-press preview card */}
+      {previewNoteState && (
+        <NotePreviewCard
+          note={previewNoteState.note}
+          anchor={previewNoteState.anchor}
+          onClose={() => setPreviewNoteState(null)}
+          onOpen={() => setView({ kind: 'all' })}
+        />
+      )}
     </section>
   )
 }
@@ -477,26 +605,85 @@ function NoteRowWithMenu(props: {
   surface: 'live' | 'archive' | 'trash'
   density: 'compact' | 'comfortable'
   selected: boolean
+  multiSelected?: boolean
   onSelect: () => void
 }): React.ReactNode {
   return (
     <div className="group relative">
       <NoteRow {...props} />
-      <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-        <DropdownMenu
-          items={buildNoteMenu(props.note, { surface: props.surface })}
-          trigger={(menuProps) => (
-            <button
-              {...menuProps}
-              type="button"
-              aria-label="Note options"
-              className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
-            >
-              <MoreHorizontal size={16} aria-hidden="true" />
-            </button>
-          )}
-        />
-      </div>
+      {!props.multiSelected && (
+        <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+          <DropdownMenu
+            items={buildNoteMenu(props.note, { surface: props.surface })}
+            trigger={(menuProps) => (
+              <button
+                {...menuProps}
+                type="button"
+                aria-label="Note options"
+                className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
+              >
+                <MoreHorizontal size={16} aria-hidden="true" />
+              </button>
+            )}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Wrapper that adds long-press (touch) and right-click (desktop) preview to any note element. */
+function LongPressWrapper({
+  note,
+  onPreview,
+  children,
+}: {
+  note: Note
+  onPreview: (note: Note, e: React.MouseEvent | React.TouchEvent) => void
+  children: React.ReactNode
+}): React.ReactNode {
+  const lp = useLongPress({ onLongPress: (e) => onPreview(note, e) })
+  return (
+    <div
+      {...lp}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onPreview(note, e)
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function NoteGridCardWithMenu(props: {
+  note: Note
+  surface: 'live' | 'archive' | 'trash'
+  index: number
+  selected: boolean
+  multiSelected?: boolean
+  onSelect: () => void
+}): React.ReactNode {
+  return (
+    <div className="group/card relative">
+      <NoteGridCard {...props} />
+      {!props.multiSelected && (
+        <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover/card:opacity-100 [@media(hover:none)]:opacity-100">
+          <DropdownMenu
+            items={buildNoteMenu(props.note, { surface: props.surface })}
+            trigger={(menuProps) => (
+              <button
+                {...menuProps}
+                type="button"
+                aria-label="Note options"
+                className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
+              >
+                <MoreHorizontal size={16} aria-hidden="true" />
+              </button>
+            )}
+          />
+        </div>
+      )}
     </div>
   )
 }
