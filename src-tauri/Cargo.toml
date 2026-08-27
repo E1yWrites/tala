@@ -1,7 +1,7 @@
 [package]
-name = "notely"
-version = "1.0.1"
-description = "Capture ideas. Keep moving."
+name = "tala"
+version = "1.0.0"
+description = "A thoughtful, doodle-inspired note-taking workspace."
 authors = ["e1yu"]
 license = "MIT"
 edition = "2021"

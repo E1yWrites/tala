@@ -1,32 +1,49 @@
-# Tala
+<p align="center">
+  <img src="assets/tala-banner.jpg" alt="Tala — Pagtatala, made simple." width="100%" />
+</p>
 
-<img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/c1371364-4f2c-45da-affe-4d1784cee5f5" />
+<h1 align="center">Tala</h1>
 
-**Pagtatala, made simple.**
+<p align="center">
+  <strong>Pagtatala, made simple.</strong><br/>
+  A thoughtful, doodle-inspired note-taking workspace for capturing ideas, thoughts, and everything worth remembering.
+</p>
 
-A fast, local-first note-taking app built around pagtatala — the Filipino act of recording. Sun by day, moon by night.
+<p align="center">
+  <a href="https://github.com/E1yWrites/tala/releases/latest"><img src="https://img.shields.io/github/v/release/E1yWrites/tala?label=Latest%20Release" alt="Latest Release" /></a>
+  <a href="https://github.com/E1yWrites/tala/blob/main/LICENSE"><img src="https://img.shields.io/github/license/E1yWrites/tala" alt="License" /></a>
+  <a href="https://github.com/E1yWrites/tala"><img src="https://img.shields.io/github/stars/E1yWrites/tala?style=social" alt="Stars" /></a>
+</p>
+
+---
 
 No account, no server, no tracking. Your notes work offline and stay on your device
 until *you* export them — in the browser or as a native desktop app.
-
-Built with React 19 + TypeScript, a Tiptap rich-text editor, Zustand stores, and an
-IndexedDB (Dexie) persistence layer behind a swappable repository API.
 
 ---
 
 ## Download
 
-Pre-built installers are available on the [Releases](https://github.com/E1yWrites/tala/releases) page.
+Pre-built installers are available on the [Releases](https://github.com/E1yWrites/tala/releases/latest) page.
+
+### Windows
 
 | Format | File | Best for |
 | --- | --- | --- |
-| AppImage | `Tala_1.0.1_amd64.AppImage` | Any Linux distro (no install needed) |
-| .deb | `Tala_1.0.1_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
-| .rpm | `Tala-1.0.1-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
+| .exe (NSIS) | `Tala_1.0.0_x64-setup.exe` | Standard Windows installer |
+| .msi | `Tala_1.0.0_x64_en-US.msi` | Enterprise / silent install (`msiexec /i`) |
+
+### Linux
+
+| Format | File | Best for |
+| --- | --- | --- |
+| AppImage | `Tala_1.0.0_amd64.AppImage` | Any Linux distro (no install needed) |
+| .deb | `Tala_1.0.0_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
+| .rpm | `Tala-1.0.0-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
 
 ### Verify your download
 
-Each release includes SHA-256 checksums. After downloading, verify the file integrity:
+Each release includes SHA-256 checksums. After downloading, verify file integrity:
 
 ```bash
 # Download the checksum file from the release page, then:
@@ -36,28 +53,11 @@ sha256sum -c SHA256SUMS
 Or verify a single file manually:
 
 ```bash
-sha256sum Tala_1.0.1_amd64.AppImage
+sha256sum Tala_1.0.0_x64-setup.exe
 # Compare the output hash against the one listed in SHA256SUMS
 ```
 
-**Browser security notes:**
-- Chromium-based browsers (Chrome, Edge, Brave) may show a "Dangerous file" warning for `.AppImage` and `.deb` files. This is a generic warning for all executables downloaded from the internet — click **Keep** to proceed.
-- Firefox may show a similar warning on the downloads panel. Click the file and select **Allow** to keep it.
-- The installers are not code-signed (code signing requires a paid certificate from a Certificate Authority). Verify the SHA-256 checksum to confirm the file has not been tampered with.
-
-### Install
-
-```bash
-# AppImage (any distro)
-chmod +x Tala_1.0.1_amd64.AppImage
-./Tala_1.0.1_amd64.AppImage
-
-# Debian / Ubuntu
-sudo dpkg -i Tala_1.0.1_amd64.deb
-
-# Fedora / RHEL
-sudo rpm -i Tala-1.0.1-1.x86_64.rpm
-```
+> **Note:** The installers are not code-signed. Verify the SHA-256 checksum to confirm the file has not been tampered with.
 
 ---
 
@@ -75,7 +75,7 @@ npm run typecheck  # tsc --noEmit
 
 ## Desktop app (Tauri v2)
 
-The same web app wrapped in a native shell (system WebKitGTK, no bundled Chromium).
+The same web app wrapped in a native shell (system WebKitGTK on Linux, WebView2 on Windows — no bundled Chromium).
 Notes persist in the webview's IndexedDB profile keyed by the `com.lanz.tala` identifier.
 
 ```bash
@@ -89,23 +89,9 @@ npm run app:build   # typecheck + build + release compile → installers
 ```
 
 Build artifacts land in `src-tauri/target/release/bundle/`:
-`.deb`, `.rpm` and `.AppImage` (Linux). The window is 1100x720 (min 940x600),
-centered, with the doodle brand icon. External `http(s)`/`mailto:` links open in
-the system browser via the opener plugin; on the web they fall back to a new tab.
+`.deb`, `.rpm` and `.AppImage` (Linux); `.exe` and `.msi` (Windows).
 
-Rust-side config lives in `src-tauri/` (`tauri.conf.json`, `Cargo.toml`,
-capabilities in `src-tauri/capabilities/`).
-
-### Smoke test (optional)
-
-A headless end-to-end check of boot, seeding, editing, search, persistence,
-theming and the mobile layout:
-
-```bash
-npm i -D playwright-core && npx playwright-core install chromium --only-shell
-npm run preview &            # keep it running
-node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
-```
+---
 
 ## Features
 
@@ -123,9 +109,11 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 - **Trash with restore** — soft-delete notes or the whole trash; archive is one keystroke away
 - **Distraction-free mode** — collapse everything but the editor
 - **Light / dark / auto theme**, persisted before first paint (no flash)
-- **Responsive** — three-pane desktop -> drawer tablet -> single-pane mobile with bottom nav
+- **Responsive** — three-pane desktop → drawer tablet → single-pane mobile with bottom nav
 - **Keyboard-first** — see below
 - **Data ownership** — export/import JSON backups (merge or replace), storage usage readout
+- **Animated theme toggle** — sun ↔ moon with smooth CSS transitions
+- **Doodle-inspired brand** — playful, personal, modern
 
 ### Keyboard shortcuts
 
@@ -143,29 +131,32 @@ node scripts/smoke.mjs       # needs system libs: libnss3 libnspr4 libasound2
 
 *(Some browsers reserve `Ctrl N`; use `Alt N` there.)*
 
+---
+
 ## Architecture
 
 ```
 src/
 +-- components/
-|   +-- Dashboard/HomeView      # stats, pinned/recent rows, quick actions
-|   +-- Modals/*                # template picker, spotlight search, palette, share...
-|   +-- NoteEditor/*            # Tiptap setup, toolbar, ink layer, pen palette
-|   +-- NoteList/*              # list/grid panel, rows, per-note menus, preview card
-|   +-- Sidebar/                # nav tree, folders, tags, collapse, profile
-|   +-- UI/                     # Button, Modal, DropdownMenu, Tooltip, TagChip...
-|   +-- layout/                 # AppShell (responsive panes), MobileNav
+|   +-- Brand/                    # TalaMark SVG logo
+|   +-- Dashboard/HomeView        # stats, pinned/recent rows, quick actions
+|   +-- Modals/*                  # template picker, spotlight search, palette, share...
+|   +-- NoteEditor/*              # Tiptap setup, toolbar, ink layer, pen palette
+|   +-- NoteList/*                # list/grid panel, rows, per-note menus, preview card
+|   +-- Sidebar/                  # nav tree, folders, tags, collapse, profile
+|   +-- UI/                       # Button, Modal, DropdownMenu, Tooltip, TagChip, ThemeToggle...
+|   +-- layout/                   # AppShell (responsive panes), MobileNav
 +-- database/
-|   +-- db.ts                   # Dexie schema (notes/folders/tags/settings)
-|   +-- hydration.ts            # DB -> stores bootstrap
-|   +-- repositories/           # THE ONLY code touching IndexedDB.
-|                               # Swap for a REST backend without touching UI.
-+-- data/                       # defaults, templates, seed content, doc builders
-+-- hooks/                      # useMediaQuery, useHotkeys, useLongPress
-+-- pages/                      # HomePage, LibraryPage (+ presets), SettingsPage
-+-- store/                      # Zustand: notes, folders, tags, settings, ui
-+-- types/models.ts             # domain models -- single source of truth
-+-- utils/                      # cn, dates, doc, search, markdown, image, backup
+|   +-- db.ts                     # Dexie schema (notes/folders/tags/settings)
+|   +-- hydration.ts              # DB → stores bootstrap
+|   +-- repositories/             # THE ONLY code touching IndexedDB.
+|                                 # Swap for a REST backend without touching UI.
++-- data/                         # defaults, templates, seed content, doc builders
++-- hooks/                        # useMediaQuery, useHotkeys, useLongPress
++-- pages/                        # HomePage, LibraryPage (+ presets), SettingsPage
++-- store/                        # Zustand: notes, folders, tags, settings, ui
++-- types/models.ts               # domain models — single source of truth
++-- utils/                        # cn, dates, doc, search, markdown, image, backup
 ```
 
 Key decisions:
@@ -178,12 +169,16 @@ Key decisions:
 - **Theme is applied pre-React** by an inline script reading `localStorage`, so dark
   mode never flashes.
 
+---
+
 ## Roadmap ideas
 
 - Service-worker installability for true offline shell caching
 - Note backlinks / wiki-links, export single note as PDF
 - Cross-device sync
 
+---
+
 ## License
 
-[MIT](LICENSE) -- (c) 2026 e1yu
+[MIT](LICENSE) — (c) 2026 e1yu
