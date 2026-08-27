@@ -40,7 +40,7 @@ export async function deleteForeverAndPrune(ids: string[]): Promise<boolean> {
   try {
     await useTagStore.getState().pruneUnused()
   } catch (err) {
-    console.error('[notely] tag prune failed', err)
+    console.error('[tala] tag prune failed', err)
   }
   return true
 }

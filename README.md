@@ -1,12 +1,13 @@
-# Notely
+# Tala
 
 <img width="2048" height="1152" alt="image" src="https://github.com/user-attachments/assets/c1371364-4f2c-45da-affe-4d1784cee5f5" />
 
-**Capture ideas. Keep moving.**
+**Pagtatala, made simple.**
 
-A fast, local-first note-taking app for students and makers. No account, no server,
-no tracking. Your notes work offline and stay on your device until *you* export them —
-in the browser or as a native desktop app.
+A fast, local-first note-taking app built around pagtatala — the Filipino act of recording. Sun by day, moon by night.
+
+No account, no server, no tracking. Your notes work offline and stay on your device
+until *you* export them — in the browser or as a native desktop app.
 
 Built with React 19 + TypeScript, a Tiptap rich-text editor, Zustand stores, and an
 IndexedDB (Dexie) persistence layer behind a swappable repository API.
@@ -15,13 +16,13 @@ IndexedDB (Dexie) persistence layer behind a swappable repository API.
 
 ## Download
 
-Pre-built installers are available on the [Releases](https://github.com/E1yWrites/notely/releases) page.
+Pre-built installers are available on the [Releases](https://github.com/E1yWrites/tala/releases) page.
 
 | Format | File | Best for |
 | --- | --- | --- |
-| AppImage | `Notely_1.0.1_amd64.AppImage` | Any Linux distro (no install needed) |
-| .deb | `Notely_1.0.1_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
-| .rpm | `Notely-1.0.1-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
+| AppImage | `Tala_1.0.1_amd64.AppImage` | Any Linux distro (no install needed) |
+| .deb | `Tala_1.0.1_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
+| .rpm | `Tala-1.0.1-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
 
 ### Verify your download
 
@@ -35,7 +36,7 @@ sha256sum -c SHA256SUMS
 Or verify a single file manually:
 
 ```bash
-sha256sum Notely_1.0.1_amd64.AppImage
+sha256sum Tala_1.0.1_amd64.AppImage
 # Compare the output hash against the one listed in SHA256SUMS
 ```
 
@@ -48,14 +49,14 @@ sha256sum Notely_1.0.1_amd64.AppImage
 
 ```bash
 # AppImage (any distro)
-chmod +x Notely_1.0.1_amd64.AppImage
-./Notely_1.0.1_amd64.AppImage
+chmod +x Tala_1.0.1_amd64.AppImage
+./Tala_1.0.1_amd64.AppImage
 
 # Debian / Ubuntu
-sudo dpkg -i Notely_1.0.1_amd64.deb
+sudo dpkg -i Tala_1.0.1_amd64.deb
 
 # Fedora / RHEL
-sudo rpm -i Notely-1.0.1-1.x86_64.rpm
+sudo rpm -i Tala-1.0.1-1.x86_64.rpm
 ```
 
 ---
@@ -63,8 +64,8 @@ sudo rpm -i Notely-1.0.1-1.x86_64.rpm
 ## Quick start (development)
 
 ```bash
-git clone https://github.com/E1yWrites/notely.git
-cd notely
+git clone https://github.com/E1yWrites/tala.git
+cd tala
 npm install
 npm run dev        # start dev server (http://localhost:5173)
 npm run build      # typecheck + production build → dist/
@@ -75,7 +76,7 @@ npm run typecheck  # tsc --noEmit
 ## Desktop app (Tauri v2)
 
 The same web app wrapped in a native shell (system WebKitGTK, no bundled Chromium).
-Notes persist in the webview's IndexedDB profile keyed by the `io.notely.app` identifier.
+Notes persist in the webview's IndexedDB profile keyed by the `com.lanz.tala` identifier.
 
 ```bash
 # one-time prerequisites (Debian/Ubuntu)

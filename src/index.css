@@ -3,36 +3,36 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Notely design tokens — Hand-Drawn theme
-   Light: warm paper, soft pencil ink, red correction marker.
-   Dark:  night sketchbook — charcoal paper with chalk ink.
+   Tala design tokens — Hand-Drawn theme ("sunlight & moonlight")
+   Light: morning notebook — warm ivory paper, soft black ink, solar gold.
+   Dark:  writing at 1 AM — layered charcoal under moonlight, chalk ink.
    Colors are RGB channel triplets so Tailwind can apply alpha modifiers.
 --------------------------------------------------------------------------- */
 :root {
-  --c-canvas: 253 251 247;        /* #fdfbf7 warm paper       */
-  --c-panel: 255 255 255;         /* note cards / panels      */
-  --c-raise: 243 239 231;         /* hover wells, inputs      */
-  --c-overlay: 255 255 255;       /* modals / popovers        */
-  --c-line: 45 45 45;             /* pencil lead borders      */
-  --c-line-soft: 229 224 216;     /* erased pencil ruling     */
-  --c-ink: 45 45 45;              /* #2d2d2d soft pencil      */
-  --c-muted: 107 101 94;          /* pressed pencil           */
-  --c-faint: 156 150 140;         /* ghost pencil             */
-  --c-accent: 255 77 77;          /* #ff4d4d red marker       */
-  --c-accent-strong: 224 62 62;
-  --c-accent-soft: 255 235 235;   /* marker wash              */
-  --c-accent-fg: 255 255 255;
+  --c-canvas: 247 245 239;        /* #f7f5ef warm ivory       */
+  --c-panel: 255 253 248;         /* #fffdf8 note cards       */
+  --c-raise: 239 235 225;         /* hover wells, inputs      */
+  --c-overlay: 255 253 248;       /* modals / popovers        */
+  --c-line: 23 23 23;             /* #171717 pencil lead      */
+  --c-line-soft: 221 217 206;     /* #ddd9ce erased ruling    */
+  --c-ink: 23 23 23;              /* #171717 soft black       */
+  --c-muted: 115 113 107;         /* #73716b pressed pencil   */
+  --c-faint: 166 161 153;         /* ghost pencil             */
+  --c-accent: 232 184 74;         /* #e8b84a solar gold       */
+  --c-accent-strong: 205 158 44;
+  --c-accent-soft: 250 240 210;   /* sunbeam wash             */
+  --c-accent-fg: 42 34 14;        /* dark ink on gold         */
   --c-postit: 255 249 196;        /* #fff9c4 post-it yellow   */
   --c-postit-ink: 45 45 45;       /* text on post-its         */
   --c-ballpoint: 45 93 161;       /* #2d5da1 blue pen         */
   --c-ballpoint-soft: 228 237 250;
 
-  --paper-dot: 229 224 216;       /* notebook dot grid        */
+  --paper-dot: 222 217 205;       /* notebook dot grid        */
 
   /* Hard offset shadows — solid pencil in light mode */
-  --sketch-shadow-sm: 2px 2px 0 0 rgb(45 45 45);
-  --sketch-shadow: 4px 4px 0 0 rgb(45 45 45);
-  --sketch-shadow-lg: 8px 8px 0 0 rgb(45 45 45);
+  --sketch-shadow-sm: 2px 2px 0 0 rgb(23 23 23);
+  --sketch-shadow: 4px 4px 0 0 rgb(23 23 23);
+  --sketch-shadow-lg: 8px 8px 0 0 rgb(23 23 23);
 
   --editor-font-size: 15px;
   --editor-line-height: 1.7;
@@ -41,25 +41,25 @@
 }
 
 .dark {
-  --c-canvas: 30 29 27;           /* charcoal paper           */
-  --c-panel: 42 40 37;
-  --c-raise: 54 51 47;
-  --c-overlay: 46 44 41;
-  --c-line: 233 229 220;          /* chalk lines              */
-  --c-line-soft: 64 61 56;
-  --c-ink: 240 236 228;           /* chalk white ink          */
-  --c-muted: 194 188 177;
-  --c-faint: 138 132 122;
-  --c-accent: 255 105 105;
-  --c-accent-strong: 255 130 130;
-  --c-accent-soft: 82 48 48;
-  --c-accent-fg: 255 255 255;
+  --c-canvas: 12 12 13;           /* #0c0c0d night desk       */
+  --c-panel: 21 21 22;            /* #151516 moonlit paper    */
+  --c-raise: 29 29 31;            /* #1d1d1f elevated wells   */
+  --c-overlay: 25 25 27;
+  --c-line: 232 228 216;          /* chalk lines              */
+  --c-line-soft: 43 43 45;        /* #2b2b2d                  */
+  --c-ink: 244 241 232;           /* #f4f1e8 chalk white ink  */
+  --c-muted: 168 166 160;         /* #a8a6a0                  */
+  --c-faint: 118 115 108;
+  --c-accent: 217 184 90;         /* #d9b85a moonlit gold     */
+  --c-accent-strong: 232 204 122;
+  --c-accent-soft: 56 47 21;      /* gold wash on charcoal    */
+  --c-accent-fg: 32 26 12;        /* dark ink on gold         */
   --c-postit: 212 196 118;        /* lamp-lit mustard         */
   --c-postit-ink: 32 30 26;
   --c-ballpoint: 134 168 216;
   --c-ballpoint-soft: 44 58 84;
 
-  --paper-dot: 56 53 48;
+  --paper-dot: 35 35 37;
 
   /* Moonlight lifts instead of solid offsets */
   --sketch-shadow-sm: 2px 2px 0 0 rgb(245 240 230 / 0.10);
@@ -252,7 +252,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-7' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-7' stroke='%232A220E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-size: 78%;
   background-position: center;
   background-repeat: no-repeat;

@@ -27,7 +27,7 @@ async function persist(folder: Folder): Promise<boolean> {
     await folderRepository.put(folder)
     return true
   } catch (err) {
-    console.error('[notely] failed to persist folder', err)
+    console.error('[tala] failed to persist folder', err)
     toast.error('Storage error — could not save folder')
     return false
   }
@@ -125,7 +125,7 @@ export const useFolderStore = create<FolderState>()((set, get) => ({
         useUIStore.getState().setView({ kind: 'all' })
       }
     } catch (err) {
-      console.error('[notely] failed to delete folder', err)
+      console.error('[tala] failed to delete folder', err)
       set({ folders: prevFolders })
       toast.error('Could not delete folder')
       return false

@@ -1,7 +1,7 @@
 {
-  "name": "Notely",
-  "short_name": "Notely",
-  "description": "Capture ideas. Keep moving. A fast, local-first note-taking app.",
+  "name": "Tala",
+  "short_name": "Tala",
+  "description": "Pagtatala, made simple. A fast, local-first note-taking app.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fdfbf7",

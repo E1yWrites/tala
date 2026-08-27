@@ -33,7 +33,7 @@ class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[notely] render error', error, info.componentStack)
+    console.error('[tala] render error', error, info.componentStack)
   }
 
   render(): ReactNode {
@@ -43,14 +43,14 @@ class ErrorBoundary extends Component<
           <div className="max-w-sm">
             <p className="font-display text-xl">Something went wrong</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              An unexpected error occurred while rendering Notely. Your notes are safe on this device.
+              An unexpected error occurred while rendering Tala. Your notes are safe on this device.
             </p>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-white shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none dark:text-charcoal"
+              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
             >
-              Reload Notely
+              Reload Tala
             </button>
           </div>
         </div>
@@ -73,13 +73,13 @@ export default function App(): React.ReactNode {
       setBootHint((h) => (h === 'none' ? 'blocked' : h))
       if (!warnedRef.current) {
         warnedRef.current = true
-        toast.warning('Database is locked by another Notely tab', {
-          description: 'Close other Notely tabs or windows, then reload.',
+        toast.warning('Database is locked by another Tala tab', {
+          description: 'Close other Tala tabs or windows, then reload.',
           duration: 15000,
         })
       }
     }
-    window.addEventListener('notely:db-blocked', onBlocked)
+    window.addEventListener('tala:db-blocked', onBlocked)
     const slowTimer = window.setTimeout(() => {
       setBootHint((h) => (h === 'none' ? 'slow' : h))
     }, 10000)
@@ -90,13 +90,13 @@ export default function App(): React.ReactNode {
         setReady(true)
       })
       .catch((err) => {
-        console.error('[notely] boot failed', err)
+        console.error('[tala] boot failed', err)
         clearTimeout(slowTimer)
         setFailed(true)
       })
 
     return () => {
-      window.removeEventListener('notely:db-blocked', onBlocked)
+      window.removeEventListener('tala:db-blocked', onBlocked)
       clearTimeout(slowTimer)
     }
   }, [])
@@ -130,7 +130,7 @@ export default function App(): React.ReactNode {
       {failed ? (
         <div className="grid h-full place-items-center p-6 text-center">
           <div className="max-w-sm">
-            <p className="font-display text-xl">Notely could not start</p>
+            <p className="font-display text-xl">Tala could not start</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
               Local storage may be unavailable or corrupted. Try reloading; if the problem persists,
               clear this site&rsquo;s data in your browser settings.
@@ -138,7 +138,7 @@ export default function App(): React.ReactNode {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-white shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none dark:text-charcoal"
+              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
             >
               Reload
             </button>
@@ -156,15 +156,15 @@ export default function App(): React.ReactNode {
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
               {bootHint === 'blocked'
-                ? 'Another Notely tab or window is holding this browser profile’s database. Close the other tab, then reload Notely.'
+                ? 'Another Tala tab or window is holding this browser profile’s database. Close the other tab, then reload Tala.'
                 : 'Loading your notes is taking longer than expected. Your data is safe — try reloading.'}
             </p>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-white shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none dark:text-charcoal"
+              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
             >
-              Reload Notely
+              Reload Tala
             </button>
           </div>
         </div>

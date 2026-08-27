@@ -106,9 +106,9 @@ export function NotePreviewCard({
   }, [onClose])
 
   const handleOpen = () => {
-    onClose()
-    selectNote(note.id)
     onOpen()
+    selectNote(note.id)
+    onClose()
   }
 
   const handleDuplicate = () => {

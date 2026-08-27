@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
 import { Extension, InputRule } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import ImageExtension from '@tiptap/extension-image'
 import { Placeholder } from '@tiptap/extensions'
@@ -293,8 +294,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         }
       })
     }
-    window.addEventListener('notely:force-save', onSave)
-    return () => window.removeEventListener('notely:force-save', onSave)
+    window.addEventListener('tala:force-save', onSave)
+    return () => window.removeEventListener('tala:force-save', onSave)
   }, [flush])
 
   // Import/restore replaced the library under us — reload the open note from
@@ -311,8 +312,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       setTitle(fresh?.title ?? '')
       setSyncKey((k) => k + 1)
     }
-    window.addEventListener('notely:external-sync', onExternalSync)
-    return () => window.removeEventListener('notely:external-sync', onExternalSync)
+    window.addEventListener('tala:external-sync', onExternalSync)
+    return () => window.removeEventListener('tala:external-sync', onExternalSync)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId, status])
 
@@ -333,6 +334,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           heading: { levels: [1, 2, 3] },
           link: { openOnClick: false, autolink: true },
         }),
+        Underline,
         TaskList,
         TaskItem.configure({ nested: true }),
         ImageExtension,
@@ -387,7 +389,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         const src = await processImageFile(file)
         editor.chain().focus().setImage({ src }).run()
       } catch (err) {
-        console.warn('[notely] image skipped', file.name, err)
+        console.warn('[tala] image skipped', file.name, err)
         toast.error(`Could not add ${file.name}`)
       }
     }

@@ -89,8 +89,8 @@ export function NoteListPanel({
   const searchInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     const onFocusSearch = (): void => searchInputRef.current?.focus()
-    window.addEventListener('notely:focus-search', onFocusSearch)
-    return () => window.removeEventListener('notely:focus-search', onFocusSearch)
+    window.addEventListener('tala:focus-search', onFocusSearch)
+    return () => window.removeEventListener('tala:focus-search', onFocusSearch)
   }, [])
 
 

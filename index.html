@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Notely — Capture ideas. Keep moving. A fast, local-first note-taking app." />
-    <meta name="theme-color" content="#fdfbf7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1e1d1b" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Tala — Pagtatala, made simple. A fast, local-first note-taking app." />
+    <meta name="theme-color" content="#f7f5ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0c0d" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <link rel="apple-touch-icon" href="/app-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Notely</title>
+    <title>Tala</title>
     <style>
       #splash {
         position: fixed;
@@ -23,16 +23,16 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        background-color: #fdfbf7;
-        background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+        background-color: #f7f5ef;
+        background-image: radial-gradient(#ded9cd 1px, transparent 1px);
         background-size: 24px 24px;
         color: #2d2d2d;
         transition: opacity 240ms ease;
         font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
       }
       #splash.dark {
-        background-color: #1e1d1b;
-        background-image: radial-gradient(#383530 1px, transparent 1px);
+        background-color: #0c0c0d;
+        background-image: radial-gradient(#232325 1px, transparent 1px);
         color: #f0ece4;
       }
       .splash-mark {
@@ -42,7 +42,8 @@
         transform: rotate(-2deg);
         animation: splash-pop 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
       }
-      .splash-mark img {
+      .splash-mark img,
+      .splash-mark svg {
         display: block;
         width: 100%;
         height: auto;
@@ -59,11 +60,11 @@
         margin-top: 8px;
         overflow: hidden;
         border-radius: 12px 4px 12px 4px;
-        background: #e5e0d8;
+        background: #ded9cd;
         animation: splash-fade 400ms 300ms both;
       }
       #splash.dark .splash-bar {
-        background: #383530;
+        background: #232325;
       }
       .splash-bar::after {
         content: '';
@@ -71,7 +72,7 @@
         height: 100%;
         width: 40%;
         border-radius: 10px 4px 10px 4px;
-        background: #ff4d4d;
+        background: #e8b84a;
         animation: splash-slide 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
       @keyframes splash-pop {
@@ -94,16 +95,17 @@
   </head>
   <body>
     <div id="root"></div>
-    <div id="splash" role="status" aria-label="Notely is loading">
+    <div id="splash" role="status" aria-label="Tala is loading">
       <div class="splash-mark">
-        <img
-          id="splash-logo"
-          src="/brand-full-light.png"
-          alt=""
-          draggable="false"
-        />
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" style="color: #e8b84a">
+          <path d="M31.2 13.1C42.2 11.9 50.3 19.6 50.4 30.2C50.5 40.3 42.7 48.3 32.1 48.4C21.6 48.5 13.5 40.5 13.4 30.3C13.3 20.6 20.8 14.2 31.2 13.1Z" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <g stroke="currentColor" stroke-width="4.4" stroke-linecap="round">
+            <path d="M31.4 8.4L30.9 3.4"/><path d="M44.6 13.9L47.9 10.1"/><path d="M52.6 29.8L57.6 29.4"/><path d="M45.9 44.3L49.3 48"/><path d="M31.8 53.2L31.5 58.2"/><path d="M17.6 44.6L14.2 48.3"/><path d="M10.4 30L5.4 29.6"/><path d="M17.9 15.2L14.6 11.3"/>
+          </g>
+          <path d="M56.2 39.4C56.8 42.2 57.7 43.1 60.6 43.7C57.7 44.3 56.8 45.2 56.2 48C55.6 45.2 54.7 44.3 51.8 43.7C54.7 43.1 55.6 42.2 56.2 39.4Z" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        </svg>
       </div>
-      <div class="splash-tagline">Capture ideas. Keep moving.</div>
+      <div class="splash-tagline">Pagtatala, made simple.</div>
       <div class="splash-bar"></div>
     </div>
     <script>
@@ -112,10 +114,10 @@
          The logo stays the light artwork in both themes by design. */
       (function () {
         try {
-          var t = localStorage.getItem('notely:theme');
+          var t = localStorage.getItem('tala:theme');
           var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
-          document.documentElement.style.background = dark ? '#1e1d1b' : '#fdfbf7';
+          document.documentElement.style.background = dark ? '#0c0c0d' : '#f7f5ef';
           var s = document.getElementById('splash');
           if (s && dark) s.classList.add('dark');
         } catch (e) {}

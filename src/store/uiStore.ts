@@ -3,10 +3,10 @@ import type { ModalIntent, ViewRef } from '@/types/models'
 import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { PEN_SIZES } from '@/types/ink'
 
-const SIDEBAR_KEY = 'notely:sidebar-collapsed'
-const SIDEBAR_WIDTH_KEY = 'notely:sidebar-width'
-const READING_LAYOUT_KEY = 'notely:reading-layout'
-const INK_PREFS_KEY = 'notely:ink-prefs'
+const SIDEBAR_KEY = 'tala:sidebar-collapsed'
+const SIDEBAR_WIDTH_KEY = 'tala:sidebar-width'
+const READING_LAYOUT_KEY = 'tala:reading-layout'
+const INK_PREFS_KEY = 'tala:ink-prefs'
 
 /** Resizable dock width bounds (px) and the reset default. */
 export const SIDEBAR_MIN_WIDTH = 72

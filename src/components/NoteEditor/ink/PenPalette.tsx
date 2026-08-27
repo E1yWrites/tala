@@ -21,7 +21,7 @@ import { Tooltip } from '../../UI/Tooltip'
 
 /* ---------------------------------------------------------------------------
    Radial pen palette — a floating tool wheel for the handwriting layer,
-   inspired by stylus-first note apps but drawn in Notely's sketch language
+   inspired by stylus-first note apps but drawn in Tala's sketch language
    (panel bg, line/postit tokens, wobbly shadows).
 
    One circular shell hosts three views:

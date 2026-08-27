@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 /**
- * Notely design tokens — Hand-Drawn ("Warm Paper") theme.
+ * Tala design tokens — Hand-Drawn ("sunlight & moonlight") theme.
  * Colors are defined as RGB channel triplets in src/index.css and mapped here,
  * so light/dark themes only swap CSS variables.
  *
@@ -104,6 +104,24 @@ export default {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
+        'note-collapse': {
+          from: { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '0', transform: 'scale(0.92) translateX(-8px)' },
+        },
+        'note-expand': {
+          from: { opacity: '0', transform: 'scale(0.94)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'star-pop': {
+          '0%': { transform: 'scale(0.5) rotate(-12deg)', opacity: '0' },
+          '60%': { transform: 'scale(1.25) rotate(5deg)', opacity: '1' },
+          '100%': { transform: 'scale(1) rotate(0deg)', opacity: '1' },
+        },
+        'pin-wobble': {
+          '0%': { transform: 'rotate(-8deg) scale(0.8)' },
+          '40%': { transform: 'rotate(6deg) scale(1.1)' },
+          '100%': { transform: 'rotate(0deg) scale(1)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 160ms ease-out',
@@ -118,6 +136,10 @@ export default {
         'pen-pop-out': 'pen-pop-out 130ms ease-in forwards',
         'pen-node': 'pen-node 170ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards',
         'pen-swap': 'pen-swap 140ms ease-out',
+        'note-collapse': 'note-collapse 200ms ease-in forwards',
+        'note-expand': 'note-expand 240ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'star-pop': 'star-pop 400ms cubic-bezier(0.2, 0.9, 0.3, 1.2)',
+        'pin-wobble': 'pin-wobble 350ms cubic-bezier(0.2, 0.9, 0.3, 1.2)',
       },
     },
   },

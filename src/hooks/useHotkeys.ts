@@ -15,8 +15,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
   )
 }
 
-export const FORCE_SAVE_EVENT = 'notely:force-save'
-export const FOCUS_SEARCH_EVENT = 'notely:focus-search'
+export const FORCE_SAVE_EVENT = 'tala:force-save'
+export const FOCUS_SEARCH_EVENT = 'tala:focus-search'
 
 /**
  * Global keyboard shortcuts:

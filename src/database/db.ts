@@ -13,7 +13,7 @@ import type { InkDocRecord } from '@/types/models'
    migration; live ink lives in `inkDocs` keyed by note id.
 --------------------------------------------------------------------------- */
 
-class NotelyDatabase extends Dexie {
+class TalaDatabase extends Dexie {
   notes!: Table<Note, string>
   folders!: Table<Folder, string>
   tags!: Table<Tag, string>
@@ -21,7 +21,7 @@ class NotelyDatabase extends Dexie {
   inkDocs!: Table<InkDocRecord, string>
 
   constructor() {
-    super('notely')
+    super('tala')
     this.version(1).stores({
       // Primary key first; secondary indexes only where bulk queries need them
       notes: 'id, folderId, updatedAt, isDeleted',
@@ -58,10 +58,10 @@ class NotelyDatabase extends Dexie {
   }
 }
 
-export const db = new NotelyDatabase()
+export const db = new TalaDatabase()
 
 // Surface IndexedDB contention (another tab holding a connection during
 // delete/upgrade) instead of letting requests block silently forever.
 db.on('blocked', () => {
-  window.dispatchEvent(new CustomEvent('notely:db-blocked'))
+  window.dispatchEvent(new CustomEvent('tala:db-blocked'))
 })

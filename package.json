@@ -1,8 +1,8 @@
 {
-  "name": "notely",
+  "name": "tala",
   "private": true,
   "version": "1.0.1",
-  "description": "Capture ideas. Keep moving.",
+  "description": "Pagtatala, made simple.",
   "author": "e1yu",
   "license": "MIT",
   "type": "module",

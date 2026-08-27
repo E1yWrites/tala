@@ -36,7 +36,7 @@ export function useSystemDark(): boolean {
 export function applyThemeToDom(mode: ThemeMode): void {
   document.documentElement.classList.toggle('dark', resolveDark(mode))
   try {
-    localStorage.setItem('notely:theme', mode)
+    localStorage.setItem('tala:theme', mode)
   } catch {
     /* private browsing */
   }
@@ -47,20 +47,20 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
   /** Optimistic settings update with persistence. Theme changes apply to the DOM. */
   update(patch) {
-    const next = { ...get().settings, ...patch }
+    const prev = get().settings
+    const next = { ...prev, ...patch }
     if (patch.theme) applyThemeToDom(patch.theme)
     set({ settings: next })
     void settingsRepository.put(next).catch((err) => {
-      console.error('[notely] failed to persist settings', err)
-      // Re-read the CURRENT state (not a stale snapshot) to only roll back
-      // this specific failed write, avoiding data loss from concurrent updates.
+      console.error('[tala] failed to persist settings', err)
+      // Re-read the CURRENT state to only roll back this specific failed write
       const current = get().settings
       if (patch.theme && current.theme !== next.theme) applyThemeToDom(current.theme)
       // If the current in-memory state still holds our failed value, revert
-      // to defaults. If another update() already overwrote it, leave it alone.
+      // to the previous settings (not defaults).
       if (current === next) {
-        set({ settings: DEFAULT_SETTINGS })
-        applyThemeToDom(DEFAULT_SETTINGS.theme)
+        set({ settings: prev })
+        applyThemeToDom(prev.theme)
       }
     })
   },
@@ -71,9 +71,18 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 }))
 
 /* Keep <html> in sync when the OS theme changes while in "system" mode. */
-if (typeof window !== 'undefined') {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+let mediaCleanup: (() => void) | null = null
+function wireSystemTheme() {
+  mediaCleanup?.()
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  const handler = () => {
     const mode = useSettingsStore.getState().settings.theme
     if (mode === 'system') applyThemeToDom('system')
-  })
+  }
+  mq.addEventListener('change', handler)
+  mediaCleanup = () => mq.removeEventListener('change', handler)
+}
+if (typeof window !== 'undefined') wireSystemTheme()
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => mediaCleanup?.())
 }

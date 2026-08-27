@@ -95,7 +95,7 @@ async function flushOne(id: string): Promise<void> {
       await noteRepository.put(next)
     }
   } catch (err) {
-    console.error('[notely] failed to persist handwriting', err)
+    console.error('[tala] failed to persist handwriting', err)
     toast.error('Storage error — could not save handwriting')
   }
 }
@@ -149,7 +149,7 @@ async function persist(note: Note, previous: Note): Promise<void> {
   try {
     await noteRepository.put(note)
   } catch (err) {
-    console.error('[notely] failed to persist note', err)
+    console.error('[tala] failed to persist note', err)
     useNoteStore.setState((s) => ({
       notes: s.notes.map((n) => (n.id === previous.id ? previous : n)),
     }))
@@ -244,7 +244,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       doc.strokes.length === 0 && (!note || isEmptyNote({ ...note, ink: null }, { ...s0.inkDocs, [id]: doc }))
     if (!scratch) {
       void inkRepository.put({ noteId: id, doc }).catch((err) => {
-        console.error('[notely] failed to persist handwriting', err)
+        console.error('[tala] failed to persist handwriting', err)
         toast.error('Storage error — could not save handwriting')
       })
     }
@@ -294,6 +294,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
   },
 
   async deleteForever(ids) {
+    await get().flushInk()
     const snapshots = get().notes.filter((n) => ids.includes(n.id))
     const inkSnapshots = Object.fromEntries(
       Object.entries(get().inkDocs).filter(([k]) => ids.includes(k)),
@@ -306,7 +307,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       await noteRepository.bulkRemove(ids)
       await inkRepository.bulkRemove(ids)
     } catch (err) {
-      console.error('[notely] failed to delete notes', err)
+      console.error('[tala] failed to delete notes', err)
       set((s) => ({
         notes: [...snapshots, ...s.notes].sort(sortPinnedFirstUpdatedDesc),
         inkDocs: { ...s.inkDocs, ...inkSnapshots },
@@ -350,13 +351,20 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       // persist() only rolls back the note row on failure; we also need to
       // roll back the inkDoc entry we optimistically added above.
       void noteRepository.put(copy).catch((err) => {
-        console.error('[notely] failed to persist duplicated note', err)
+        console.error('[tala] failed to persist duplicated note', err)
         set((s) => ({
           notes: [...prevNotes, ...s.notes.filter((n) => n.id !== copy.id)].sort(sortPinnedFirstUpdatedDesc),
           inkDocs: { ...prevInkDocs, ...Object.fromEntries(Object.entries(s.inkDocs).filter(([k]) => k !== copy.id)) },
         }))
         toast.error('Storage error — could not save duplicated note')
       })
+      // Persist the cloned ink record so it survives reload
+      const clonedInk = get().inkDocs[copy.id]
+      if (clonedInk) {
+        void inkRepository.put({ noteId: copy.id, doc: clonedInk }).catch((err) => {
+          console.error('[tala] failed to persist duplicated ink', err)
+        })
+      }
     }
     return copy
   },
@@ -370,7 +378,7 @@ export const useNoteStore = create<NoteState>()((set, get) => ({
       await noteRepository.bulkRemove(all.map((n) => n.id))
       await inkRepository.bulkRemove(all.map((n) => n.id))
     } catch (err) {
-      console.error('[notely] failed to clear notes', err)
+      console.error('[tala] failed to clear notes', err)
       set({ notes: all, inkDocs: allInkDocs })
       toast.error('Could not clear notes')
     }

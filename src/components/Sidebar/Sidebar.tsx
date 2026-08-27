@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import brandLightUrl from '@/assets/icons/light/notely_set_N.png'
+import { TalaMark } from '@/components/Brand/TalaMark'
 import {
   Archive,
   Clock,
@@ -12,9 +12,6 @@ import {
   Plus,
   Settings as SettingsIcon,
   Star,
-  Sun,
-  Moon,
-  Monitor,
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -28,10 +25,11 @@ import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
-import { useSettingsStore, useSystemDark } from '@/store/settingsStore'
-import type { ThemeMode, ViewKind, ViewRef } from '@/types/models'
+import { useSettingsStore } from '@/store/settingsStore'
+import type { ViewKind, ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../UI/Tooltip'
+import { ThemeToggle } from '../UI/ThemeToggle'
 import { useTick } from '@/hooks/useTick'
 import { DropdownMenu } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
@@ -43,8 +41,6 @@ interface NavItemSpec {
   icon: LucideIcon
   count?: number
 }
-
-const THEME_ORDER: ThemeMode[] = ['light', 'dark', 'system']
 
 export function Sidebar({
   variant,
@@ -68,8 +64,6 @@ export function Sidebar({
     count: number
   } | null>(null)
   const settings = useSettingsStore((s) => s.settings)
-  const setTheme = useSettingsStore((s) => s.setTheme)
-  const systemDark = useSystemDark()
 
   const isCollapsed = collapsed && variant === 'dock'
 
@@ -117,22 +111,6 @@ export function Sidebar({
     if (variant === 'drawer') setSidebarDrawer(false)
   }
 
-  const themeIcon =
-    settings.theme === 'light' ? Sun : settings.theme === 'dark' ? Moon : Monitor
-
-  const cycleTheme = (): void => {
-    const idx = THEME_ORDER.indexOf(settings.theme)
-    const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length]
-    setTheme(next)
-  }
-
-  const themeLabel =
-    settings.theme === 'system'
-      ? `System (${systemDark ? 'dark' : 'light'})`
-      : settings.theme === 'dark'
-        ? 'Dark mode'
-        : 'Light mode'
-
   return (
     <nav
 
@@ -146,24 +124,18 @@ export function Sidebar({
       <div className={cn('flex items-center gap-2.5 px-1', isCollapsed && 'px-0 justify-center')}>
         <button
           type="button"
-          className="grid size-9 shrink-0 -rotate-3 place-items-center overflow-hidden rounded-wobbly-sm shadow-sketch-sm transition-transform duration-150 hover:rotate-0"
+          className="grid size-9 shrink-0 -rotate-3 place-items-center rounded-wobbly-sm transition-transform duration-150 hover:rotate-0"
           onClick={() => navigate({ kind: 'home' })}
-          aria-label="Notely home"
+          aria-label="Tala home"
         >
-          <img
-            src={brandLightUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="size-full scale-[1.02] object-cover"
-          />
+          <TalaMark size={30} className="text-accent" />
         </button>
         {!isCollapsed && (
           <div className="min-w-0">
             <p className="font-display text-lg leading-none">
-              Notely<span className="text-accent">.</span>
+              tala<span className="text-accent">.</span>
             </p>
-            <p className="mt-0.5 truncate text-xs leading-none text-faint">Capture ideas. Keep moving.</p>
+            <p className="mt-0.5 truncate text-xs leading-none text-faint">Pagtatala, made simple.</p>
           </div>
         )}
       </div>
@@ -315,12 +287,7 @@ export function Sidebar({
           />
         )}
         <div className={cn('flex items-center gap-1', isCollapsed ? 'flex-col' : '')}>
-          <ThemeToggleButton
-            collapsed={isCollapsed}
-            Icon={themeIcon}
-            label={themeLabel}
-            onClick={cycleTheme}
-          />
+          <ThemeToggle collapsed={isCollapsed} />
           <SettingsButton collapsed={isCollapsed} onClick={() => navigate({ kind: 'settings' })} />
           {variant === 'dock' && (
             <CollapseButton collapsed={isCollapsed} onClick={toggleSidebar} />
@@ -487,41 +454,6 @@ function SectionHeader({
         </Tooltip>
       )}
     </div>
-  )
-}
-
-function ThemeToggleButton({
-  collapsed,
-  Icon,
-  label,
-  onClick,
-}: {
-  collapsed: boolean
-  Icon: LucideIcon
-  label: string
-  onClick: () => void
-}): ReactNode {
-  const btn = (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Theme: ${label}. Click to switch.`}
-      className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
-        collapsed ? '' : '',
-      )}
-    >
-      <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
-        <Icon size={BOTTOM_ICON_SIZE} />
-      </span>
-    </button>
-  )
-  return collapsed ? (
-    <Tooltip label={label} side="right">
-      {btn}
-    </Tooltip>
-  ) : (
-    btn
   )
 }
 

@@ -29,7 +29,7 @@ async function completeOnboarding(p) {
   const skip = p.locator('button:has-text("Skip")')
   if (await skip.count()) await skip.first().click()
   await waitFor(400)
-  await p.click('button:has-text("Start Using Notely")').catch(() => {})
+  await p.click('button:has-text("Start Using Tala")').catch(() => {})
   await waitFor(600)
   return !(await p.isVisible('text=Get Started'))
 }

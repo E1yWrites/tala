@@ -30,7 +30,7 @@ async function persist(tag: Tag): Promise<boolean> {
     await tagRepository.put(tag)
     return true
   } catch (err) {
-    console.error('[notely] failed to persist tag', err)
+    console.error('[tala] failed to persist tag', err)
     toast.error('Storage error — could not save tag')
     return false
   }
@@ -113,9 +113,6 @@ export const useTagStore = create<TagState>()((set, get) => ({
 
   async deleteTag(id) {
     const prevTags = get().tags
-    const affectedPrev = useNoteStore
-      .getState()
-      .notes.filter((n) => n.tagIds.includes(id))
     if (!prevTags.some((t) => t.id === id)) return
 
     set((s) => ({ tags: s.tags.filter((t) => t.id !== id) }))
@@ -124,13 +121,20 @@ export const useTagStore = create<TagState>()((set, get) => ({
       // One transaction: tag removal + reference stripping succeed or fail together.
       await db.transaction('rw', db.tags, db.notes, async () => {
         await tagRepository.remove(id)
-        if (affectedPrev.length > 0) {
+        // Re-read current notes inside the transaction to avoid stale snapshots
+        const currentAffected = useNoteStore
+          .getState()
+          .notes.filter((n) => n.tagIds.includes(id))
+        if (currentAffected.length > 0) {
           await noteRepository.bulkPut(
-            affectedPrev.map((n) => ({ ...n, tagIds: n.tagIds.filter((t) => t !== id) })),
+            currentAffected.map((n) => ({ ...n, tagIds: n.tagIds.filter((t) => t !== id) })),
           )
         }
       })
-      if (affectedPrev.length > 0) {
+      const finalAffected = useNoteStore
+        .getState()
+        .notes.filter((n) => n.tagIds.includes(id))
+      if (finalAffected.length > 0) {
         useNoteStore.setState((s) => ({
           notes: s.notes.map((n) =>
             n.tagIds.includes(id) ? { ...n, tagIds: n.tagIds.filter((t) => t !== id) } : n,
@@ -144,7 +148,7 @@ export const useTagStore = create<TagState>()((set, get) => ({
         useUIStore.getState().setView({ kind: 'all' })
       }
     } catch (err) {
-      console.error('[notely] failed to delete tag', err)
+      console.error('[tala] failed to delete tag', err)
       set({ tags: prevTags })
       toast.error('Could not delete tag')
     }
@@ -164,7 +168,7 @@ export const useTagStore = create<TagState>()((set, get) => ({
         await tagRepository.bulkRemove(dead.map((t) => t.id))
       })
     } catch (err) {
-      console.error('[notely] failed to prune tags', err)
+      console.error('[tala] failed to prune tags', err)
       set({ tags: prevTags })
     }
   },

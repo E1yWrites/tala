@@ -21,7 +21,7 @@ export function isToday(timestamp: number): boolean {
 
 export function timeOfDayGreeting(): string {
   const h = new Date().getHours()
-  if (h < 5) return 'Working late'
+  if (h < 5) return 'Still thinking?'
   if (h < 12) return 'Good morning'
   if (h < 18) return 'Good afternoon'
   return 'Good evening'

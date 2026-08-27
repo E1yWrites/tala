@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn'
 import { Button } from '@/components/UI/Button'
 import { processImageFile } from '@/utils/image'
 import { Avatar } from '@/components/UI/Avatar'
-import brandMarkUrl from '@/assets/icons/light/notely_set_N.png'
+import { TalaMark } from '@/components/Brand/TalaMark'
 
 const AVATAR_SIZE = 256
 /** Must match the formats promised in the UI copy. */
@@ -139,15 +139,10 @@ function OnboardingContent(): React.ReactNode {
 
         {step === 'welcome' && (
           <div className="text-center space-y-4">
-            <img
-              src={brandMarkUrl}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className="mx-auto size-20 -rotate-3 animate-wiggle drop-shadow-sm"
-            />
-            <h1 className="font-display text-3xl leading-tight">Welcome to Notely</h1>
-            <p className="text-muted">Let's get your workspace ready.</p>
+            <TalaMark size={80} className="mx-auto -rotate-3 animate-wiggle drop-shadow-sm text-accent" />
+            <h1 className="font-display text-3xl leading-tight">Welcome to tala</h1>
+            <p className="text-muted">Pagtatala, made simple.</p>
+            <p className="text-sm text-faint">A little place for your thoughts, notes, ideas, and everything worth remembering.</p>
             <Button variant="primary" size="md" className="w-full" onClick={nextStep}>
               <span className="flex items-center justify-center gap-2">
                 Get Started
@@ -259,7 +254,7 @@ function OnboardingContent(): React.ReactNode {
             </div>
             <Button variant="primary" size="md" className="w-full" onClick={completeOnboarding}>
               <span className="flex items-center justify-center gap-2">
-                Start Using Notely
+                Start Using Tala
                 <ArrowRight className="size-4" />
               </span>
             </Button>

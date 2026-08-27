@@ -55,7 +55,7 @@ async function doHydrate(): Promise<void> {
         if (r) notes[i] = r
       }
     } catch (err) {
-      console.error('[notely] reference repair failed', err)
+      console.error('[tala] reference repair failed', err)
     }
   }
 
@@ -88,7 +88,7 @@ async function doHydrate(): Promise<void> {
       await noteRepository.bulkPut(revived)
       useNoteStore.getState().hydrate([...notes, ...revived])
     } catch (err) {
-      console.error('[notely] failed to revive orphaned handwriting', err)
+      console.error('[tala] failed to revive orphaned handwriting', err)
     }
   }
 
@@ -113,5 +113,7 @@ async function doHydrate(): Promise<void> {
 
 /** Re-reads everything from IndexedDB into the stores (used after import/restore). */
 export async function hydrateAll(): Promise<void> {
+  // Chain off in-flight boot to prevent concurrent hydration races
+  if (bootPromise) await bootPromise
   await doHydrate()
 }

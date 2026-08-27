@@ -76,7 +76,11 @@ export function HomePage(): React.ReactNode {
   }, [notes, folderCount])
 
   return (
-    <section aria-label="Dashboard" className="h-full overflow-y-auto">
+    <section aria-label="Dashboard" className="relative h-full overflow-y-auto">
+      {/* Decorative doodles — notebook margin feel */}
+      <svg aria-hidden="true" className="pointer-events-none absolute right-4 top-8 size-8 rotate-12 text-accent/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6z" /></svg>
+      <svg aria-hidden="true" className="pointer-events-none absolute left-2 top-40 size-5 -rotate-6 text-lineSoft/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+      <svg aria-hidden="true" className="pointer-events-none absolute right-8 bottom-16 size-6 rotate-[-8deg] text-faint/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 16c2-3 6-3 8 0s6 3 8 0" /><circle cx="12" cy="8" r="4" /></svg>
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-10 animate-slide-up">
         {/* Greeting */}
         <header>
@@ -87,7 +91,7 @@ export function HomePage(): React.ReactNode {
             {firstName ? `Hey, ${firstName}` : 'Hey there'}
             <span className="ml-0.5 inline-block animate-wiggle text-accent">!</span>
           </h1>
-          <p className="mt-1 text-sm text-muted">Capture ideas. Keep moving.</p>
+          <p className="mt-1 text-sm text-muted">What are you thinking about?</p>
         </header>
 
         {/* Quick actions */}
@@ -129,7 +133,7 @@ export function HomePage(): React.ReactNode {
               <NotebookText size={28} className="mx-auto -rotate-6 text-accent" aria-hidden="true" />
               <p className="mt-2 font-display text-lg">Nothing here yet</p>
               <p className="mt-0.5 text-sm text-muted">
-                Your recently edited notes will appear here.
+                Your recent notes will show up here once you start writing.
               </p>
               <Button
                 variant="primary"
@@ -138,7 +142,7 @@ export function HomePage(): React.ReactNode {
                 onClick={() => openModal({ kind: 'new-note' })}
               >
                 <Plus size={15} />
-                Create your first note
+                Start writing
               </Button>
             </div>
           ) : (

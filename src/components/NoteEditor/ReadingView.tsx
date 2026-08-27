@@ -17,7 +17,7 @@ import { cn } from '@/utils/cn'
    code blocks, hand-drawn checkboxes) applies unchanged.
 --------------------------------------------------------------------------- */
 
-const COLLAPSE_KEY_PREFIX = 'notely:reading-collapsed:'
+const COLLAPSE_KEY_PREFIX = 'tala:reading-collapsed:'
 
 interface Section {
   id: string

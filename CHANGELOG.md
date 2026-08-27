@@ -1,6 +1,17 @@
 # Changelog
 
-All notable changes to Notely are documented here.
+All notable changes to Tala are documented here.
+
+## [2.0.0] - 2026-08-26
+
+### Changed
+- Complete rebrand from Notely to Tala
+- Brand identity: solar gold accent, warm ivory light mode, moonlit dark mode
+- Animated sun ↔ moon theme toggle with hand-drawn SVG
+- New inline SVG brand mark (hand-drawn sun + sparkle)
+- Updated color palette for sunlight/moonlight theme
+- Updated onboarding, empty states, and dashboard copy
+- Bundle identifier changed to com.lanz.tala
 
 ## [1.0.1] - 2026-08-25
 
@@ -34,7 +45,7 @@ All notable changes to Notely are documented here.
 
 ## [1.0.0] - 2026-08-24
 
-Initial release of Notely — a local-first, hand-drawn aesthetic note-taking app.
+Initial release of Tala — a local-first, hand-drawn aesthetic note-taking app.
 
 ### Core Features
 

@@ -10,7 +10,7 @@ import {
 import { useNoteStore } from '@/store/noteStore'
 
 export interface BackupFile {
-  app: 'notely'
+  app: 'tala'
   /** 1 = pre-v2 inline note.ink; 2 = handwriting in inkDocs. */
   version: 1 | 2
   exportedAt: number
@@ -32,7 +32,7 @@ export async function buildBackup(): Promise<BackupFile> {
     inkRepository.all(),
   ])
   return {
-    app: 'notely',
+    app: 'tala',
     version: 2,
     exportedAt: Date.now(),
     notes,
@@ -55,7 +55,7 @@ export async function downloadBackup(): Promise<void> {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `notely-backup-${stamp()}.json`
+  a.download = `tala-backup-${stamp()}.json`
   document.body.appendChild(a)
   a.click()
   a.remove()
@@ -71,8 +71,8 @@ export function parseBackup(text: string): BackupFile {
     throw new Error('That file is not valid JSON.')
   }
   const b = raw as Partial<BackupFile>
-  if (b.app !== 'notely' || !Array.isArray(b.notes) || !Array.isArray(b.folders) || !Array.isArray(b.tags)) {
-    throw new Error('That file is not a Notely backup.')
+  if (b.app !== 'tala' || !Array.isArray(b.notes) || !Array.isArray(b.folders) || !Array.isArray(b.tags)) {
+    throw new Error('That file is not a Tala backup.')
   }
   if (b.version !== 1 && b.version !== 2) {
     throw new Error(`Unsupported backup version: ${String(b.version)}`)
@@ -243,6 +243,6 @@ export async function restoreBackup(
 
   await hydrateAll()
   // Open editors may hold pre-import docs — let them resync (see NoteEditor)
-  window.dispatchEvent(new CustomEvent('notely:external-sync'))
+  window.dispatchEvent(new CustomEvent('tala:external-sync'))
   return { notes: backup.notes.length, folders: backup.folders.length, tags: backup.tags.length }
 }

@@ -553,12 +553,13 @@ export function SettingsPage(): React.ReactNode {
         {/* About */}
         <section className="relative -rotate-[0.5deg] rounded-wobbly-md border-2 border-line bg-postit p-5 text-center text-postit-ink shadow-sketch-sm sm:p-5">
           <span aria-hidden="true" className="tape absolute left-1/2 top-[-11px] h-[22px] w-24 -translate-x-1/2" />
-          <p className="font-display text-xl">Notely</p>
-          <p className="mt-0.5 text-xs text-postit-ink/60">Version 1.0.0 · Offline-first notes</p>
+          <p className="font-display text-xl">Tala</p>
+          <p className="mt-0.5 text-xs text-postit-ink/60">Version 1.0.1 · Offline-first notes</p>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-postit-ink/70">
             Your notes are stored locally in your browser&rsquo;s IndexedDB. Nothing is uploaded,
             synced or shared — export a backup regularly to keep it safe.
           </p>
+          <p className="mt-2 text-xs italic text-postit-ink/50">Isulat mo. Itala mo.</p>
         </section>
       </div>
     </div>
