@@ -18,12 +18,7 @@ import {
 import { toast } from 'sonner'
 import type { SortKey, ThemeMode, ViewDensity } from '@/types/models'
 import { useSettingsStore } from '@/store/settingsStore'
-import {
-  SIDEBAR_MAX_WIDTH,
-  SIDEBAR_MIN_WIDTH,
-  useUIStore,
-} from '@/store/uiStore'
-import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
+import { useUIStore } from '@/store/uiStore'
 import { db } from '@/database/db'
 import { downloadBackup, parseBackup, restoreBackup, type BackupFile } from '@/utils/exportImport'
 import { Button } from '@/components/UI/Button'
@@ -159,30 +154,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 /** Sidebar width slider — stays in sync with dragging the resize handle. */
-function SidebarWidthRow(): React.ReactNode {
-  const sidebarWidth = useUIStore((s) => s.sidebarWidth)
-  const setSidebarWidth = useUIStore((s) => s.setSidebarWidth)
-  const commitSidebarWidth = useUIStore((s) => s.commitSidebarWidth)
-  return (
-    <SettingRow
-      label="Sidebar width"
-      hint={`${sidebarWidth}px · drag the handle or use this slider (${SIDEBAR_MIN_WIDTH}–${SIDEBAR_MAX_WIDTH})`}
-    >
-      <input
-        type="range"
-        min={SIDEBAR_MIN_WIDTH}
-        max={SIDEBAR_MAX_WIDTH}
-        step={4}
-        value={sidebarWidth}
-        onChange={(e) => setSidebarWidth(Number(e.target.value))}
-        onPointerUp={commitSidebarWidth}
-        onKeyUp={commitSidebarWidth}
-        aria-label="Sidebar width"
-        className="w-full accent-[rgb(var(--c-accent))]"
-      />
-    </SettingRow>
-  )
-}
 
 /* -------------------------------- The page -------------------------------- */
 
@@ -191,7 +162,6 @@ export function SettingsPage(): React.ReactNode {
   const update = useSettingsStore((s) => s.update)
   const openModal = useUIStore((s) => s.openModal)
   const setView = useUIStore((s) => s.setView)
-  const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
 
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -389,7 +359,6 @@ export function SettingsPage(): React.ReactNode {
               ]}
             />
           </SettingRow>
-          {isDesktop && <SidebarWidthRow />}
         </Section>
 
         {/* Editor */}

@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { useUIStore } from '@/store/uiStore'
+import { useUIStore, SIDEBAR_WIDTH } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
 import { Sidebar } from '@/components/Sidebar/Sidebar'
-import { SidebarResizeHandle } from '@/components/Sidebar/SidebarResizeHandle'
 import { MobileNav } from './MobileNav'
 import { ModalHost } from '@/components/Modals/ModalHost'
 import { NoteListPanel } from '@/components/NoteList/NoteListPanel'
@@ -13,17 +12,12 @@ import { EditorPlaceholder } from '@/components/NoteEditor/EditorPlaceholder'
 import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
-import { cn } from '@/utils/cn'
-
-/** Collapsed rail width (px) — matches the sidebar minimum so nothing breaks. */
-const SIDEBAR_COLLAPSED_WIDTH = 72
 
 /**
  * Responsive three-pane shell.
  *
- * ≥1024px : sidebar · list · editor (sidebar collapsible)
- *  768–1023: drawer sidebar · list · editor
- *      <768: single pane + bottom nav; editor becomes full-screen
+ * ≥768px  : sidebar · list · editor (sidebar toggles expanded/hidden)
+ *    <768: single pane + bottom nav; editor becomes full-screen
  */
 export function AppShell(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
@@ -31,12 +25,11 @@ export function AppShell(): React.ReactNode {
   const focusMode = useUIStore((s) => s.focusMode)
   const sidebarDrawerOpen = useUIStore((s) => s.sidebarDrawerOpen)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
 
   const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
   const isMobile = useMediaQuery(BREAKPOINTS.mobile)
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
-  const sidebarWidth = useUIStore((s) => s.sidebarWidth)
-  const sidebarResizing = useUIStore((s) => s.sidebarResizing)
 
   // Global keyboard shortcuts
   useHotkeys()
@@ -80,6 +73,9 @@ export function AppShell(): React.ReactNode {
   }, [sidebarDrawerOpen, isDesktop])
 
   const openDrawer = (): void => setSidebarDrawer(true)
+  // iPad/tablet shows the docked sidebar; the header menu toggles it
+  // between expanded and hidden instead of opening the mobile drawer.
+  const openSidebar = isMobile ? openDrawer : toggleSidebar
 
   /* ------------------------------ View content ----------------------------- */
 
@@ -99,7 +95,11 @@ export function AppShell(): React.ReactNode {
     viewContent = (
       <NoteListPanel
         view={activeView}
-        onOpenSidebar={!isDesktop ? openDrawer : undefined}
+        // Mobile: hamburger opens the drawer. Desktop/tablet: it toggles the
+        // docked sidebar — always offered when the sidebar is hidden so the
+        // bottom section (quick actions, theme, settings, profile) is never
+        // unreachable, not even on a fresh visit with a stale collapsed flag.
+        onOpenSidebar={!isDesktop || sidebarCollapsed ? openSidebar : undefined}
       />
     )
   }
@@ -108,7 +108,7 @@ export function AppShell(): React.ReactNode {
   /* --------------------------------- Drawer -------------------------------- */
 
   const drawer =
-    sidebarDrawerOpen && !isDesktop ? (
+    sidebarDrawerOpen && isMobile ? (
       <div ref={drawerRef} className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
         <div
           className="absolute inset-0 bg-black/35 animate-fade-in"
@@ -125,7 +125,7 @@ export function AppShell(): React.ReactNode {
 
   if (isMobile) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col pt-[env(safe-area-inset-top)]">
         <div className="min-h-0 flex-1 pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
           {selectedNoteId ? (
             <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
@@ -142,27 +142,17 @@ export function AppShell(): React.ReactNode {
 
   /* --------------------------- Desktop / tablet ---------------------------- */
 
-  const showDockedSidebar = isDesktop && !focusMode
+  const showDockedSidebar = !isMobile && !focusMode && !sidebarCollapsed
 
   return (
-    <div
-      className="flex h-full overflow-hidden"
-      style={{ '--sidebar-width': `${sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth}px` } as React.CSSProperties}
-    >
+    <div className="flex h-full overflow-hidden pt-[env(safe-area-inset-top)]">
       {showDockedSidebar && (
-        <>
-          <aside
-            style={{ width: 'var(--sidebar-width)' }}
-            className={cn(
-              'h-full shrink-0 transition-[width] duration-200 ease-out',
-              sidebarResizing && 'transition-none',
-            )}
-          >
-            <Sidebar variant="dock" />
-          </aside>
-          {/* Always mounted (even collapsed) so drags never lose pointer capture. */}
-          <SidebarResizeHandle />
-        </>
+        <aside
+          style={{ width: `${SIDEBAR_WIDTH}px` }}
+          className="h-full shrink-0 transition-[width] duration-200 ease-out"
+        >
+          <Sidebar variant="dock" />
+        </aside>
       )}
 
       {isSettingsArea ? (

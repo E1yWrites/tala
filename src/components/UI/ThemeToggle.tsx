@@ -3,7 +3,6 @@ import { Monitor } from 'lucide-react'
 import type { ThemeMode } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { useSettingsStore, useSystemDark } from '@/store/settingsStore'
-import { Tooltip } from './Tooltip'
 
 const THEME_ORDER: ThemeMode[] = ['light', 'dark', 'system']
 
@@ -14,7 +13,7 @@ const THEME_ORDER: ThemeMode[] = ['light', 'dark', 'system']
  *
  * Animation is CSS-transition based (~500ms) and disabled under reduced motion.
  */
-export function ThemeToggle({ collapsed }: { collapsed: boolean }): React.ReactNode {
+export function ThemeToggle(): React.ReactNode {
   const { settings, setTheme } = useSettingsStore()
   const systemDark = useSystemDark()
   const [transitioning, setTransitioning] = useState(false)
@@ -131,11 +130,5 @@ export function ThemeToggle({ collapsed }: { collapsed: boolean }): React.ReactN
     </button>
   )
 
-  return collapsed ? (
-    <Tooltip label={label} side="right">
-      {btn}
-    </Tooltip>
-  ) : (
-    btn
-  )
+  return btn
 }

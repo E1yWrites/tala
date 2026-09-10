@@ -300,7 +300,7 @@ export function NoteListPanel({
             type="button"
             onClick={onOpenSidebar}
             aria-label="Open navigation"
-            className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:bg-raise hover:text-ink lg:hidden"
+            className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:bg-raise hover:text-ink"
           >
             <Menu size={18} strokeWidth={2.5} />
           </button>

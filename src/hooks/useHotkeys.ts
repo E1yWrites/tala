@@ -105,6 +105,14 @@ export function useHotkeys(): void {
           window.dispatchEvent(new Event(FORCE_SAVE_EVENT))
           return
         }
+        case 'b': {
+          // Toggle the (desktop/tablet) sidebar between hidden and expanded.
+          // Ignored inside inputs/editor so ProseMirror keeps Ctrl+B = bold.
+          if (isTypingTarget(e.target) || blocked) return
+          e.preventDefault()
+          ui.toggleSidebar()
+          return
+        }
         case ',': {
           if (blocked) return
           e.preventDefault()

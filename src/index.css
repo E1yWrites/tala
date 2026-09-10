@@ -74,6 +74,7 @@
   body,
   #root {
     height: 100%;
+    min-height: 100dvh;
   }
 
   body {
@@ -379,6 +380,7 @@
    reading grids) reacts to available width regardless of sidebar width. */
 .editor-scroll {
   container: editor / inline-size;
+  overscroll-behavior: none;
 }
 
 /* Reading layout — smooth collapsible sections (grid-rows trick) */
@@ -413,12 +415,6 @@
   transition: background-color 200ms ease, border-color 200ms ease !important;
 }
 
-/* Active sidebar resize — pointer feedback + no accidental text selection */
-body.sidebar-resizing {
-  cursor: col-resize;
-  user-select: none;
-}
-
 /* Washi-tape strip — position relative on the host element */
 .tape {
   position: absolute;
@@ -449,6 +445,7 @@ body.sidebar-resizing {
 
 .ink-layer[data-active] {
   pointer-events: auto;
+  touch-action: none;
 }
 
 .ink-layer svg {

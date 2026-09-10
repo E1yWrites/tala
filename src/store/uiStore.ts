@@ -4,35 +4,17 @@ import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { PEN_SIZES } from '@/types/ink'
 
 const SIDEBAR_KEY = 'tala:sidebar-collapsed'
-const SIDEBAR_WIDTH_KEY = 'tala:sidebar-width'
 const READING_LAYOUT_KEY = 'tala:reading-layout'
 const INK_PREFS_KEY = 'tala:ink-prefs'
 
-/** Resizable dock width bounds (px) and the reset default. */
-export const SIDEBAR_MIN_WIDTH = 72
-export const SIDEBAR_MAX_WIDTH = 360
-export const SIDEBAR_DEFAULT_WIDTH = 260
-/** Below this while dragging, the rail snaps closed instead of truncating labels. */
-export const SIDEBAR_SNAP_COLLAPSE_AT = 96
+/** Fixed sidebar width when expanded (px). */
+export const SIDEBAR_WIDTH = 260
 
 function readSidebarCollapsed(): boolean {
   try {
     return localStorage.getItem(SIDEBAR_KEY) === '1'
   } catch {
     return false
-  }
-}
-
-function clampWidth(px: number): number {
-  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(px)))
-}
-
-function readSidebarWidth(): number {
-  try {
-    const raw = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
-    return Number.isFinite(raw) && raw > 0 ? clampWidth(raw) : SIDEBAR_DEFAULT_WIDTH
-  } catch {
-    return SIDEBAR_DEFAULT_WIDTH
   }
 }
 
@@ -108,10 +90,6 @@ interface UIState {
   activeView: ViewRef
   selectedNoteId: string | null
   sidebarCollapsed: boolean
-  /** Docked sidebar width in px (72–360). Persisted to localStorage. */
-  sidebarWidth: number
-  /** True while the user is dragging the resize handle (disables width transitions). */
-  sidebarResizing: boolean
   /** Structured "Reading layout" for the note editor (cards + collapsible sections). */
   readingLayout: boolean
   /** Mobile/tablet slide-in sidebar */
@@ -140,9 +118,6 @@ interface UIState {
   setView: (view: ViewRef) => void
   selectNote: (id: string | null) => void
   toggleSidebar: () => void
-  setSidebarWidth: (px: number) => void
-  commitSidebarWidth: () => void
-  setSidebarResizing: (dragging: boolean) => void
   toggleReadingLayout: () => void
   setSidebarDrawer: (open: boolean) => void
   toggleFocusMode: () => void
@@ -171,8 +146,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
   activeView: { kind: 'home' },
   selectedNoteId: null,
   sidebarCollapsed: readSidebarCollapsed(),
-  sidebarWidth: readSidebarWidth(),
-  sidebarResizing: false,
   readingLayout: readReadingLayout(),
   sidebarDrawerOpen: false,
   focusMode: false,
@@ -199,23 +172,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
       localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0')
     } catch { /* ignore */ }
     set({ sidebarCollapsed: next })
-  },
-
-  /** Live width updates while dragging or using the settings slider. */
-  setSidebarWidth(px) {
-    set({ sidebarWidth: clampWidth(px) })
-  },
-
-  /** Persist the current width (called on drag end / slider release). */
-  commitSidebarWidth() {
-    const width = get().sidebarWidth
-    try {
-      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width))
-    } catch { /* ignore */ }
-  },
-
-  setSidebarResizing(dragging) {
-    set({ sidebarResizing: dragging })
   },
 
   toggleReadingLayout() {

@@ -1,5 +1,5 @@
-/** Hard ceiling before base64 inflation into IndexedDB (~10 MB on disk). */
-const MAX_FILE_BYTES = 8 * 1024 * 1024
+/** Hard ceiling before base64 inflation into IndexedDB (~100 MB on disk). */
+const MAX_FILE_BYTES = 100 * 1024 * 1024
 
 /** Reads a File into a data URL. */
 function readAsDataURL(file: File): Promise<string> {
@@ -32,7 +32,7 @@ export async function processImageFile(file: File): Promise<string> {
     throw new Error('Unsupported file type')
   }
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error('Image is too large (max 8 MB)')
+    throw new Error('Image is too large (max 100 MB)')
   }
   const dataUrl = await readAsDataURL(file)
 

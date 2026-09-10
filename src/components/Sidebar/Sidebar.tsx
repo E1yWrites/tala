@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   NotebookText,
   PanelLeft,
-  PanelRight,
   Pin,
   Plus,
   Settings as SettingsIcon,
@@ -53,7 +52,6 @@ export function Sidebar({
   const tags = useTagStore((s) => s.tags)
   const activeView = useUIStore((s) => s.activeView)
   const setView = useUIStore((s) => s.setView)
-  const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const openModal = useUIStore((s) => s.openModal)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
@@ -64,8 +62,6 @@ export function Sidebar({
     count: number
   } | null>(null)
   const settings = useSettingsStore((s) => s.settings)
-
-  const isCollapsed = collapsed && variant === 'dock'
 
   const counts = useMemo(() => {
     const live = notes.filter((n) => !n.isDeleted && !n.isArchived)
@@ -113,15 +109,13 @@ export function Sidebar({
 
   return (
     <nav
-
       className={cn(
-        'flex h-full flex-col border-r-2 border-line bg-panel',
+        'flex h-full flex-col border-r-2 border-line bg-panel px-3 py-3',
         variant === 'drawer' ? 'w-60' : 'w-full',
-        isCollapsed ? 'items-center px-1.5 py-3' : 'px-3 py-3',
       )}
     >
       {/* Brand */}
-      <div className={cn('flex items-center gap-2.5 px-1', isCollapsed && 'px-0 justify-center')}>
+      <div className="flex items-center gap-2.5 px-1">
         <button
           type="button"
           className="grid size-9 shrink-0 -rotate-3 place-items-center rounded-wobbly-sm transition-transform duration-150 hover:rotate-0"
@@ -130,41 +124,26 @@ export function Sidebar({
         >
           <TalaMark size={30} className="text-accent" />
         </button>
-        {!isCollapsed && (
-          <div className="min-w-0">
-            <p className="font-display text-lg leading-none">
-              tala<span className="text-accent">.</span>
-            </p>
-            <p className="mt-0.5 truncate text-xs leading-none text-faint">Pagtatala, made simple.</p>
-          </div>
-        )}
+        <div className="min-w-0">
+          <p className="font-display text-lg leading-none">
+            tala<span className="text-accent">.</span>
+          </p>
+          <p className="mt-0.5 truncate text-xs leading-none text-faint">Pagtatala, made simple.</p>
+        </div>
       </div>
 
       {/* New note */}
-      <div className={cn('mt-4', isCollapsed && 'mt-3')}>
-        {isCollapsed ? (
-          <Tooltip label="New note" side="right">
-            <button
-              type="button"
-              onClick={() => openModal({ kind: 'new-note' })}
-              aria-label="New note"
-              className="grid size-9 place-items-center rounded-wobbly-sm border-[3px] border-line bg-postit text-postit-ink shadow-sketch-sm transition-all duration-100 hover:bg-accent hover:text-accent-fg active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
-            >
-              <Plus size={20} strokeWidth={2.5} />
-            </button>
-          </Tooltip>
-        ) : (
-          <button
-            type="button"
-            onClick={() => openModal({ kind: 'new-note' })}
-            className="flex h-10 w-full items-center gap-2 rounded-wobbly border-[3px] border-line bg-postit px-4 text-[15px] text-postit-ink shadow-sketch transition-all duration-100 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
-          >
-            <span className={ICON_CONTAINER} aria-hidden="true">
-              <Plus size={ICON_SIZE} strokeWidth={2.5} />
-            </span>
-            New Note
-          </button>
-        )}
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => openModal({ kind: 'new-note' })}
+          className="flex h-10 w-full items-center gap-2 rounded-wobbly border-[3px] border-line bg-postit px-4 text-[15px] text-postit-ink shadow-sketch transition-all duration-100 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
+        >
+          <span className={ICON_CONTAINER} aria-hidden="true">
+            <Plus size={ICON_SIZE} strokeWidth={2.5} />
+          </span>
+          New Note
+        </button>
       </div>
 
       {/* Library */}
@@ -174,15 +153,13 @@ export function Sidebar({
             <NavItemButton
               item={item}
               active={activeView.kind === item.id}
-              collapsed={isCollapsed}
               onSelect={() => navigate({ kind: item.id as ViewKind })}
             />
           </li>
         ))}
       </ul>
 
-      {!isCollapsed && (
-        <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
+      <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
           {/* Folders */}
           <SectionHeader
             label="Folders"
@@ -272,55 +249,36 @@ export function Sidebar({
             </div>
           )}
         </div>
-      )}
-
-      {isCollapsed && <div className="min-h-0 flex-1" />}
 
       {/* Bottom area */}
-      <div className={cn('mt-auto flex flex-col gap-0.5 pt-3', isCollapsed ? 'items-center' : '')}>
-        {!isCollapsed && (
-          <NavItemButton
-            item={{ id: 'quick-actions', label: 'Quick actions…', icon: Plus }}
-            active={false}
-            collapsed={isCollapsed}
-            onSelect={() => openModal({ kind: 'palette' })}
-          />
-        )}
-        <div className={cn('flex items-center gap-1', isCollapsed ? 'flex-col' : '')}>
-          <ThemeToggle collapsed={isCollapsed} />
-          <SettingsButton collapsed={isCollapsed} onClick={() => navigate({ kind: 'settings' })} />
+      <div className="mt-auto flex flex-col gap-0.5 pt-3">
+        <NavItemButton
+          item={{ id: 'quick-actions', label: 'Quick actions…', icon: Plus }}
+          active={false}
+          onSelect={() => openModal({ kind: 'palette' })}
+        />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <SettingsButton onClick={() => navigate({ kind: 'settings' })} />
           {variant === 'dock' && (
-            <CollapseButton collapsed={isCollapsed} onClick={toggleSidebar} />
+            <CollapseButton onClick={toggleSidebar} />
           )}
         </div>
 
         {/* Profile — display only. Editing lives in Settings → Profile. */}
-        {isCollapsed ? (
-          <Tooltip label={settings.profile.name || 'Profile'} side="right">
-            <span className="mt-2 inline-flex" title={settings.profile.name}>
-              <Avatar
-                src={settings.profile.avatar}
-                name={settings.profile.name}
-                size="sm"
-                className="rotate-3"
-              />
+        <div className="mt-2">
+          <div className="flex items-center gap-2.5 rounded-wobbly-sm p-1.5">
+            <Avatar
+              src={settings.profile.avatar}
+              name={settings.profile.name}
+              size="md"
+            />
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-sm leading-tight">{settings.profile.name}</span>
+              <span className="block truncate text-xs text-faint">{settings.profile.role}</span>
             </span>
-          </Tooltip>
-        ) : (
-          <div className="mt-2">
-            <div className="flex items-center gap-2.5 rounded-wobbly-sm p-1.5">
-              <Avatar
-                src={settings.profile.avatar}
-                name={settings.profile.name}
-                size="md"
-              />
-              <span className="min-w-0 flex-1 text-left">
-                <span className="block truncate text-sm leading-tight">{settings.profile.name}</span>
-                <span className="block truncate text-xs text-faint">{settings.profile.role}</span>
-              </span>
-            </div>
           </div>
-        )}
+        </div>
       </div>
           {pendingFolderDelete !== null && (
             <ConfirmDialog
@@ -349,51 +307,37 @@ export function Sidebar({
 function NavItemButton({
   item,
   active,
-  collapsed,
   onSelect,
 }: {
   item: NavItemSpec
   active: boolean
-  collapsed: boolean
   onSelect: () => void
 }): ReactNode {
-  const content = (
+  return (
     <button
       type="button"
       onClick={onSelect}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'group flex h-8 w-full items-center gap-2.5 rounded-wobbly-sm px-2 text-[15px] transition-colors duration-100',
-        collapsed && 'justify-center px-0',
         active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
       <span className={ICON_CONTAINER} aria-hidden="true">
         <item.icon size={ICON_SIZE} strokeWidth={active ? 2.5 : 2} />
       </span>
-      {!collapsed && (
-        <>
-          <span className="flex-1 truncate text-left">{item.label}</span>
-          {!!item.count && item.count > 0 && (
-            <span
-              className={cn(
-                'rounded-wobbly-sm px-1.5 text-[11px] tabular-nums',
-                active ? 'bg-panel/70 text-postit-ink' : 'bg-raise text-faint',
-              )}
-            >
-              {item.count > 99 ? '99+' : item.count}
-            </span>
+      <span className="flex-1 truncate text-left">{item.label}</span>
+      {!!item.count && item.count > 0 && (
+        <span
+          className={cn(
+            'rounded-wobbly-sm px-1.5 text-[11px] tabular-nums',
+            active ? 'bg-panel/70 text-postit-ink' : 'bg-raise text-faint',
           )}
-        </>
+        >
+          {item.count > 99 ? '99+' : item.count}
+        </span>
       )}
     </button>
-  )
-  return collapsed ? (
-    <Tooltip label={item.label} side="right">
-      {content}
-    </Tooltip>
-  ) : (
-    content
   )
 }
 
@@ -457,57 +401,32 @@ function SectionHeader({
   )
 }
 
-function SettingsButton({
-  collapsed,
-  onClick,
-}: {
-  collapsed: boolean
-  onClick: () => void
-}): ReactNode {
-  const btn = (
+function SettingsButton({ onClick }: { onClick: () => void }): ReactNode {
+  return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Settings"
-      className={cn(
-        'grid size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
-      )}
+      className="grid size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
     >
       <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
         <SettingsIcon size={BOTTOM_ICON_SIZE} />
       </span>
     </button>
   )
-  return collapsed ? (
-    <Tooltip label="Settings" side="right">
-      {btn}
-    </Tooltip>
-  ) : (
-    btn
-  )
 }
 
-function CollapseButton({
-  collapsed,
-  onClick,
-}: {
-  collapsed: boolean
-  onClick: () => void
-}): ReactNode {
+function CollapseButton({ onClick }: { onClick: () => void }): ReactNode {
   return (
-    <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} side="top">
+    <Tooltip label="Hide sidebar" side="top">
       <button
         type="button"
         onClick={onClick}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label="Hide sidebar"
         className="hidden size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
       >
         <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
-          {collapsed ? (
-            <PanelRight size={BOTTOM_ICON_SIZE} strokeWidth={2} />
-          ) : (
-            <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />
-          )}
+          <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />
         </span>
       </button>
     </Tooltip>

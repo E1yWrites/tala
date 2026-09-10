@@ -151,6 +151,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const redoStack = useRef<InkOp[]>([])
   const touchIds = useRef<number[]>([])
   const lastNativeRef = useRef<Pt | null>(null)
+  /** Active Apple Pencil pointer id — while set, touch contacts are treated as
+   *  palm/mid-gesture noise and must not start draw/erase strokes. */
+  const activePenId = useRef<number | null>(null)
 
   /**
    * Draft doc for brand-new notes: created locally on the very first stroke so
@@ -213,6 +216,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   // A pending draw/UI frame must not fire after unmount/deactivation.
   useEffect(
     () => () => {
+      activePenId.current = null
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
@@ -520,6 +524,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const beginPanIfNeeded = (p: Pt): boolean => {
     if (p.pointerType !== 'touch') return false
+    // While a Pencil pointer is active, ignore all touch contacts (palm rejection).
+    if (activePenId.current !== null) return true
     touchIds.current = [...touchIds.current, p.pointerId]
     if (touchIds.current.length >= 2) {
       cancelCurrentDraw()
@@ -535,6 +541,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     // onContextMenu, and must never start a draw/erase gesture.
     if (e.button !== 0) return
     e.preventDefault()
+    e.stopPropagation()
+
+    // Track Apple Pencil — while active, touch contacts are palm noise.
+    if (e.pointerType === 'pen') {
+      activePenId.current = e.pointerId
+    }
 
     if (beginPanIfNeeded(e.nativeEvent)) return
     try {
@@ -616,6 +628,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>): void => {
     if (!active) return
+    // While Pencil is active, ignore all touch movement (palm rejection).
+    if (e.pointerType === 'touch' && activePenId.current !== null) return
     const native = e.nativeEvent
     lastNativeRef.current = native
 
@@ -689,12 +703,17 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   }
 
   const onPointerUp = (e: ReactPointerEvent<SVGSVGElement>): void => {
+    // Clear active Pencil tracking when the pen lifts.
+    if (e.pointerType === 'pen' && e.pointerId === activePenId.current) {
+      activePenId.current = null
+    }
     if (e.pointerType === 'touch') {
       touchIds.current = touchIds.current.filter((id) => id !== e.pointerId)
     }
     const g = gestureRef.current
     if (!g) return
     e.preventDefault()
+    e.stopPropagation()
 
     if (g.kind === 'pan') {
       if (touchIds.current.length < 2) gestureRef.current = null

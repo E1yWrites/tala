@@ -58,10 +58,6 @@ export function ProfilePictureModal({ onClose }: { onClose: () => void }): React
       })
       return
     }
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error('That picture is too large', { description: 'Maximum size is 8 MB.' })
-      return
-    }
     try {
       const dataUrl = await processImageFile(file)
       const cropped = await cropAndResize(dataUrl)
@@ -168,7 +164,7 @@ export function ProfilePictureModal({ onClose }: { onClose: () => void }): React
             aria-label="Choose profile picture"
           />
         </div>
-        <p className="text-center text-xs text-faint">JPG, PNG, WebP · Max 8 MB · Cropped to circle</p>
+        <p className="text-center text-xs text-faint">JPG, PNG, WebP · Cropped to circle</p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button variant="primary" size="sm" onClick={triggerFileInput} disabled={isDragging}>
             <Camera className="size-3.5 mr-1.5" aria-hidden="true" />
