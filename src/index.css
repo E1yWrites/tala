@@ -520,3 +520,63 @@ body.sidebar-resizing {
 .ink-live-tip {
   opacity: 0.35;
 }
+
+/* Hovering stylus preview — the next mark's size and ink, barely there */
+.ink-hover-ring {
+  fill-opacity: 0.18;
+  stroke-opacity: 0.55;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Toolbars & popovers
+--------------------------------------------------------------------------- */
+
+/* Anchored popovers grow out of their trigger edge */
+.popover-shell {
+  transform-origin: top center;
+}
+.popover-shell[data-side='top'] {
+  transform-origin: bottom center;
+}
+
+/* Floating touch toolbar keeps clear of the home indicator */
+.float-toolbar {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Range inputs inside the Draw popover — slim track, round accent thumb */
+.ink-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.ink-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--c-line-soft));
+}
+.ink-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--c-line-soft));
+}
+.ink-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 999px;
+  border: 2px solid rgb(var(--c-line));
+  background: rgb(var(--c-accent));
+}
+.ink-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid rgb(var(--c-line));
+  background: rgb(var(--c-accent));
+}

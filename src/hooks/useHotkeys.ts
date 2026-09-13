@@ -17,6 +17,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export const FORCE_SAVE_EVENT = 'tala:force-save'
 export const FOCUS_SEARCH_EVENT = 'tala:focus-search'
+/** Ctrl/⌘ . — the open note flips between typing and drawing. */
+export const TOGGLE_DRAW_EVENT = 'tala:toggle-draw'
 
 /**
  * Global keyboard shortcuts:
@@ -29,6 +31,7 @@ export const FOCUS_SEARCH_EVENT = 'tala:focus-search'
  *   Ctrl/⌘ ⇧ D     toggle dark mode
  *   Ctrl/⌘ S       force-save the open note
  *   Ctrl/⌘ ,       settings
+ *   Ctrl/⌘ .       toggle drawing in the open note
  *   /              focus list search (outside inputs)
  *
  * Navigation shortcuts (N/K/F/P/, and '/') are suppressed while a modal is
@@ -109,6 +112,12 @@ export function useHotkeys(): void {
           if (blocked) return
           e.preventDefault()
           ui.setView({ kind: 'settings' })
+          return
+        }
+        case '.': {
+          if (blocked || e.shiftKey) return
+          e.preventDefault()
+          window.dispatchEvent(new Event(TOGGLE_DRAW_EVENT))
           return
         }
       }

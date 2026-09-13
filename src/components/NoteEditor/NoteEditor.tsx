@@ -8,23 +8,17 @@ import Underline from '@tiptap/extension-underline'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import ImageExtension from '@tiptap/extension-image'
 import { Placeholder } from '@tiptap/extensions'
+import { FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
+import { TextAlign } from '@tiptap/extension-text-align'
 import {
   ArrowLeft,
-  BookOpen,
   Check,
   ChevronDown,
   Folder as FolderIcon,
   Hash,
   LoaderCircle,
-  Maximize2,
-  Minimize2,
-  PenTool,
-  Pin,
   Plus,
   RotateCcw,
-  Share2,
-  Star,
-  StarFilled,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -35,20 +29,27 @@ import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Note } from '@/types/models'
-import type { InkDoc, InkPointerMode } from '@/types/ink'
+import type { InkDoc, InkPointerMode, InkStroke } from '@/types/ink'
+import { INK_PRESETS, sizesForTool } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { formatFull, formatRelative } from '@/utils/dates'
 import { processImageFile } from '@/utils/image'
+import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
+import { useElementWidth } from '@/hooks/useElementWidth'
+import { TOGGLE_DRAW_EVENT } from '@/hooks/useHotkeys'
+import { onPencilGesture, type PencilAction } from '@/lib/pencil'
 import { TagChip } from '../UI/TagChip'
 import { Tooltip } from '../UI/Tooltip'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { Button } from '../UI/Button'
-import { EditorToolbar } from './EditorToolbar'
+import type { PopoverAnchor } from '../UI/Popover'
 import { ReadingView } from './ReadingView'
 import { InkLayer } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
-import { PenToolbar } from './ink/PenToolbar'
-import type { PenPaletteState } from './ink/PenToolbar'
+import { PenPopover, patchForTool, type PenPrefs, type PenPrefsPatch } from './ink/PenPopover'
+import { FloatingInkToolbar } from './ink/FloatingInkToolbar'
+import { AdaptiveToolbar, type EditorMode, type InkToolbarBundle } from './toolbar/AdaptiveToolbar'
+import { DrawControl } from './toolbar/DrawControl'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
 
 /* ------------------------- Markdown-style shortcuts ------------------------ */
@@ -100,16 +101,33 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   const inkPrefs = useUIStore((s) => s.inkPrefs)
   const setInkPrefs = useUIStore((s) => s.setInkPrefs)
+  const pushInkRecent = useUIStore((s) => s.pushInkRecent)
   const [penMode, setPenMode] = useState(false)
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
   const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
-  /** Radial palette state — null = closed; cursor mode when opened by right-click. */
-  const [penPalette, setPenPalette] = useState<PenPaletteState | null>(null)
+  const [selectionCount, setSelectionCount] = useState(0)
+  /** Draw popover — null = closed. Cursor anchors come from right-click on the canvas. */
+  const [palette, setPalette] = useState<{ anchor: PopoverAnchor; mode: 'cursor' | 'trigger' } | null>(
+    null,
+  )
+  /** Tool before the last switch — "previous tool" for eraser toggle / stylus gestures. */
+  const prevToolRef = useRef<InkPointerMode>('pen')
   const inkLayerRef = useRef<InkLayerHandle>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const drawRef = useRef<HTMLButtonElement | null>(null)
   /** Stable id for cleanup effects that must not re-run per render. */
   const noteIdRef = useRef(noteId)
   noteIdRef.current = noteId
+
+  // Layout: wide panes keep every tool in the header; narrow ones get a slim
+  // row beneath it. Touch devices swap the header tools for the floating pill
+  // while drawing so nothing sits between the hand and the page.
+  const rootWidth = useElementWidth(rootRef)
+  const isCoarse = useMediaQuery('(pointer: coarse)')
+  const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
+  const inlineTools = rootWidth >= 720
+  const textDensity = rootWidth >= 900 ? 'full' : 'compact'
 
   /** Ink commits hit the store instantly; IndexedDB write is debounced in
    *  the store and force-flushed when this editor unmounts or the note swaps. */
@@ -141,8 +159,26 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       color: inkPrefs.color,
       sizeIdx: inkPrefs.sizeIdx,
       eraserMode: inkPrefs.eraserMode,
+      opacity:
+        penTool === 'highlighter'
+          ? inkPrefs.hlOpacity
+          : penTool === 'pencil'
+            ? inkPrefs.pencilOpacity
+            : undefined,
+      pressure: inkPrefs.pencil.pressure,
+      tilt: inkPrefs.pencil.tilt,
+      hoverPreview: inkPrefs.pencil.hoverPreview,
+      touchDraws: inkPrefs.pencil.touchDraws,
     }),
-    [penTool, inkPrefs.color, inkPrefs.sizeIdx, inkPrefs.eraserMode],
+    [
+      penTool,
+      inkPrefs.color,
+      inkPrefs.sizeIdx,
+      inkPrefs.eraserMode,
+      inkPrefs.hlOpacity,
+      inkPrefs.pencilOpacity,
+      inkPrefs.pencil,
+    ],
   )
 
   /** Only fires when the undo/redo availability actually flips. */
@@ -153,48 +189,212 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   }, [])
 
   const handlePaletteRequest = useCallback((x: number, y: number) => {
-    setPenPalette({ open: true, anchor: { x, y }, mode: 'cursor' })
+    setPalette({ anchor: { x, y }, mode: 'cursor' })
   }, [])
 
+  const togglePalette = useCallback((anchor: HTMLElement) => {
+    setPalette((cur) => (cur ? null : { anchor, mode: 'trigger' }))
+  }, [])
+
+  const selectTool = useCallback((tool: InkPointerMode) => {
+    setPenTool((cur) => {
+      if (cur !== tool) prevToolRef.current = cur
+      return tool
+    })
+    if (tool !== 'select') setInkPrefs({ tool })
+  }, [setInkPrefs])
+
   const updatePenPrefs = useCallback(
-    (
-      patch: Partial<{
-        tool: InkPointerMode
-        color: string
-        sizeIdx: number
-        eraserMode: 'stroke' | 'pixel'
-        preset: import('@/types/ink').InkPreset
-      }>,
-    ) => {
-      if (patch.tool !== undefined) setPenTool(patch.tool)
-      const persistPatch: Parameters<typeof setInkPrefs>[0] = {}
-      if (patch.color !== undefined) persistPatch.color = patch.color
-      if (patch.sizeIdx !== undefined) persistPatch.sizeIdx = patch.sizeIdx
-      if (patch.eraserMode !== undefined) persistPatch.eraserMode = patch.eraserMode
-      if (patch.preset !== undefined) persistPatch.preset = patch.preset
-      if (patch.tool !== undefined && patch.tool !== 'select') persistPatch.tool = patch.tool
-      if (Object.keys(persistPatch).length > 0) setInkPrefs(persistPatch)
+    (patch: PenPrefsPatch) => {
+      if (patch.tool !== undefined) selectTool(patch.tool)
+      const { tool: _tool, ...rest } = patch
+      if (Object.keys(rest).length > 0) setInkPrefs(rest)
     },
-    [setInkPrefs],
+    [selectTool, setInkPrefs],
   )
 
-  // Escape exits pen mode — but never steals Esc from modals or the drawer
+  /** Remember what was actually written with — feeds the "Recent" row. */
+  const handleStrokeCommitted = useCallback(
+    (stroke: InkStroke) => {
+      const { preset } = useUIStore.getState().inkPrefs
+      const spec = INK_PRESETS[preset]
+      const sizeIdx = sizesForTool(stroke.tool).indexOf(stroke.size)
+      pushInkRecent({
+        tool: stroke.tool,
+        preset: spec.tool === stroke.tool ? preset : stroke.tool === 'pen' ? 'marker' : stroke.tool,
+        color: stroke.color,
+        sizeIdx: sizeIdx >= 0 ? sizeIdx : spec.defaultSizeIdx,
+        ...(stroke.opacity !== undefined ? { opacity: stroke.opacity } : {}),
+      })
+    },
+    [pushInkRecent],
+  )
+
+  const penPrefs: PenPrefs = useMemo(
+    () => ({
+      tool: penTool,
+      color: inkPrefs.color,
+      sizeIdx: inkPrefs.sizeIdx,
+      eraserMode: inkPrefs.eraserMode,
+      preset: inkPrefs.preset,
+      hlOpacity: inkPrefs.hlOpacity,
+      pencilOpacity: inkPrefs.pencilOpacity,
+      recents: inkPrefs.recents,
+      pencil: inkPrefs.pencil,
+    }),
+    [penTool, inkPrefs],
+  )
+
+  /** Entering draw mode drops text focus so tool hotkeys (1/2/3, E, L…) work at once. */
+  const enterDraw = useCallback(() => {
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    setPenMode(true)
+  }, [])
+  const exitDraw = useCallback(() => {
+    setPenMode(false)
+    setPalette(null)
+  }, [])
+
+  /** Stylus gesture / hotkey actions share one dispatcher. */
+  const runPencilAction = useCallback(
+    (action: PencilAction) => {
+      switch (action) {
+        case 'eraser-toggle':
+          selectTool(penTool === 'eraser' ? prevToolRef.current : 'eraser')
+          break
+        case 'previous-tool':
+          selectTool(prevToolRef.current)
+          break
+        case 'palette':
+          if (drawRef.current) togglePalette(drawRef.current)
+          break
+        case 'undo':
+          inkLayerRef.current?.undo()
+          break
+        case 'none':
+          break
+      }
+    },
+    [penTool, selectTool, togglePalette],
+  )
+
+  // Native stylus gestures (double-tap / squeeze) — only ever fired by a bridge.
+  useEffect(() => {
+    if (!penMode || note?.isDeleted) return
+    return onPencilGesture((kind) => {
+      const { pencil } = useUIStore.getState().inkPrefs
+      runPencilAction(kind === 'double-tap' ? pencil.doubleTap : pencil.squeeze)
+    })
+  }, [note?.isDeleted, penMode, runPencilAction])
+
+  // Ctrl/⌘ . toggles drawing from anywhere in the editor
+  useEffect(() => {
+    if (note?.isDeleted || readingLayout) return
+    const onToggle = (): void => {
+      if (penMode) exitDraw()
+      else enterDraw()
+    }
+    window.addEventListener(TOGGLE_DRAW_EVENT, onToggle)
+    return () => window.removeEventListener(TOGGLE_DRAW_EVENT, onToggle)
+  }, [enterDraw, exitDraw, note?.isDeleted, penMode, readingLayout])
+
+  // Drawing hotkeys (outside text fields): 1–3 tools, E eraser, L lasso,
+  // [ ] size, Esc leaves pen mode — unless a selection or popover owns Esc.
   useEffect(() => {
     if (!penMode) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
       const ui = useUIStore.getState()
-      if (ui.modalStack.length > 0 || ui.sidebarDrawerOpen) return
-      setPenMode(false)
+      if (ui.modalStack.length > 0 || ui.localOverlays > 0 || ui.sidebarDrawerOpen) return
+      const t = e.target as HTMLElement | null
+      const typing =
+        t instanceof HTMLElement &&
+        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+      if (e.key === 'Escape') {
+        if (typing || selectionCount > 0) return
+        exitDraw()
+        return
+      }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return
+      const prefs = ui.inkPrefs
+      switch (e.key) {
+        case '1':
+          updatePenPrefs(patchForTool(penPrefs, 'pen'))
+          break
+        case '2':
+          updatePenPrefs(patchForTool(penPrefs, 'pencil'))
+          break
+        case '3':
+          updatePenPrefs(patchForTool(penPrefs, 'highlighter'))
+          break
+        case 'e':
+        case 'E':
+          runPencilAction('eraser-toggle')
+          break
+        case 'l':
+        case 'L':
+          selectTool(penTool === 'select' ? prevToolRef.current : 'select')
+          break
+        case '[':
+          setInkPrefs({ sizeIdx: Math.max(0, prefs.sizeIdx - 1) })
+          break
+        case ']':
+          setInkPrefs({ sizeIdx: Math.min(sizesForTool(penTool).length - 1, prefs.sizeIdx + 1) })
+          break
+        default:
+          return
+      }
+      e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [exitDraw, penMode, penPrefs, penTool, runPencilAction, selectTool, selectionCount, setInkPrefs, updatePenPrefs])
+
+  // Leaving pen mode dismisses the popover and any selection with it
+  useEffect(() => {
+    if (!penMode) {
+      setPalette(null)
+      inkLayerRef.current?.clearSelection()
+    }
   }, [penMode])
 
-  // Leaving pen mode dismisses the radial palette with it
-  useEffect(() => {
-    if (!penMode) setPenPalette(null)
-  }, [penMode])
+  const editorMode: EditorMode = !penMode
+    ? 'text'
+    : penTool === 'select' && selectionCount > 0
+      ? 'select'
+      : 'write'
+
+  const inkToolbar: InkToolbarBundle = useMemo(
+    () => ({
+      state: {
+        tool: penTool,
+        color: inkPrefs.color,
+        paletteOpen: palette !== null,
+        canUndo: inkHistory.canUndo,
+        canRedo: inkHistory.canRedo,
+      },
+      actions: {
+        onTogglePalette: togglePalette,
+        onTool: (tool) => updatePenPrefs(patchForTool(penPrefs, tool)),
+        onUndo: () => inkLayerRef.current?.undo(),
+        onRedo: () => inkLayerRef.current?.redo(),
+      },
+      selection: {
+        duplicate: () => inkLayerRef.current?.duplicateSelection(),
+        copy: () => {
+          inkLayerRef.current?.copySelection()
+          toast.success('Copied')
+        },
+        cut: () => inkLayerRef.current?.cutSelection(),
+        paste: () => inkLayerRef.current?.paste(),
+        rotate: (deg) => inkLayerRef.current?.rotateSelection(deg),
+        recolor: (color) => inkLayerRef.current?.recolorSelection(color),
+        remove: () => inkLayerRef.current?.deleteSelection(),
+        clear: () => inkLayerRef.current?.clearSelection(),
+      },
+      selectionCount,
+    }),
+    [inkHistory, inkPrefs.color, palette, penPrefs, penTool, selectionCount, togglePalette, updatePenPrefs],
+  )
 
   const [title, setTitle] = useState(note?.title ?? '')
   const [syncKey, setSyncKey] = useState(0)
@@ -338,6 +538,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         TaskList,
         TaskItem.configure({ nested: true }),
         ImageExtension,
+        TextStyle,
+        FontFamily,
+        FontSize,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
         TaskSyntaxInput,
         Placeholder.configure({
           placeholder:
@@ -441,16 +645,50 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   const currentFolder = folders.find((f) => f.id === note.folderId)
 
+  const moreItems: MenuItem[] = note.isDeleted
+    ? buildNoteMenu(note, { surface }).filter(
+        (item) => item.id !== 'restore' && item.id !== 'delete-forever',
+      )
+    : [
+        {
+          id: 'reading',
+          label: 'Reading layout',
+          checked: readingLayout,
+          onSelect: () => {
+            // Flush pending edits so the reading view shows current content
+            void flushRef.current({ silent: true })
+            if (!readingLayout) exitDraw()
+            toggleReadingLayout()
+          },
+        },
+        ...(isDesktop
+          ? [
+              {
+                id: 'focus',
+                label: 'Distraction-free',
+                checked: focusMode,
+                onSelect: toggleFocusMode,
+              } satisfies MenuItem,
+            ]
+          : []),
+        ...buildNoteMenu(note, { surface }),
+      ]
+
+  const canDraw = !note.isDeleted && !readingLayout
+  const touchInk = canDraw && penMode && isCoarse
+  const headerTools = canDraw && !touchInk && (editorMode !== 'text' || inlineTools)
+  const rowTools = canDraw && editorMode === 'text' && !inlineTools
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
-      {/* Toolbar row */}
-      <header className="flex items-center gap-1 border-b-2 border-line px-3 py-2">
+    <div ref={rootRef} className="relative flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
+      {/* Toolbar row — adapts to typing / drawing / selecting */}
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-lineSoft px-2">
         <Tooltip label="Back" side="bottom">
           <button
             type="button"
             onClick={() => selectNote(null)}
             aria-label="Back to list"
-            className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+            className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
           >
             <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
@@ -458,87 +696,48 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
         <SaveStatusChip status={status} autosave={autosaveEnabled} />
 
-        <div className="ml-auto flex items-center gap-0.5">
-          {!note.isDeleted && (
-            <HeaderToggle
-              label={note.isPinned ? 'Unpin' : 'Pin'}
-              active={note.isPinned}
-              onClick={() => useNoteStore.getState().patchNote(note.id, { isPinned: !note.isPinned })}
-            >
-              <Pin size={HEADER_ICON_SIZE} className={cn(note.isPinned && 'rotate-45')} />
-            </HeaderToggle>
+        <div className="ml-auto flex min-w-0 items-center gap-0.5">
+          {headerTools && (
+            <AdaptiveToolbar
+              mode={editorMode}
+              variant="inline"
+              editor={editor}
+              density={textDensity}
+              ink={inkToolbar}
+              onEnterDraw={enterDraw}
+              onDone={exitDraw}
+              drawRef={drawRef}
+            />
           )}
-          {!note.isDeleted && (
-            <HeaderToggle
-              label={note.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              active={note.isFavorite}
-              onClick={() =>
-                useNoteStore.getState().patchNote(note.id, { isFavorite: !note.isFavorite })
-              }
-            >
-              {note.isFavorite ? (
-                <StarFilled size={HEADER_ICON_SIZE + 1} className="drop-shadow-sm" />
-              ) : (
-                <Star size={HEADER_ICON_SIZE} />
-              )}
-            </HeaderToggle>
+          {canDraw && rowTools && (
+            <DrawControl
+              ref={drawRef}
+              active={false}
+              tool={penTool}
+              color={inkPrefs.color}
+              open={false}
+              onClick={enterDraw}
+            />
           )}
-          <HeaderToggle
-            label="Share & export"
-            active={false}
-            onClick={() => openModal({ kind: 'share', noteId: note.id })}
-          >
-            <Share2 size={HEADER_ICON_SIZE} />
-          </HeaderToggle>
-          {!note.isDeleted && !readingLayout && (
-            <HeaderToggle
-              label={penMode ? 'Exit pen mode' : 'Pen mode'}
-              active={penMode}
-              onClick={() => setPenMode((m) => !m)}
-            >
-              <PenTool size={HEADER_ICON_SIZE} />
-            </HeaderToggle>
-          )}
-          {!note.isDeleted && (
-            <HeaderToggle
-              label={readingLayout ? 'Back to editing' : 'Reading layout'}
-              active={readingLayout}
-              onClick={() => {
-                // Flush pending edits so the reading view shows current content
-                void flushRef.current({ silent: true })
-                toggleReadingLayout()
-              }}
-            >
-              <BookOpen size={HEADER_ICON_SIZE} />
-            </HeaderToggle>
-          )}
-          {!focusMode ? (
-            <span className="hidden md:block">
-              <HeaderToggle label="Distraction-free mode" active={focusMode} onClick={toggleFocusMode}>
-                <Maximize2 size={HEADER_ICON_SIZE} />
-              </HeaderToggle>
-            </span>
-          ) : (
-            <span>
-              <HeaderToggle label="Exit distraction-free mode" active onClick={toggleFocusMode}>
-                <Minimize2 size={HEADER_ICON_SIZE} />
-              </HeaderToggle>
-            </span>
+          {touchInk && (
+            <Tooltip label="Done drawing" side="bottom">
+              <button
+                type="button"
+                onClick={exitDraw}
+                className="h-8 shrink-0 rounded-wobbly-sm px-2.5 text-[13px] font-medium text-ballpoint transition-colors hover:bg-raise"
+              >
+                Done
+              </button>
+            </Tooltip>
           )}
           <DropdownMenu
-            items={
-              note.isDeleted
-                ? buildNoteMenu(note, { surface }).filter(
-                    (item) => item.id !== 'restore' && item.id !== 'delete-forever',
-                  )
-                : buildNoteMenu(note, { surface })
-            }
+            items={moreItems}
             trigger={(props) => (
               <button
                 {...props}
                 type="button"
                 aria-label="More options"
-                className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+                className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
               >
                 <ChevronDown size={18} strokeWidth={2.5} />
               </button>
@@ -546,6 +745,50 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           />
         </div>
       </header>
+
+      {rowTools && (
+        <AdaptiveToolbar
+          mode="text"
+          variant="row"
+          editor={editor}
+          density="full"
+          ink={inkToolbar}
+          onEnterDraw={enterDraw}
+          onDone={exitDraw}
+          drawRef={drawRef}
+          showDraw={false}
+        />
+      )}
+
+      {touchInk && (
+        <FloatingInkToolbar
+          boundsRef={rootRef}
+          mode={editorMode === 'select' ? 'select' : 'write'}
+          state={inkToolbar.state}
+          actions={inkToolbar.actions}
+          selection={inkToolbar.selection}
+          selectionCount={selectionCount}
+          drawRef={drawRef}
+        />
+      )}
+
+      {canDraw && (
+        <PenPopover
+          open={palette !== null}
+          anchor={palette?.anchor ?? null}
+          anchorMode={palette?.mode ?? 'trigger'}
+          side={palette?.mode === 'trigger' && touchInk ? 'top' : undefined}
+          align={touchInk ? 'center' : 'end'}
+          prefs={penPrefs}
+          onPrefs={updatePenPrefs}
+          onClear={() => {
+            inkLayerRef.current?.clearAll()
+            setPalette(null)
+            toast.success('Handwriting cleared')
+          }}
+          onClose={() => setPalette(null)}
+        />
+      )}
 
       {/* Banners */}
       {note.isDeleted && (
@@ -612,7 +855,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         }}
       >
         <div
-          className="relative mx-auto w-full max-w-[720px] px-6 pb-24 pt-6 md:px-10"
+          className="relative mx-auto w-full max-w-[720px] px-6 pb-24 pt-5 md:px-10 md:pt-7"
           style={
             {
               '--editor-font-size': `${fontSize}px`,
@@ -694,44 +937,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             className="w-full bg-transparent font-display text-[30px] leading-tight placeholder:text-faint/70 disabled:cursor-default"
           />
 
-          {/* Formatting toolbar — hidden while reading */}
-          {editor && !note.isDeleted && !readingLayout && (
-            <div className="sticky top-0 z-40 -mx-1 mt-4 mb-4 bg-gradient-to-b from-canvas via-canvas to-transparent pb-2 pt-1">
-              <EditorToolbar editor={editor} />
-              {penMode && (
-                <PenToolbar
-                  prefs={{
-                    tool: penTool,
-                    color: inkPrefs.color,
-                    sizeIdx: inkPrefs.sizeIdx,
-                    eraserMode: inkPrefs.eraserMode,
-                    preset: inkPrefs.preset,
-                  }}
-                  onPrefs={updatePenPrefs}
-                  canUndo={inkHistory.canUndo}
-                  canRedo={inkHistory.canRedo}
-                  onUndo={() => inkLayerRef.current?.undo()}
-                  onRedo={() => inkLayerRef.current?.redo()}
-                  onClear={() => {
-                    inkLayerRef.current?.clearAll()
-                    toast.success('Handwriting cleared')
-                  }}
-                  palette={
-                    penPalette ?? { open: false, anchor: { x: 0, y: 0 }, mode: 'trigger' }
-                  }
-                  onPalette={setPenPalette}
-                />
-              )}
-            </div>
-          )}
-
           {/* Content — editor stays mounted (hidden) so state/undo survive the toggle */}
           {readingLayout ? (
             <ReadingView noteId={note.id} doc={note.content} />
           ) : (
             <EditorContent
               editor={editor}
-              className={cn('[&_.tiptap]:min-h-[45vh]', note.isDeleted && 'opacity-80')}
+              className={cn('mt-3 [&_.tiptap]:min-h-[45vh]', note.isDeleted && 'opacity-80')}
             />
           )}
 
@@ -747,6 +959,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               prefs={inkLayerPrefs}
               onHistoryChange={handleInkHistory}
               onPaletteRequest={handlePaletteRequest}
+              onSelectionChange={setSelectionCount}
+              onStrokeCommitted={handleStrokeCommitted}
             />
           )}
         </div>
@@ -786,41 +1000,5 @@ function SaveStatusChip({
       {icon}
       {label}
     </span>
-  )
-}
-
-const HEADER_ICON_SIZE = 22
-const HEADER_ICON_CONTAINER = 'grid size-10 place-items-center'
-
-function HeaderToggle({
-  label,
-  active,
-  onClick,
-  children,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}): React.ReactNode {
-  return (
-    <Tooltip label={label} side="bottom">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={active}
-        aria-label={label}
-        className={cn(
-          'grid size-10 place-items-center rounded-wobbly-sm transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
-          active
-            ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
-            : 'text-muted hover:bg-raise hover:text-ink',
-        )}
-      >
-        <span className={HEADER_ICON_CONTAINER} aria-hidden="true">
-          {children}
-        </span>
-      </button>
-    </Tooltip>
   )
 }

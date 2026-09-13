@@ -2,6 +2,23 @@
 
 All notable changes to Tala are documented here.
 
+## [Unreleased]
+
+### Changed
+- **Adaptive editor toolbar**: the in-column formatting bar and the separate pen pill are replaced by one header row that follows the activity — text formatting (Aa style/font/size/alignment popover, strokes, lists, insert), drawing (Draw control, eraser, lasso, undo/redo, done) or ink selection (duplicate, copy/cut/paste, rotate, recolour, delete). Narrow panes get a slim scrollable row instead.
+- **One Draw control**: pen, pencil and highlighter no longer sit in the header. The Draw control shows the live tool and ink colour and opens the Draw popover.
+- **Draw popover** replaces the radial pen wheel: tools, style presets, colours, six sizes, opacity (pencil/highlighter), eraser mode, recently used combinations and stylus settings in one anchored panel. Right-click on the canvas still opens it at the cursor.
+- Note actions (pin, favourite, share, reading layout, distraction-free) moved from header icons into the note menu.
+
+### Added
+- **Floating pen tray for touch/iPad**: draggable, remembers its place across portrait/landscape, fades while the pen is down, wraps selection actions on phones.
+- **Lasso selection**: free-form loop selects strokes (replaces the rectangle marquee); tap and Shift-tap still pick single strokes.
+- **Ink selection actions**: duplicate, copy/cut/paste (session clipboard, works across notes), rotate (±15°/±90°), recolour, select all.
+- **Apple Pencil / stylus**: tilt-driven pencil width, hover ring under a lifted pen, palm rejection while the pen is down, finger draws-or-scrolls setting, pressure/tilt/hover toggles with live detection status. Double-tap and squeeze actions are configurable only when a native bridge dispatches `tala:pencil-gesture` — never faked in the browser.
+- Per-stroke opacity for pencil and highlighter.
+- Text font family, size and alignment (Tiptap TextStyle/FontFamily/FontSize/TextAlign).
+- Shortcuts: `Ctrl .` toggles drawing; while drawing `1/2/3` tools, `E` eraser, `L` lasso, `[`/`]` size, `Ctrl C/X/V/D` on selected ink.
+
 ## [2.0.0] - 2026-08-26
 
 ### Changed

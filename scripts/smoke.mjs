@@ -1,6 +1,7 @@
 /* Smoke test: boots the built app in headless Chromium and exercises core flows.
  * Self-contained: walks onboarding and creates its own content on fresh profiles.
- * Run: node scripts/smoke.mjs  (requires `npm run preview` running on :4173)
+ * Run: node scripts/smoke.mjs  (requires `npm run preview` running on :4173;
+ *      set SMOKE_BROWSER=/path/to/chrome when no Playwright browser is installed)
  * Headless-shell needs: LD_LIBRARY_PATH=/tmp/opencode/nssroot/usr/lib/x86_64-linux-gnu */
 import { chromium } from 'playwright-core'
 
@@ -58,6 +59,8 @@ async function createBlankNote(p) {
 
 const browser = await chromium.launch({
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  // No bundled browser (playwright-core): point SMOKE_BROWSER at a local Chrome/Edge.
+  ...(process.env.SMOKE_BROWSER ? { executablePath: process.env.SMOKE_BROWSER } : {}),
 })
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 page.on('pageerror', (err) => {
@@ -81,6 +84,24 @@ check('blank note opens in editor', await createBlankNote(page))
 await page.click('.ProseMirror')
 await page.keyboard.type('Notes on merge sort. SMOKE-TEST-EDIT')
 await waitFor(900) // debounce + save
+
+// ---- Adaptive toolbar + Draw popover ------------------------------------------
+check('text mode shows formatting toolbar', await page.isVisible('[role="toolbar"][aria-label="Formatting"]'))
+await page.click('button[aria-label="Draw"]')
+await waitFor(300)
+check('Draw control enters drawing mode', await page.isVisible('[role="toolbar"][aria-label="Drawing tools"]'))
+await page.click('[role="toolbar"][aria-label="Drawing tools"] button[aria-haspopup="dialog"]')
+await waitFor(300)
+const penPopover = page.locator('[role="dialog"][aria-label="Drawing tools"]')
+check('Draw popover opens with tool radios', (await penPopover.locator('[role="radio"]').count()) >= 5)
+await penPopover.locator('[role="radio"][aria-label="Lasso"], [role="radio"]:has-text("Lasso")').first().click()
+await waitFor(200)
+await page.keyboard.press('Escape')
+await waitFor(200)
+check('Lasso picked from popover', (await page.getAttribute('[role="toolbar"][aria-label="Drawing tools"] button[aria-label="Lasso (L)"]', 'aria-pressed')) === 'true')
+await page.keyboard.press('Escape')
+await waitFor(300)
+check('Esc leaves drawing mode', await page.isVisible('[role="toolbar"][aria-label="Formatting"]'))
 
 // ---- Second note via template modal ------------------------------------------
 await page.click('button[aria-label="New note"]').catch(() => {})
@@ -177,6 +198,12 @@ check('mobile: Esc closes drawer', (await drawer.count()) === 0 || !(await drawe
 if (await createBlankNote(mpage)) {
   check('mobile: editor opens fullscreen', await mpage.isVisible('.ProseMirror'))
   check('mobile: bottom nav hidden in editor', !(await mpage.isVisible('nav[aria-label="Primary"]')))
+  await mpage.click('button[aria-label="Draw"]')
+  await waitFor(400)
+  check('mobile: floating pen toolbar in draw mode', await mpage.isVisible('.float-toolbar'))
+  await mpage.click('text=Done')
+  await waitFor(300)
+  check('mobile: Done returns to typing', !(await mpage.isVisible('.float-toolbar')))
   await mpage.click('[aria-label="Back to list"]').catch(() => {})
   await waitFor(300)
   check('mobile: back returns to list + nav', await mpage.isVisible('nav[aria-label="Primary"]'))

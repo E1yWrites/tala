@@ -60,6 +60,12 @@ export interface InkPoint {
   y: number
   /** Device pressure 0..1 when reported; absent = uniform width */
   p?: number
+  /**
+   * Stylus tilt 0..1 (0 = perpendicular, 1 = flat on the surface) when the
+   * device reports it. Only recorded for the pencil tool, where a flatter
+   * angle widens the mark like shading with the side of the lead.
+   */
+  t?: number
 }
 
 export interface InkStroke {
@@ -69,6 +75,24 @@ export interface InkStroke {
   /** Stroke width in capture-space px (before note scaling) */
   size: number
   points: InkPoint[]
+  /**
+   * Per-stroke opacity 0..1. Absent on strokes written before opacity became
+   * adjustable — those keep the tool's CSS default (see DEFAULT_OPACITY).
+   */
+  opacity?: number
+}
+
+/** Tool defaults used when a stroke carries no explicit opacity. */
+export const DEFAULT_OPACITY: Record<InkToolId, number> = {
+  pen: 1,
+  pencil: 0.82,
+  highlighter: 0.35,
+}
+
+/** Adjustable opacity ranges per tool — pen stays solid. */
+export const OPACITY_RANGE: Partial<Record<InkToolId, { min: number; max: number }>> = {
+  pencil: { min: 0.4, max: 1 },
+  highlighter: { min: 0.15, max: 0.7 },
 }
 
 export interface InkDoc {

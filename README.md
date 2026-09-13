@@ -99,7 +99,16 @@ Build artifacts land in `src-tauri/target/release/bundle/`:
 - **Rich editor** — headings, lists (incl. checkboxes), quotes, code blocks with copy,
   links, images (upload / paste / drag), inline markdown as you type, word count, saved indicator
 - **Templates** — lecture notes, meeting notes, to-do list, journal, brain dump, code notes...
-- **Pen presets** — six named writing styles (Marker, Brush Pen, Pencil, Fine Pencil, Highlighter, Ballpoint) with inline width dots
+- **Adaptive toolbar** — one calm row that follows what you're doing: text formatting while typing,
+  pen · eraser · lasso · undo while drawing, contextual actions (duplicate, cut/copy/paste, rotate,
+  recolour, delete) while ink is selected
+- **Draw popover** — every handwriting control in one place: pen / pencil / highlighter / eraser / lasso,
+  six presets (Marker, Brush Pen, Ballpoint, Pencil, Fine Pencil, Highlighter), colours, sizes,
+  opacity, recently used combinations, stylus settings
+- **Apple Pencil & stylus** — pressure-sensitive width, tilt shading for the pencil, hover preview of the
+  next mark, palm rejection, finger draws-or-scrolls; double-tap / squeeze actions are configurable
+  when a native bridge exposes them (Safari doesn't)
+- **iPad / touch** — a draggable floating pen tray that fades while you write
 - **Multi-select** — batch trash, delete forever, and selection across all surfaces (live, archive, trash)
 - **Long-press preview** — floating card with note metadata, tags, task progress, and quick actions
 - **Organize** — folders, colored tags, favorites, pins, archive; sort & density controls;
@@ -126,8 +135,12 @@ Build artifacts land in `src-tauri/target/release/bundle/`:
 | `Ctrl/Command Shift D` | Toggle dark mode |
 | `Ctrl/Command ,` | Settings |
 | `/` | Focus list search |
-| `Esc` | Close dialog / exit focus mode / exit multi-select |
-| `Ctrl B` / `I` / `U` / `E` | Bold / italic / underline / inline code |
+| `Ctrl/Command .` | Toggle drawing in the open note |
+| `Esc` | Close dialog / exit focus mode / exit multi-select / stop drawing |
+| `Ctrl B` / `I` / `U` | Bold / italic / underline |
+| `1` / `2` / `3` · `E` · `L` | While drawing: pen / pencil / highlighter · eraser · lasso |
+| `[` / `]` | While drawing: thinner / thicker stroke |
+| `Ctrl C` / `X` / `V` / `D` | Selected ink: copy / cut / paste / duplicate |
 
 *(Some browsers reserve `Ctrl N`; use `Alt N` there.)*
 
@@ -141,7 +154,7 @@ src/
 |   +-- Brand/                    # TalaMark SVG logo
 |   +-- Dashboard/HomeView        # stats, pinned/recent rows, quick actions
 |   +-- Modals/*                  # template picker, spotlight search, palette, share...
-|   +-- NoteEditor/*              # Tiptap setup, toolbar, ink layer, pen palette
+|   +-- NoteEditor/*              # Tiptap setup, adaptive toolbar, ink layer, Draw popover, floating touch tray
 |   +-- NoteList/*                # list/grid panel, rows, per-note menus, preview card
 |   +-- Sidebar/                  # nav tree, folders, tags, collapse, profile
 |   +-- UI/                       # Button, Modal, DropdownMenu, Tooltip, TagChip, ThemeToggle...
