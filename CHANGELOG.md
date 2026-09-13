@@ -4,13 +4,19 @@ All notable changes to Tala are documented here.
 
 ## [Unreleased]
 
-### Changed
-- **Adaptive editor toolbar**: the in-column formatting bar and the separate pen pill are replaced by one header row that follows the activity — text formatting (Aa style/font/size/alignment popover, strokes, lists, insert), drawing (Draw control, eraser, lasso, undo/redo, done) or ink selection (duplicate, copy/cut/paste, rotate, recolour, delete). Narrow panes get a slim scrollable row instead.
-- **One Draw control**: pen, pencil and highlighter no longer sit in the header. The Draw control shows the live tool and ink colour and opens the Draw popover.
-- **Draw popover** replaces the radial pen wheel: tools, style presets, colours, six sizes, opacity (pencil/highlighter), eraser mode, recently used combinations and stylus settings in one anchored panel. Right-click on the canvas still opens it at the cursor.
-- Note actions (pin, favourite, share, reading layout, distraction-free) moved from header icons into the note menu.
+### Fixed
+- **Bullet and numbered lists render real markers.** Tailwind's preflight reset (`ul, ol { list-style: none }`) was never overridden by the editor styles, so lists showed as bare indentation even though the document schema was correct. Markers (disc/circle/square, decimal/alpha/roman for nesting) are restored in both themes, and lists no longer use `display: flex`, which some engines use as an excuse to drop markers.
+- Removed a duplicate `underline` extension registration (StarterKit 3 already includes it).
 
 ### Added
+- **Document import** (New note → Import document, command palette, or drag & drop): PDF, DOCX, PPTX, DOC, PPT.
+  - PDF: page model rendered lazily by pdf.js; zoom, thumbnails, page reorder/rotate/delete, ink on every page (same pen tools, undo/redo, lasso, eraser), typed text notes, and **Export annotated PDF** (pdf-lib writes ink as vectors).
+  - DOCX/PPTX: **Automatic / Import as editable / Preserve appearance**. Editable text via mammoth / pptxtojson through the editor's own schema; preserved layout via docx-preview / positioned slide rendering, shown in a sandboxed frame with a "Switch to editable text" escape hatch. The original file is always attached and downloadable.
+  - DOC/PPT (legacy binary): kept as an attachment with an explanation — no browser-side converter exists.
+- **Handwriting gestures**: hold-to-straighten and hold-to-perfect-shape (line, arrow, ellipse, rectangle, triangle, polygon), scribble erase and scratch-out, tap-to-select recognised shapes. Configurable in the Draw popover (on/off, hold delay, strictness). Diagnostics via the `tala:gesture` window event.
+- **Editable shapes**: recognised shapes are vector objects with corner resize handles (Shift keeps proportions), a rotate handle (Shift snaps 15°), larger/smaller, outline width, outline colour and fill.
+- **Tala package (.zip)**: Share → "Tala package" exports a note with handwriting, documents and annotations; Settings → Export library exports everything. Import validates the manifest, entry paths, referenced files and SHA-256 hashes before writing anything, and never overwrites local notes unless asked (keep both / replace / skip).
+- Unit + integration tests (vitest, jsdom, fake-indexeddb) for lists, documents, gestures, shapes, selection, packages and the store; smoke test covers list markers and PDF import.
 - **Floating pen tray for touch/iPad**: draggable, remembers its place across portrait/landscape, fades while the pen is down, wraps selection actions on phones.
 - **Lasso selection**: free-form loop selects strokes (replaces the rectangle marquee); tap and Shift-tap still pick single strokes.
 - **Ink selection actions**: duplicate, copy/cut/paste (session clipboard, works across notes), rotate (±15°/±90°), recolour, select all.
@@ -18,6 +24,14 @@ All notable changes to Tala are documented here.
 - Per-stroke opacity for pencil and highlighter.
 - Text font family, size and alignment (Tiptap TextStyle/FontFamily/FontSize/TextAlign).
 - Shortcuts: `Ctrl .` toggles drawing; while drawing `1/2/3` tools, `E` eraser, `L` lasso, `[`/`]` size, `Ctrl C/X/V/D` on selected ink.
+
+### Changed
+- Database schema v3 adds `documents`, `assets`, `pageInk` tables and an optional `documentId` on notes; existing data is untouched.
+- The JSON backup is now labelled legacy: it is text-only and skips imported documents. The .zip package is the complete format.
+- **Adaptive editor toolbar**: the in-column formatting bar and the separate pen pill are replaced by one header row that follows the activity — text formatting (Aa style/font/size/alignment popover, strokes, lists, insert), drawing (Draw control, eraser, lasso, undo/redo, done) or ink selection (duplicate, copy/cut/paste, rotate, recolour, delete). Narrow panes get a slim scrollable row instead.
+- **One Draw control**: pen, pencil and highlighter no longer sit in the header. The Draw control shows the live tool and ink colour and opens the Draw popover.
+- **Draw popover** replaces the radial pen wheel: tools, style presets, colours, six sizes, opacity (pencil/highlighter), eraser mode, recently used combinations and stylus settings in one anchored panel. Right-click on the canvas still opens it at the cursor.
+- Note actions (pin, favourite, share, reading layout, distraction-free) moved from header icons into the note menu.
 
 ## [2.0.0] - 2026-08-26
 

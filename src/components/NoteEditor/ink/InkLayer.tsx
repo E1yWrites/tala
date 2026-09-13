@@ -21,6 +21,7 @@ import {
   polylineToPath,
   rotateStroke,
   scaleStrokeInto,
+  shapePathD,
   simplifyPoints,
   strokeBBox,
   strokeHits,
@@ -28,6 +29,15 @@ import {
   strokeOutlineD,
   translateStroke,
 } from '@/utils/ink'
+import {
+  DEFAULT_GESTURE_CONFIG,
+  detectScribble,
+  emitGestureDiagnostic,
+  recognizeShape,
+  scribbleTargets,
+  type GestureConfig,
+  type ShapeCandidate,
+} from '@/utils/gestures'
 import type { InkDoc, InkEraserMode, InkPointerMode, InkPoint, InkStroke } from '@/types/ink'
 import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, sizesForTool } from '@/types/ink'
 
@@ -86,6 +96,8 @@ export interface InkPrefsSnapshot {
   tilt?: boolean
   hoverPreview?: boolean
   touchDraws?: boolean
+  /** Gesture recognition settings; defaults to DEFAULT_GESTURE_CONFIG. */
+  gestures?: GestureConfig
 }
 
 export interface InkLayerHandle {
@@ -102,6 +114,10 @@ export interface InkLayerHandle {
   recolorSelection: (color: string) => void
   selectAll: () => void
   clearSelection: () => void
+  /** Stroke width / outline colour / fill for selected strokes (shapes get all three). */
+  setShapeStyle: (patch: { size?: number; color?: string; fill?: string | null }) => void
+  /** Scale the selection about its centre by `factor` (1.1 = 10 % larger). */
+  resizeSelection: (factor: number) => void
 }
 
 interface InkLayerProps {
@@ -118,10 +134,20 @@ interface InkLayerProps {
    * solely while pen mode is active — so the rest of the app keeps its menus.
    */
   onPaletteRequest?: (clientX: number, clientY: number) => void
-  /** Number of selected strokes changed (drives the selection toolbar). */
-  onSelectionChange?: (count: number) => void
+  /** Selection changed: total count and how many of them are shapes. */
+  onSelectionChange?: (count: number, shapes: number) => void
+  /** The layer wants a different tool (tap on a shape while drawing → select). */
+  onRequestTool?: (tool: InkPointerMode) => void
   /** A new stroke landed — lets the editor remember the pen combination used. */
   onStrokeCommitted?: (stroke: InkStroke) => void
+  /**
+   * Handle window keyboard shortcuts (undo, delete, copy…). Multi-page
+   * surfaces mount many layers at once and route keys to the focused one
+   * themselves, so they pass false.
+   */
+  keyboard?: boolean
+  /** Any pointer went down on this layer — multi-page hosts track focus with it. */
+  onPointerDownCapture?: () => void
 }
 
 interface InkOp {
@@ -129,16 +155,30 @@ interface InkOp {
   after: InkStroke[]
 }
 
+type Corner = 'nw' | 'ne' | 'sw' | 'se'
+
 type Gesture =
-  | { kind: 'draw'; stroke: InkStroke; pts: InkPoint[] }
+  | {
+      kind: 'draw'
+      stroke: InkStroke
+      pts: InkPoint[]
+      startedAt: number
+      /** Hold-to-shape: the candidate the live stroke currently snaps to. */
+      snap: ShapeCandidate | null
+      /** Where the pen was when it snapped — moving away cancels the snap. */
+      snapAt: InkPoint | null
+    }
   | { kind: 'erase'; base: InkStroke[]; working: InkStroke[]; changed: boolean }
   | { kind: 'pan'; lastY: number }
   | { kind: 'select-move'; dx: number; dy: number; last: InkPoint }
   | {
       kind: 'select-scale'
-      anchor: InkPoint
+      corner: Corner
       origin: { x0: number; y0: number; x1: number; y1: number }
+      /** Live bbox while dragging (committed on release). */
+      to: { x0: number; y0: number; x1: number; y1: number }
     }
+  | { kind: 'select-rotate'; cx: number; cy: number; startAngle: number; deg: number }
   | { kind: 'lasso'; pts: InkPoint[] }
 
 /** Minimal pointer shape so native coalesced events need no casting. */
@@ -177,6 +217,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     onPaletteRequest,
     onSelectionChange,
     onStrokeCommitted,
+    onRequestTool,
+    keyboard = true,
+    onPointerDownCapture,
   },
   ref,
 ) {
@@ -212,6 +255,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [lasso, setLasso] = useState<InkPoint[] | null>(null)
   const [movePreview, setMovePreview] = useState<{ dx: number; dy: number } | null>(null)
+  /** Live resize / rotate previews for the selection handles. */
+  const [scalePreview, setScalePreview] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const [rotatePreview, setRotatePreview] = useState<{ deg: number; cx: number; cy: number } | null>(null)
+  /** Hold-to-shape timer (see scheduleHoldCheck). */
+  const holdTimerRef = useRef<number | null>(null)
   const [erasingStrokes, setErasingStrokes] = useState<InkStroke[] | null>(null)
   /** Ring under the pointer: eraser reach, or a hovering pen's tip preview. */
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number; hover: boolean } | null>(
@@ -236,6 +284,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     erasing?: InkStroke[] | null
     lasso?: InkPoint[] | null
     move?: { dx: number; dy: number } | null
+    scale?: { x0: number; y0: number; x1: number; y1: number } | null
+    rotate?: { deg: number; cx: number; cy: number } | null
   }
   const uiFrameRef = useRef<number | null>(null)
   const uiPendingRef = useRef<UiPending>({})
@@ -248,6 +298,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if ('erasing' in p) setErasingStrokes(p.erasing ?? null)
     if ('lasso' in p) setLasso(p.lasso ? [...p.lasso] : null)
     if ('move' in p) setMovePreview(p.move ?? null)
+    if ('scale' in p) setScalePreview(p.scale ?? null)
+    if ('rotate' in p) setRotatePreview(p.rotate ?? null)
   }, [])
 
   const scheduleUi = useCallback(() => {
@@ -269,6 +321,10 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   // A pending draw/UI frame must not fire after unmount/deactivation.
   useEffect(
     () => () => {
+      if (holdTimerRef.current !== null) {
+        window.clearTimeout(holdTimerRef.current)
+        holdTimerRef.current = null
+      }
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
@@ -467,6 +523,61 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     setSelected(new Set(doc.strokes.map((s) => s.id)))
   }, [])
 
+  const setShapeStyle = useCallback(
+    (patch: { size?: number; color?: string; fill?: string | null }) => {
+      const doc = inkRef.current
+      if (!doc || selected.size === 0) return
+      let changed = false
+      const next = doc.strokes.map((s) => {
+        if (!selected.has(s.id)) return s
+        const out: InkStroke = { ...s }
+        if (patch.size !== undefined && patch.size !== s.size) {
+          out.size = patch.size
+          changed = true
+        }
+        if (patch.color !== undefined && patch.color !== s.color) {
+          out.color = patch.color
+          changed = true
+        }
+        if (patch.fill !== undefined && s.shape && s.shape.closed) {
+          const fill = patch.fill ?? undefined
+          if (fill !== s.shape.fill) {
+            out.shape = { ...s.shape, ...(fill ? { fill } : {}) }
+            if (!fill) delete out.shape.fill
+            changed = true
+          }
+        }
+        return out
+      })
+      if (changed) commit(next, doc.strokes)
+    },
+    [commit, selected],
+  )
+
+  const resizeSelection = useCallback(
+    (factor: number) => {
+      const doc = inkRef.current
+      if (!doc || selected.size === 0 || !(factor > 0) || factor === 1) return
+      let bb: { x0: number; y0: number; x1: number; y1: number } | null = null
+      for (const s of doc.strokes) {
+        if (!selected.has(s.id)) continue
+        const b = strokeBBox(s)
+        bb = bb
+          ? { x0: Math.min(bb.x0, b.x0), y0: Math.min(bb.y0, b.y0), x1: Math.max(bb.x1, b.x1), y1: Math.max(bb.y1, b.y1) }
+          : b
+      }
+      if (!bb) return
+      const cx = (bb.x0 + bb.x1) / 2
+      const cy = (bb.y0 + bb.y1) / 2
+      const hw = ((bb.x1 - bb.x0) / 2) * factor
+      const hh = ((bb.y1 - bb.y0) / 2) * factor
+      const to = { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh }
+      const next = doc.strokes.map((s) => (selected.has(s.id) ? scaleStrokeInto(s, bb!, to) : s))
+      commit(next, doc.strokes, to.y1)
+    },
+    [commit, selected],
+  )
+
   const clearSelection = useCallback(() => setSelected(new Set()), [])
 
   useImperativeHandle(
@@ -484,6 +595,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       recolorSelection,
       selectAll,
       clearSelection,
+      setShapeStyle,
+      resizeSelection,
     }),
     [
       undo,
@@ -498,12 +611,21 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       recolorSelection,
       selectAll,
       clearSelection,
+      setShapeStyle,
+      resizeSelection,
     ],
   )
 
+  const selectedShapeCount = useMemo(() => {
+    if (selected.size === 0) return 0
+    let n = 0
+    for (const s of strokes) if (selected.has(s.id) && s.shape) n++
+    return n
+  }, [selected, strokes])
+
   useEffect(() => {
-    onSelectionChange?.(selected.size)
-  }, [onSelectionChange, selected.size])
+    onSelectionChange?.(selected.size, selectedShapeCount)
+  }, [onSelectionChange, selected.size, selectedShapeCount])
 
   /* --------------------------- Coordinate mapping -------------------------- */
 
@@ -554,7 +676,19 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     liveBuiltLenRef.current = n
     liveBuiltAtRef.current = now
 
-    pathEl.setAttribute('d', strokeOutlineD(g.stroke))
+    if (g.snap) {
+      // Snapped: draw the clean vector shape as a stroked outline
+      pathEl.setAttribute('d', shapePathD({ points: g.snap.points, shape: { kind: g.snap.kind, closed: g.snap.closed } }))
+      pathEl.setAttribute('fill', 'none')
+      pathEl.setAttribute('stroke', g.stroke.color)
+      pathEl.setAttribute('stroke-width', String(g.stroke.size))
+      pathEl.setAttribute('stroke-linejoin', 'round')
+      pathEl.setAttribute('stroke-linecap', 'round')
+    } else {
+      pathEl.setAttribute('d', strokeOutlineD(g.stroke))
+      pathEl.setAttribute('fill', g.stroke.color)
+      pathEl.setAttribute('stroke', 'none')
+    }
 
     // Predicted-events ghost tip: shows where the OS expects the pen next,
     // hiding input latency without polluting recorded geometry.
@@ -581,24 +715,122 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
   }, [renderLive])
 
+  const clearHoldTimer = useCallback(() => {
+    if (holdTimerRef.current !== null) {
+      window.clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+  }, [])
+
   const cancelCurrentDraw = useCallback(() => {
+    clearHoldTimer()
     const g = gestureRef.current
     if (g && g.kind === 'draw') {
       gestureRef.current = null
       if (livePathRef.current) livePathRef.current.setAttribute('d', '')
     }
-  }, [])
+  }, [clearHoldTimer])
+
+  /**
+   * Hold-to-shape: (re)armed on every pen move. When the pen rests for
+   * holdMs, the stroke so far is measured; a confident line / arrow /
+   * ellipse / rect / triangle / polygon replaces the live stroke. Moving on
+   * afterwards cancels the snap (see onPointerMove), so handwriting that
+   * merely pauses is never hijacked.
+   */
+  const scheduleHoldCheck = useCallback(() => {
+    clearHoldTimer()
+    const cfg = prefsRef.current.gestures ?? DEFAULT_GESTURE_CONFIG
+    if (!cfg.shapeSnap) return
+    holdTimerRef.current = window.setTimeout(() => {
+      holdTimerRef.current = null
+      const g = gestureRef.current
+      if (!g || g.kind !== 'draw' || g.snap || g.pts.length < 4) return
+      const candidate = recognizeShape(g.pts)
+      const applied = !!candidate && candidate.confidence >= cfg.shapeConfidence
+      emitGestureDiagnostic({
+        gesture: 'shape',
+        decision: applied ? 'applied' : 'rejected',
+        confidence: candidate?.confidence ?? 0,
+        threshold: cfg.shapeConfidence,
+        detail: candidate ? { kind: candidate.kind, scores: candidate.scores } : { reason: 'no candidate' },
+      })
+      if (!applied || !candidate) return
+      g.snap = candidate
+      g.snapAt = g.pts[g.pts.length - 1] ?? null
+      liveBuiltLenRef.current = 0
+      liveBuiltAtRef.current = -1e9
+      scheduleRenderLive()
+    }, cfg.holdMs)
+  }, [clearHoldTimer, scheduleRenderLive])
 
   const finishDraw = useCallback((g: Extract<Gesture, { kind: 'draw' }>): void => {
+    clearHoldTimer()
     if (livePathRef.current) livePathRef.current.setAttribute('d', '')
     if (liveTipRef.current) liveTipRef.current.setAttribute('r', '0')
+    const doc = inkRef.current!
+    const cfg = prefsRef.current.gestures ?? DEFAULT_GESTURE_CONFIG
+
+    // 1. Hold-to-shape won: commit the clean vector shape (one undo step).
+    if (g.snap) {
+      const shape: InkStroke = {
+        ...g.stroke,
+        points: g.snap.points,
+        shape: { kind: g.snap.kind, closed: g.snap.closed, confidence: Math.round(g.snap.confidence * 100) / 100 },
+      }
+      commit([...doc.strokes, shape], doc.strokes, strokeBBox(shape).y1)
+      onStrokeCommitted?.(shape)
+      return
+    }
+
     const pts = simplifyPoints(smoothPressure(g.pts))
     if (pts.length === 0) return
+    const elapsed = performance.now() - g.startedAt
+
+    // 2. Tap on a recognised shape (pen/pencil): select it instead of dotting it.
+    if (elapsed < 220 && g.pts.length <= 6) {
+      const bb = strokeBBox({ ...g.stroke, points: g.pts })
+      const tiny = bb.x1 - bb.x0 - g.stroke.size - 2 < 3 && bb.y1 - bb.y0 - g.stroke.size - 2 < 3
+      if (tiny) {
+        const p = g.pts[0]!
+        const hit = findTopmostStroke(doc.strokes, p.x, p.y, 6, true)
+        if (hit) {
+          emitGestureDiagnostic({ gesture: 'tap-select', decision: 'applied', confidence: 1, threshold: 1, detail: { id: hit.id, kind: hit.shape?.kind } })
+          setSelected(new Set([hit.id]))
+          onRequestTool?.('select')
+          return
+        }
+      }
+    }
+
+    // 3. Scribble / scratch-out erase (never with the highlighter).
+    if (cfg.scribbleErase && g.stroke.tool !== 'highlighter' && g.pts.length >= 8) {
+      const candidate = detectScribble(g.pts)
+      if (candidate) {
+        const confident = candidate.confidence >= cfg.scribbleConfidence
+        const targets = confident
+          ? scribbleTargets(g.pts, doc.strokes, { tolerance: Math.max(6, g.stroke.size) })
+          : []
+        emitGestureDiagnostic({
+          gesture: 'scribble',
+          decision: targets.length > 0 ? 'applied' : 'rejected',
+          confidence: candidate.confidence,
+          threshold: cfg.scribbleConfidence,
+          detail: { kind: candidate.kind, reversals: candidate.reversals, density: Math.round(candidate.density * 10) / 10, targets: targets.length },
+        })
+        if (targets.length > 0) {
+          const gone = new Set(targets.map((t) => t.id))
+          commit(doc.strokes.filter((s) => !gone.has(s.id)), doc.strokes)
+          return
+        }
+      }
+    }
+
+    // 4. Ordinary handwriting.
     const finished: InkStroke = { ...g.stroke, points: pts }
-    const doc = inkRef.current!
     commit([...doc.strokes, finished], doc.strokes, strokeBBox(finished).y1)
     onStrokeCommitted?.(finished)
-  }, [commit, onStrokeCommitted])
+  }, [clearHoldTimer, commit, onRequestTool, onStrokeCommitted])
 
   /* ------------------------------ Erase pipeline --------------------------- */
 
@@ -687,24 +919,67 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const finishSelectScale = useCallback(
     (g: Gesture & { kind: 'select-scale' }): void => {
       flushUi()
-      const endPt = lastNativeRef.current
-      if (!endPt) return
-      const end = toLocal(endPt)
+      setScalePreview(null)
+      uiPendingRef.current.scale = null
       const doc = inkRef.current!
-      const MIN = 24
-      const to = {
-        x0: g.origin.x0,
-        y0: g.origin.y0,
-        x1: Math.max(end.x, g.anchor.x + MIN),
-        y1: Math.max(end.y, g.anchor.y + MIN),
-      }
+      const to = g.to
+      if (to.x0 === g.origin.x0 && to.y0 === g.origin.y0 && to.x1 === g.origin.x1 && to.y1 === g.origin.y1) return
       const next = doc.strokes.map((s) =>
         selected.has(s.id) ? scaleStrokeInto(s, g.origin, to) : s,
       )
       commit(next, doc.strokes, to.y1)
     },
-    [commit, flushUi, selected, toLocal],
+    [commit, flushUi, selected],
   )
+
+  const finishSelectRotate = useCallback(
+    (g: Gesture & { kind: 'select-rotate' }): void => {
+      flushUi()
+      setRotatePreview(null)
+      uiPendingRef.current.rotate = null
+      if (Math.abs(g.deg) < 0.5) return
+      const doc = inkRef.current!
+      const rad = (g.deg * Math.PI) / 180
+      let y1 = 0
+      const next = doc.strokes.map((s) => {
+        if (!selected.has(s.id)) return s
+        const r = rotateStroke(s, g.cx, g.cy, rad)
+        y1 = Math.max(y1, strokeBBox(r).y1)
+        return r
+      })
+      commit(next, doc.strokes, y1)
+    },
+    [commit, flushUi, selected],
+  )
+
+  /** Bbox for a corner drag: the opposite corner stays put; Shift keeps proportions. */
+  const scaledBox = (
+    origin: { x0: number; y0: number; x1: number; y1: number },
+    corner: Corner,
+    p: InkPoint,
+    keepRatio: boolean,
+  ): { x0: number; y0: number; x1: number; y1: number } => {
+    const MIN = 12
+    const ax = corner === 'nw' || corner === 'sw' ? origin.x1 : origin.x0
+    const ay = corner === 'nw' || corner === 'ne' ? origin.y1 : origin.y0
+    let w = Math.max(MIN, Math.abs(p.x - ax))
+    let h = Math.max(MIN, Math.abs(p.y - ay))
+    if (keepRatio) {
+      const ow = origin.x1 - origin.x0 || 1
+      const oh = origin.y1 - origin.y0 || 1
+      const k = Math.max(w / ow, h / oh)
+      w = ow * k
+      h = oh * k
+    }
+    const left = corner === 'nw' || corner === 'sw'
+    const top = corner === 'nw' || corner === 'ne'
+    return {
+      x0: left ? ax - w : ax,
+      x1: left ? ax : ax + w,
+      y0: top ? ay - h : ay,
+      y1: top ? ay : ay + h,
+    }
+  }
 
   /* ------------------------------ Pointer events --------------------------- */
 
@@ -722,6 +997,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>): void => {
     if (!active) return
+    onPointerDownCapture?.()
     // Primary button only — right-click opens the pen palette via
     // onContextMenu, and must never start a draw/erase gesture.
     if (e.button !== 0) return
@@ -784,15 +1060,38 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (prefs.tool === 'select') {
       if (selectionBBox) {
         const hr = 12 / (scale || 1)
-        const ddx = p.x - selectionBBox.x1
-        const ddy = p.y - selectionBBox.y1
-        if (ddx * ddx + ddy * ddy <= hr * hr * 4) {
-          gestureRef.current = {
-            kind: 'select-scale',
-            anchor: { x: selectionBBox.x0, y: selectionBBox.y0 },
-            origin: selectionBBox,
+        const bb = selectionBBox
+        const corners: Array<[Corner, number, number]> = [
+          ['nw', bb.x0, bb.y0],
+          ['ne', bb.x1, bb.y0],
+          ['sw', bb.x0, bb.y1],
+          ['se', bb.x1, bb.y1],
+        ]
+        for (const [corner, cx, cy] of corners) {
+          const ddx = p.x - cx
+          const ddy = p.y - cy
+          if (ddx * ddx + ddy * ddy <= hr * hr * 4) {
+            gestureRef.current = { kind: 'select-scale', corner, origin: bb, to: bb }
+            return
           }
+        }
+        const rx = (bb.x0 + bb.x1) / 2
+        const ry = bb.y0 - ROTATE_HANDLE_OFFSET / (scale || 1)
+        const rdx = p.x - rx
+        const rdy = p.y - ry
+        if (rdx * rdx + rdy * rdy <= hr * hr * 4) {
+          const cx = (bb.x0 + bb.x1) / 2
+          const cy = (bb.y0 + bb.y1) / 2
+          gestureRef.current = { kind: 'select-rotate', cx, cy, startAngle: Math.atan2(p.y - cy, p.x - cx), deg: 0 }
           return
+        }
+        // Dragging inside the box moves the whole selection
+        if (p.x >= bb.x0 && p.x <= bb.x1 && p.y >= bb.y0 && p.y <= bb.y1 && !e.shiftKey) {
+          const inside = findTopmostStroke(inkRef.current.strokes, p.x, p.y)
+          if (!inside || selected.has(inside.id)) {
+            gestureRef.current = { kind: 'select-move', dx: 0, dy: 0, last: p }
+            return
+          }
         }
       }
       const hit = findTopmostStroke(inkRef.current.strokes, p.x, p.y)
@@ -823,6 +1122,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
+      startedAt: now,
+      snap: null,
+      snapAt: null,
       stroke: {
         id: createId(),
         tool: prefs.tool,
@@ -833,6 +1135,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       },
     }
     scheduleRenderLive()
+    scheduleHoldCheck()
   }
 
   const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>): void => {
@@ -879,6 +1182,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (events.length === 0) events.push(native)
 
     if (g.kind === 'draw') {
+      let moved = false
       for (const ev of events) {
         const p = toLocal(ev)
         const prev = g.pts[g.pts.length - 1]
@@ -888,6 +1192,23 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           if (dx * dx + dy * dy < MIN_DRAW_DIST_SQ) continue
         }
         g.pts.push(p)
+        moved = true
+      }
+      if (moved) {
+        // Drawing on after a snap cancels it — the user was not done.
+        if (g.snap && g.snapAt) {
+          const last = g.pts[g.pts.length - 1]!
+          const dx = last.x - g.snapAt.x
+          const dy = last.y - g.snapAt.y
+          if (dx * dx + dy * dy > SNAP_CANCEL_DIST_SQ) {
+            emitGestureDiagnostic({ gesture: 'shape', decision: 'cancelled', confidence: g.snap.confidence, threshold: 0, detail: { kind: g.snap.kind } })
+            g.snap = null
+            g.snapAt = null
+            liveBuiltLenRef.current = 0
+            liveBuiltAtRef.current = -1e9
+          }
+        }
+        if (!g.snap) scheduleHoldCheck()
       }
       g.stroke.points = g.pts
       scheduleRenderLive()
@@ -915,8 +1236,22 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         uiPendingRef.current.move = { dx: g.dx, dy: g.dy }
         scheduleUi()
         break
-      case 'select-scale':
+      case 'select-scale': {
+        g.to = scaledBox(g.origin, g.corner, p, native.shiftKey === true)
+        uiPendingRef.current.scale = g.to
+        scheduleUi()
         break
+      }
+      case 'select-rotate': {
+        const a = Math.atan2(p.y - g.cy, p.x - g.cx)
+        let deg = ((a - g.startAngle) * 180) / Math.PI
+        // Shift snaps to 15° steps
+        if (native.shiftKey) deg = Math.round(deg / 15) * 15
+        g.deg = deg
+        uiPendingRef.current.rotate = { deg, cx: g.cx, cy: g.cy }
+        scheduleUi()
+        break
+      }
       case 'lasso': {
         const prev = g.pts[g.pts.length - 1]!
         const dx = p.x - prev.x
@@ -970,6 +1305,9 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       case 'select-scale':
         finishSelectScale(g)
         break
+      case 'select-rotate':
+        finishSelectRotate(g)
+        break
       case 'lasso': {
         const picked = new Set<string>()
         if (g.pts.length >= 3) {
@@ -988,7 +1326,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   /* -------------------------------- Keyboard ------------------------------- */
 
   useEffect(() => {
-    if (!active) return
+    if (!active || !keyboard) return
     const onKey = (e: KeyboardEvent): void => {
       // Never steal keys while the user is typing text or a dialog is up —
       // otherwise Ctrl+Z would undo ink AND text (tiptap runs first), and
@@ -1055,6 +1393,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return () => window.removeEventListener('keydown', onKey)
   }, [
     active,
+    keyboard,
     copySelection,
     cutSelection,
     deleteSelection,
@@ -1070,11 +1409,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   // floating toolbar faded or a stale gesture owner behind.
   useEffect(() => {
     if (active) return
+    clearHoldTimer()
     gestureRef.current = null
     gesturePointerRef.current = null
     setInkGestureActive(false)
     setCursorPos(null)
-  }, [active])
+  }, [active, clearHoldTimer])
   useEffect(() => () => setInkGestureActive(false), [])
 
   /* Drop stale selection ids when strokes change externally (undo etc.) */
@@ -1096,13 +1436,14 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return { highlights: hl, pens: pn }
   }, [strokes])
 
+  const selectionTransform =
+    movePreview && (movePreview.dx !== 0 || movePreview.dy !== 0)
+      ? `translate(${movePreview.dx} ${movePreview.dy})`
+      : rotatePreview && rotatePreview.deg !== 0
+        ? `rotate(${rotatePreview.deg} ${rotatePreview.cx} ${rotatePreview.cy})`
+        : undefined
   const renderStroke = (s: InkStroke): React.ReactNode => (
-    <StrokePath
-      key={s.id}
-      stroke={s}
-      previewDx={selected.has(s.id) ? (movePreview?.dx ?? 0) : 0}
-      previewDy={selected.has(s.id) ? (movePreview?.dy ?? 0) : 0}
-    />
+    <StrokePath key={s.id} stroke={s} transform={selected.has(s.id) ? selectionTransform : undefined} />
   )
 
   return (
@@ -1156,25 +1497,42 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
             />
           )}
 
-          {selectionBBox && (
-            <>
-              <rect
-                x={selectionBBox.x0 + (movePreview?.dx ?? 0)}
-                y={selectionBBox.y0 + (movePreview?.dy ?? 0)}
-                width={selectionBBox.x1 - selectionBBox.x0}
-                height={selectionBBox.y1 - selectionBBox.y0}
-                className="ink-selection"
-                vectorEffect="non-scaling-stroke"
-              />
-              <circle
-                cx={selectionBBox.x1 + (movePreview?.dx ?? 0)}
-                cy={selectionBBox.y1 + (movePreview?.dy ?? 0)}
-                r={7 / (scale || 1)}
-                className="ink-handle"
-                vectorEffect="non-scaling-stroke"
-              />
-            </>
-          )}
+          {selectionBBox && (() => {
+            const box = scalePreview ?? {
+              x0: selectionBBox.x0 + (movePreview?.dx ?? 0),
+              y0: selectionBBox.y0 + (movePreview?.dy ?? 0),
+              x1: selectionBBox.x1 + (movePreview?.dx ?? 0),
+              y1: selectionBBox.y1 + (movePreview?.dy ?? 0),
+            }
+            const hr = 7 / (scale || 1)
+            const midX = (box.x0 + box.x1) / 2
+            const rotY = box.y0 - ROTATE_HANDLE_OFFSET / (scale || 1)
+            const group = rotatePreview && rotatePreview.deg !== 0 ? `rotate(${rotatePreview.deg} ${rotatePreview.cx} ${rotatePreview.cy})` : undefined
+            return (
+              <g transform={group} data-testid="ink-selection">
+                <rect
+                  x={box.x0}
+                  y={box.y0}
+                  width={box.x1 - box.x0}
+                  height={box.y1 - box.y0}
+                  className="ink-selection"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line x1={midX} y1={box.y0} x2={midX} y2={rotY} className="ink-selection" vectorEffect="non-scaling-stroke" />
+                <circle cx={midX} cy={rotY} r={hr} className="ink-handle ink-handle-rotate" vectorEffect="non-scaling-stroke" />
+                {(
+                  [
+                    [box.x0, box.y0, 'nw'],
+                    [box.x1, box.y0, 'ne'],
+                    [box.x0, box.y1, 'sw'],
+                    [box.x1, box.y1, 'se'],
+                  ] as Array<[number, number, Corner]>
+                ).map(([cx, cy, c]) => (
+                  <circle key={c} cx={cx} cy={cy} r={hr} className="ink-handle" data-corner={c} vectorEffect="non-scaling-stroke" />
+                ))}
+              </g>
+            )
+          })()}
 
           {active && cursorPos && prefs.tool === 'eraser' && (
             <circle
@@ -1204,10 +1562,22 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   )
 })
 
-function findTopmostStroke(strokes: InkStroke[], x: number, y: number): InkStroke | null {
+/** Distance (screen-ish px) of the rotate handle above the selection box. */
+const ROTATE_HANDLE_OFFSET = 26
+/** Pen travel (capture px²) after a snap that cancels the recognised shape. */
+const SNAP_CANCEL_DIST_SQ = 8 * 8
+
+function findTopmostStroke(
+  strokes: InkStroke[],
+  x: number,
+  y: number,
+  radius = 8,
+  shapesOnly = false,
+): InkStroke | null {
   for (let i = strokes.length - 1; i >= 0; i--) {
     const s = strokes[i]!
-    if (strokeHits(s, x, y, 8)) return s
+    if (shapesOnly && !s.shape) continue
+    if (strokeHits(s, x, y, radius)) return s
   }
   return null
 }
@@ -1215,25 +1585,40 @@ function findTopmostStroke(strokes: InkStroke[], x: number, y: number): InkStrok
 /** One memoized <path> per committed stroke — unchanged strokes never re-render. */
 const StrokePath = memo(function StrokePath({
   stroke,
-  previewDx = 0,
-  previewDy = 0,
+  transform,
 }: {
   stroke: InkStroke
-  previewDx?: number
-  previewDy?: number
+  transform?: string
 }): React.ReactNode {
   const isHl = stroke.tool === 'highlighter'
+  const cls = isHl ? 'ink-hl-path' : stroke.tool === 'pencil' ? 'ink-pencil-path' : undefined
+  const style = stroke.opacity !== undefined ? { opacity: stroke.opacity } : undefined
+  if (stroke.shape) {
+    // Recognised shapes are stroked outlines (optionally filled) so their
+    // edges stay crisp at any size; the geometry lives in `points`.
+    return (
+      <path
+        d={shapePathD(stroke)}
+        fill={stroke.shape.closed && stroke.shape.fill ? stroke.shape.fill : 'none'}
+        stroke={stroke.color}
+        strokeWidth={stroke.size}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        className={cls}
+        style={style}
+        transform={transform}
+        pointerEvents="none"
+        data-shape={stroke.shape.kind}
+      />
+    )
+  }
   return (
     <path
       d={strokeOutlineD(stroke)}
       fill={stroke.color}
-      className={
-        isHl ? 'ink-hl-path' : stroke.tool === 'pencil' ? 'ink-pencil-path' : undefined
-      }
-      style={stroke.opacity !== undefined ? { opacity: stroke.opacity } : undefined}
-      transform={
-        previewDx !== 0 || previewDy !== 0 ? `translate(${previewDx} ${previewDy})` : undefined
-      }
+      className={cls}
+      style={style}
+      transform={transform}
       pointerEvents="none"
     />
   )

@@ -23,12 +23,127 @@ export interface Note {
   deletedAt: number | null
   createdAt: number
   updatedAt: number
+  /**
+   * Imported document backing this note (PDF, Word, PowerPoint) — see
+   * DocumentRecord. Absent/null for ordinary typed notes (v3+).
+   */
+  documentId?: string | null
 }
 
 /** Handwriting stored out-of-line (v2+), keyed by its owning note. */
 export interface InkDocRecord {
   noteId: string
   doc: InkDoc
+}
+
+/* ------------------------------- Documents -------------------------------- */
+
+/** Source file formats the importer understands. */
+export type DocumentFormat = 'pdf' | 'docx' | 'doc' | 'pptx' | 'ppt'
+
+/**
+ * How an imported file is represented inside Tala:
+ *  - `pdf`            page model rendered by pdf.js, annotated with page ink
+ *  - `rendered-html`  a self-contained HTML rendering (DOCX "preserve
+ *                     appearance"), shown read-only in a sandboxed frame
+ *  - `original-only`  the original file is kept as an attachment; the note's
+ *                     typed content (if any) came from an editable conversion
+ */
+export type DocumentKind = 'pdf' | 'rendered-html' | 'original-only'
+
+/** User-facing import strategies. `auto` picks the safest representation. */
+export type ImportStrategy = 'auto' | 'editable' | 'preserve'
+
+/** One live page of a PDF document. */
+export interface DocumentPage {
+  /**
+   * Stable per-page id — page annotations key off this, so reordering or
+   * deleting pages never orphans ink.
+   */
+  id: string
+  /** 0-based index into the source PDF. */
+  sourceIndex: number
+  /** Page size in PDF points (after the source page's own rotation). */
+  width: number
+  height: number
+  /** Extra user rotation in degrees (0 | 90 | 180 | 270). */
+  rotation: number
+  /** Typed notes placed on the page (displayed-page points). */
+  texts?: PageTextNote[]
+}
+
+/** A typed note placed on a document page. */
+export interface PageTextNote {
+  id: string
+  /** Top-left corner in displayed-page points. */
+  x: number
+  y: number
+  /** Wrapping width in points. */
+  width: number
+  text: string
+  /** Font size in points. */
+  size: number
+  color: string
+}
+
+export interface DocumentSource {
+  fileName: string
+  mime: string
+  bytes: number
+  format: DocumentFormat
+}
+
+export interface DocumentRecord {
+  id: string
+  noteId: string
+  kind: DocumentKind
+  source: DocumentSource
+  /** Primary asset: PDF bytes, rendered HTML, or the original binary. */
+  assetId: string
+  /** Original file kept next to a converted representation (may equal assetId). */
+  originalAssetId: string | null
+  /** PDF only — ordered live pages. */
+  pages?: DocumentPage[]
+  /** Which strategy produced this representation. */
+  strategy: ImportStrategy
+  /** Human-readable note about the conversion, shown in the editor banner. */
+  importNote: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * Large binaries live here; records elsewhere only hold ids. Bytes are kept
+ * as an ArrayBuffer rather than a Blob: every engine structured-clones it
+ * losslessly (WebKit has a history of Blob-in-IndexedDB bugs) and it never
+ * goes through base64.
+ */
+export interface AssetRecord {
+  id: string
+  mime: string
+  bytes: number
+  /** Hex SHA-256 of the data — dedupes re-imports and validates packages. */
+  sha256: string
+  data: ArrayBuffer
+  createdAt: number
+}
+
+/** Page annotations for a document-backed note: one record per page. */
+export interface PageInkRecord {
+  /** `${noteId}#${pageId}` — same key the note store uses in `inkDocs`. */
+  id: string
+  noteId: string
+  pageId: string
+  doc: InkDoc
+}
+
+/** Composite ink key for a document page. */
+export const pageInkKey = (noteId: string, pageId: string): string => `${noteId}#${pageId}`
+
+/** Splits an ink key into its owner note id and (optional) page id. */
+export function parseInkKey(key: string): { noteId: string; pageId: string | null } {
+  const i = key.indexOf('#')
+  return i === -1 ? { noteId: key, pageId: null } : { noteId: key.slice(0, i), pageId: key.slice(i + 1) }
 }
 
 export interface Folder {
@@ -103,6 +218,10 @@ export type ModalIntent =
   | { kind: 'palette' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
+  /** Import PDF / Word / PowerPoint files (optionally pre-picked via drag & drop). */
+  | { kind: 'import-document'; files?: File[] }
+  /** Import a Tala ZIP package (share or full backup). */
+  | { kind: 'import-package'; file?: File }
   | { kind: 'folder-editor'; folderId?: string }
   | { kind: 'move-note'; noteId: string }
   | { kind: 'tag-editor'; noteId: string }

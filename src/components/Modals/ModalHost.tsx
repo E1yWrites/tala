@@ -9,6 +9,8 @@ import { FolderEditorModal } from './FolderEditorModal'
 import { MoveNoteModal } from './MoveNoteModal'
 import { TagEditorModal } from './TagEditorModal'
 import { ProfilePictureModal } from './ProfilePictureModal'
+import { ImportDocumentModal } from './ImportDocumentModal'
+import { ImportPackageModal } from './ImportPackageModal'
 
 function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
   switch (intent.kind) {
@@ -35,6 +37,10 @@ function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
       return <SearchModal />
     case 'share':
       return <ShareModal noteId={intent.noteId} />
+    case 'import-document':
+      return <ImportDocumentModal files={intent.files} />
+    case 'import-package':
+      return <ImportPackageModal file={intent.file} />
     case 'folder-editor':
       return <FolderEditorModal folderId={intent.folderId ?? null} />
     case 'move-note':

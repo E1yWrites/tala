@@ -3,6 +3,7 @@ import { inkRepository } from './repositories/inkRepository'
 import { folderRepository } from './repositories/folderRepository'
 import { tagRepository } from './repositories/tagRepository'
 import { settingsRepository } from './repositories/settingsRepository'
+import { documentRepository } from './repositories/documentRepository'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
@@ -22,13 +23,15 @@ export function bootApp(): Promise<void> {
 }
 
 async function doHydrate(): Promise<void> {
-  const [notes, inkRecords, folders, tags, settings] = await Promise.all([
+  const [notes, inkRecords, folders, tags, settings, documents] = await Promise.all([
     noteRepository.all(),
     // Eager: the editor needs ink the moment a note opens, not after a roundtrip
     inkRepository.all(),
     folderRepository.all(),
     tagRepository.all(),
     settingsRepository.get(),
+    // Document metadata is tiny; page ink + file blobs load lazily per note
+    documentRepository.all(),
   ])
 
   // Referential repair: imports/merges can leave notes pointing at folders or
@@ -61,6 +64,7 @@ async function doHydrate(): Promise<void> {
 
   useNoteStore.getState().hydrate(notes)
   useNoteStore.getState().hydrateInk(inkRecords)
+  useNoteStore.getState().hydrateDocuments(documents)
 
   // Safety net: ink writes land before the debounced note-row touch-up, so a
   // reload in that window leaves orphaned handwriting. Materialize minimal

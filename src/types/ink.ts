@@ -68,6 +68,29 @@ export interface InkPoint {
   t?: number
 }
 
+/**
+ * Geometric primitives a held stroke can snap to. `polygon` covers any
+ * closed shape with straight sides the recogniser could not name.
+ */
+export type InkShapeKind = 'line' | 'arrow' | 'ellipse' | 'rect' | 'triangle' | 'polygon'
+
+/**
+ * Marks a stroke as a recognised vector shape. The geometry itself stays in
+ * `points` (line = 2 points, polygon = corners with the first repeated last,
+ * ellipse = evenly sampled perimeter), so every existing operation —
+ * hit-testing, lasso, move, scale, rotate, export — works unchanged; only
+ * rendering differs (crisp stroked outline instead of a pressure ribbon).
+ */
+export interface InkShapeMeta {
+  kind: InkShapeKind
+  /** Fill colour for closed shapes; 'none' / absent = outline only. */
+  fill?: string
+  /** True when `points` closes on itself (rect, ellipse, triangle, polygon). */
+  closed: boolean
+  /** Recogniser confidence 0..1 at creation — diagnostics only. */
+  confidence?: number
+}
+
 export interface InkStroke {
   id: string
   tool: InkToolId
@@ -80,6 +103,8 @@ export interface InkStroke {
    * adjustable — those keep the tool's CSS default (see DEFAULT_OPACITY).
    */
   opacity?: number
+  /** Present when the stroke is an editable recognised shape. */
+  shape?: InkShapeMeta
 }
 
 /** Tool defaults used when a stroke carries no explicit opacity. */

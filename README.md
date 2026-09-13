@@ -71,7 +71,11 @@ npm run dev        # start dev server (http://localhost:5173)
 npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build (http://localhost:4173)
 npm run typecheck  # tsc --noEmit
+npm test           # vitest (jsdom + in-memory IndexedDB): lists, documents, gestures, packages
+npm run test:smoke # headless browser flows against the preview build (SMOKE_BROWSER=/path/to/chrome)
 ```
+
+`predev`/`prebuild` copy pdf.js's standard fonts and CMaps into `public/pdfjs/` (git-ignored).
 
 ## Desktop app (Tauri v2)
 
@@ -120,7 +124,18 @@ Build artifacts land in `src-tauri/target/release/bundle/`:
 - **Light / dark / auto theme**, persisted before first paint (no flash)
 - **Responsive** — three-pane desktop → drawer tablet → single-pane mobile with bottom nav
 - **Keyboard-first** — see below
-- **Data ownership** — export/import JSON backups (merge or replace), storage usage readout
+- **Documents** — import PDF, Word (.docx/.doc) and PowerPoint (.pptx/.ppt) as notes. PDFs open as a
+  page stack you can zoom, thumbnail, reorder, rotate, annotate with ink and text notes, and export
+  again with the annotations baked in. Word/PowerPoint files become editable Tala text when the
+  conversion is faithful, or a read-only "original layout" view when it would not be (Automatic /
+  Import as editable / Preserve appearance); the original file is always attached
+- **Handwriting gestures** — hold the pen still to turn a stroke into a straight line, arrow, circle,
+  rectangle, triangle or polygon; scribble or scratch over ink to erase it; tap a shape to select it.
+  Recognised shapes are editable vector objects (corner handles, rotate handle, outline width, fill)
+- **Share as Tala package** — a versioned .zip with the note, its handwriting, imported documents and
+  annotations; import it into any Tala. The same package format backs up a whole library
+- **Data ownership** — export/import .zip packages (documents included) or legacy JSON backups
+  (text only), storage usage readout
 - **Animated theme toggle** — sun ↔ moon with smooth CSS transitions
 - **Doodle-inspired brand** — playful, personal, modern
 
@@ -160,16 +175,21 @@ src/
 |   +-- UI/                       # Button, Modal, DropdownMenu, Tooltip, TagChip, ThemeToggle...
 |   +-- layout/                   # AppShell (responsive panes), MobileNav
 +-- database/
-|   +-- db.ts                     # Dexie schema (notes/folders/tags/settings)
+|   +-- db.ts                     # Dexie schema v3 (notes/folders/tags/settings/inkDocs/documents/assets/pageInk)
 |   +-- hydration.ts              # DB → stores bootstrap
 |   +-- repositories/             # THE ONLY code touching IndexedDB.
 |                                 # Swap for a REST backend without touching UI.
 +-- data/                         # defaults, templates, seed content, doc builders
-+-- hooks/                        # useMediaQuery, useHotkeys, useLongPress
++-- hooks/                        # useMediaQuery, useHotkeys, useLongPress, useFileDrop
++-- lib/
+|   +-- documents/                # import pipeline: format sniffing, pdf.js page model + pdf-lib export,
+|   |                             # mammoth / docx-preview / pptxtojson conversions, asset store helpers
+|   +-- package/                  # Tala .zip package: manifest, validation, transactional import
+|   +-- editorExtensions.ts       # the one Tiptap schema (editor + headless conversions)
 +-- pages/                        # HomePage, LibraryPage (+ presets), SettingsPage
 +-- store/                        # Zustand: notes, folders, tags, settings, ui
 +-- types/models.ts               # domain models — single source of truth
-+-- utils/                        # cn, dates, doc, search, markdown, image, backup
++-- utils/                        # cn, dates, doc, search, markdown, image, backup, ink geometry, gestures
 ```
 
 Key decisions:
@@ -181,6 +201,14 @@ Key decisions:
 - **Search scores** title > tag > folder > body, recomputed in-memory per keystroke.
 - **Theme is applied pre-React** by an inline script reading `localStorage`, so dark
   mode never flashes.
+- **Documents live beside notes, not inside them**: `documents` holds the page model and
+  conversion info, `assets` holds file bytes (raw ArrayBuffers, deduplicated by SHA-256),
+  `pageInk` holds per-page annotations keyed by stable page ids. Note rows never carry
+  binaries. Everything is written in one IndexedDB transaction per import.
+- **Gestures are pure functions** (`utils/gestures.ts`) scored 0..1 against user-tunable
+  thresholds; handwriting wins ties. Hold-to-shape only fires after a pause, cancels if the
+  pen moves on, and every recognition or scribble erase is one undo step. Set
+  `localStorage['tala:gesture-debug'] = '1'` (or listen for `tala:gesture`) to trace decisions.
 
 ---
 

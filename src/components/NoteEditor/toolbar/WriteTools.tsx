@@ -7,7 +7,11 @@ import {
   CopyPlus,
   Eraser,
   Lasso,
+  Maximize2,
+  Minimize2,
   Palette,
+  PaintBucket,
+  PenLine,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -17,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import type { InkPointerMode } from '@/types/ink'
+import { PEN_SIZES } from '@/types/ink'
 import { useInkClipboardSize } from '@/lib/inkSession'
 import { cn } from '@/utils/cn'
 import { Popover } from '../../UI/Popover'
@@ -122,6 +127,12 @@ export interface SelectionActions {
   recolor: (color: string) => void
   remove: () => void
   clear: () => void
+  /** Outline width / colour / fill (fill applies to closed shapes only). */
+  setStyle: (patch: { size?: number; color?: string; fill?: string | null }) => void
+  /** Scale about the centre (1.15 = 15 % larger). */
+  resize: (factor: number) => void
+  /** How many selected strokes are recognised shapes — enables fill/outline. */
+  shapes: number
 }
 
 interface SelectionToolsProps {
@@ -147,7 +158,9 @@ export function SelectionTools({
   const ref = drawRef ?? localRef
   const rotateRef = useRef<HTMLButtonElement>(null)
   const colorRef = useRef<HTMLButtonElement>(null)
-  const [menu, setMenu] = useState<'rotate' | 'color' | null>(null)
+  const fillRef = useRef<HTMLButtonElement>(null)
+  const widthRef = useRef<HTMLButtonElement>(null)
+  const [menu, setMenu] = useState<'rotate' | 'color' | 'fill' | 'width' | null>(null)
   const clip = useInkClipboardSize()
   const tip = size === 'lg' ? 'top' : 'bottom'
   const popSide = size === 'lg' ? 'top' : 'bottom'
@@ -202,6 +215,38 @@ export function SelectionTools({
         tooltipSide={tip}
         onClick={() => setMenu((m) => (m === 'color' ? null : 'color'))}
       />
+      <ToolButton icon={Maximize2} label="Larger" size={size} noTooltip={noTooltips} tooltipSide={tip} onClick={() => selection.resize(1.15)} />
+      <ToolButton icon={Minimize2} label="Smaller" size={size} noTooltip={noTooltips} tooltipSide={tip} onClick={() => selection.resize(1 / 1.15)} />
+      {selection.shapes > 0 && (
+        <>
+          <ToolButton
+            ref={widthRef}
+            icon={PenLine}
+            label="Outline width"
+            size={size}
+            menu
+            active={menu === 'width'}
+            aria-haspopup="dialog"
+            aria-expanded={menu === 'width'}
+            noTooltip={noTooltips}
+            tooltipSide={tip}
+            onClick={() => setMenu((m) => (m === 'width' ? null : 'width'))}
+          />
+          <ToolButton
+            ref={fillRef}
+            icon={PaintBucket}
+            label="Fill"
+            size={size}
+            menu
+            active={menu === 'fill'}
+            aria-haspopup="dialog"
+            aria-expanded={menu === 'fill'}
+            noTooltip={noTooltips}
+            tooltipSide={tip}
+            onClick={() => setMenu((m) => (m === 'fill' ? null : 'fill'))}
+          />
+        </>
+      )}
       <ToolSeparator size={size} />
       <ToolButton icon={Trash2} label="Delete — ⌫" size={size} noTooltip={noTooltips} tooltipSide={tip} onClick={selection.remove} className="hover:text-accent" />
       <ToolButton icon={X} label="Deselect (Esc)" size={size} noTooltip={noTooltips} tooltipSide={tip} onClick={selection.clear} />
@@ -230,6 +275,58 @@ export function SelectionTools({
                 <span className="absolute -bottom-1.5 text-[8px] font-semibold tabular-nums">{Math.abs(r.deg)}</span>
               </span>
             </ToolButton>
+          ))}
+        </div>
+      </Popover>
+
+      <Popover open={menu === 'width'} anchor={widthRef.current} onClose={() => setMenu(null)} ariaLabel="Outline width" side={popSide} className="p-1.5">
+        <div role="group" aria-label="Outline width" className="flex items-center gap-0.5">
+          {PEN_SIZES.map((px, i) => (
+            <ToolButton
+              key={px}
+              label={`${Math.round(px)} px outline`}
+              tooltipSide="top"
+              data-autofocus={i === 2 || undefined}
+              onClick={() => {
+                selection.setStyle({ size: px })
+                setMenu(null)
+              }}
+            >
+              <span className="rounded-full bg-current" style={{ width: Math.max(3, px + 2), height: Math.max(3, px + 2) }} />
+            </ToolButton>
+          ))}
+        </div>
+      </Popover>
+
+      <Popover open={menu === 'fill'} anchor={fillRef.current} onClose={() => setMenu(null)} ariaLabel="Fill colour" side={popSide} className="p-2">
+        <div role="group" aria-label="Fill colour" className="flex items-center gap-1">
+          <Tooltip label="No fill">
+            <button
+              type="button"
+              aria-label="No fill"
+              data-autofocus
+              onClick={() => {
+                selection.setStyle({ fill: null })
+                setMenu(null)
+              }}
+              className="grid size-[22px] place-items-center rounded-full border border-dashed border-line text-[10px] text-muted hover:scale-110"
+            >
+              <X size={11} />
+            </button>
+          </Tooltip>
+          {INK_SWATCHES.map((s) => (
+            <Tooltip key={s.color} label={s.label}>
+              <button
+                type="button"
+                aria-label={`Fill with ${s.label}`}
+                onClick={() => {
+                  selection.setStyle({ fill: s.color + '55' })
+                  setMenu(null)
+                }}
+                className="size-[22px] rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95 dark:border-white/15"
+                style={{ backgroundColor: s.color + '55' }}
+              />
+            </Tooltip>
           ))}
         </div>
       </Popover>

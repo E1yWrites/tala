@@ -16,6 +16,7 @@ import { useTagStore } from '@/store/tagStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
 import { docPreview, countTasks } from '@/utils/doc'
+import { describeDocument } from '@/utils/documentPreview'
 import { formatRelative, formatFull } from '@/utils/dates'
 import { cn } from '@/utils/cn'
 import { confirmAction } from './noteActions'
@@ -70,7 +71,8 @@ export function NotePreviewCard({
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter(Boolean)
   const tasks = countTasks(note.content)
   const hasInk = Boolean(inkDocs[note.id]?.strokes?.length)
-  const preview = docPreview(note.content, 300)
+  const docRecord = useNoteStore((s) => (note.documentId ? s.documents[note.documentId] : undefined))
+  const preview = docPreview(note.content, 300) || describeDocument(docRecord)
 
   const measure = useCallback(() => {
     const el = shellRef.current

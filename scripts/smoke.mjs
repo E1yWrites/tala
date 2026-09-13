@@ -103,6 +103,61 @@ await page.keyboard.press('Escape')
 await waitFor(300)
 check('Esc leaves drawing mode', await page.isVisible('[role="toolbar"][aria-label="Formatting"]'))
 
+// ---- Lists render real markers (regression: Tailwind preflight hid them) -----
+await page.click('.ProseMirror')
+await page.keyboard.press('End')
+await page.keyboard.press('Enter')
+await page.keyboard.type('- bullet item')
+await waitFor(200)
+const listInfo = await page.evaluate(() => {
+  const li = document.querySelector('.ProseMirror ul:not([data-type]) > li')
+  return li ? { style: getComputedStyle(li).listStyleType, display: getComputedStyle(li).display } : null
+})
+check('bullet list has a disc marker', listInfo?.style === 'disc' && listInfo?.display === 'list-item', JSON.stringify(listInfo))
+await page.keyboard.press('Enter')
+await page.keyboard.press('Enter') // leave the list
+
+// ---- Document import + package modals ----------------------------------------
+await page.keyboard.press('Control+Shift+p')
+await waitFor(300)
+await page.fill('input[aria-label="Command palette"]', 'import document')
+await waitFor(250)
+await page.keyboard.press('Enter')
+await waitFor(400)
+check('import document modal opens', (await page.locator('[data-testid="import-file-input"]').count()) === 1)
+// A minimal hand-written 1-page PDF (no library needed on the page side)
+const MINI_PDF = [
+  '%PDF-1.4',
+  '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+  '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+  '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R >> endobj',
+  '4 0 obj << /Length 44 >> stream',
+  '0 0 1 RG 4 w 40 40 m 260 260 l S',
+  'endstream endobj',
+  'trailer << /Root 1 0 R >>',
+  '%%EOF',
+].join('\n')
+const pdfImported = await page.evaluate(async (pdfText) => {
+  const bytes = new TextEncoder().encode(pdfText)
+  const input = document.querySelector('[data-testid="import-file-input"]')
+  const dt = new DataTransfer()
+  dt.items.add(new File([bytes], 'Smoke.pdf', { type: 'application/pdf' }))
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+}, MINI_PDF).catch((e) => String(e))
+if (pdfImported === 'ok') {
+  await waitFor(300)
+  await page.click('[role="dialog"] button:has-text("Import")')
+  await waitFor(3000)
+  check('PDF import opens the page view', await page.isVisible('[data-testid="pdf-view"]'))
+  check('PDF page rendered', (await page.locator('.pdf-page').count()) >= 1)
+} else {
+  check('PDF import could be triggered', false, pdfImported)
+}
+await page.keyboard.press('Escape')
+await waitFor(200)
+
 // ---- Second note via template modal ------------------------------------------
 await page.click('button[aria-label="New note"]').catch(() => {})
 await waitFor(400)
