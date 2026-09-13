@@ -2,7 +2,7 @@
 
 All notable changes to Tala are documented here.
 
-## [Unreleased]
+## [1.1.0] - 2026-09-13
 
 ### Fixed
 - **Bullet and numbered lists render real markers.** Tailwind's preflight reset (`ul, ol { list-style: none }`) was never overridden by the editor styles, so lists showed as bare indentation even though the document schema was correct. Markers (disc/circle/square, decimal/alpha/roman for nesting) are restored in both themes, and lists no longer use `display: flex`, which some engines use as an excuse to drop markers.
