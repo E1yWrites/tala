@@ -9,6 +9,7 @@ All notable changes to Tala are documented here.
 - Removed a duplicate `underline` extension registration (StarterKit 3 already includes it).
 
 ### Added
+- Windows releases now include a standalone `Tala_x64.exe` asset in addition to installer bundles, with SHA-256 checksums published alongside it.
 - **Document import** (New note → Import document, command palette, or drag & drop): PDF, DOCX, PPTX, DOC, PPT.
   - PDF: page model rendered lazily by pdf.js; zoom, thumbnails, page reorder/rotate/delete, ink on every page (same pen tools, undo/redo, lasso, eraser), typed text notes, and **Export annotated PDF** (pdf-lib writes ink as vectors).
   - DOCX/PPTX: **Automatic / Import as editable / Preserve appearance**. Editable text via mammoth / pptxtojson through the editor's own schema; preserved layout via docx-preview / positioned slide rendering, shown in a sandboxed frame with a "Switch to editable text" escape hatch. The original file is always attached and downloadable.

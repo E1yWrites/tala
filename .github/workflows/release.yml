@@ -46,11 +46,16 @@ jobs:
           includeUpstream: true
           args: --target x86_64-pc-windows-msvc
 
+      - name: Prepare standalone executable
+        shell: bash
+        run: |
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/tala.exe src-tauri/target/x86_64-pc-windows-msvc/release/bundle/Tala_x64.exe
+
       - name: Generate checksums
         shell: bash
         run: |
           cd src-tauri/target/x86_64-pc-windows-msvc/release/bundle
-          find . -maxdepth 3 \( -name "*.exe" -o -name "*.msi" \) -type f | while read f; do
+          find . -maxdepth 3 \( -name "*.exe" -o -name "*.msi" \) -type f | sort | while read f; do
             sha256sum "$f" >> SHA256SUMS
           done
 
@@ -58,4 +63,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/SHA256SUMS
+          files: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/Tala_x64.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/SHA256SUMS
