@@ -4,6 +4,7 @@ import {
   FileText,
   GraduationCap,
   KanbanSquare,
+  FileUp,
   Lightbulb,
   ListChecks,
   Pencil,
@@ -39,6 +40,7 @@ export function NewNoteModal(): React.ReactNode {
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const setView = useUIStore((s) => s.setView)
   const selectNote = useUIStore((s) => s.selectNote)
+  const openModal = useUIStore((s) => s.openModal)
 
   const templates = useMemo(
     () =>
@@ -102,6 +104,25 @@ export function NewNoteModal(): React.ReactNode {
           </span>
           <span className="text-[13px]">Blank note</span>
           <span className="text-xs leading-snug text-muted">Just start typing</span>
+        </button>
+
+        {/* Import a document */}
+        <button
+          type="button"
+          onClick={() => {
+            closeAllModals()
+            openModal({ kind: 'import-document' })
+          }}
+          className={cn(
+            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-line bg-panel p-4 text-left',
+            'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+          )}
+        >
+          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm border border-dashed border-line bg-canvas text-ballpoint">
+            <FileUp className="size-5" aria-hidden="true" />
+          </span>
+          <span className="text-[13px]">Import document</span>
+          <span className="text-xs leading-snug text-muted">PDF, Word or PowerPoint</span>
         </button>
 
         {templates.map(({ tpl, Icon }) => (

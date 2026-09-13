@@ -482,3 +482,35 @@ export function strokeInLasso(stroke: InkStroke, poly: readonly InkPoint[]): boo
   for (const p of pts) if (pointInPolygon(p.x, p.y, poly)) inside++
   return inside * 2 >= pts.length
 }
+
+/* --------------------------------- Shapes --------------------------------- */
+
+/**
+ * Path for a recognised shape: straight segments for polygons/lines, a
+ * smooth closed curve for ellipses (whose points are dense perimeter
+ * samples). Rendered with `stroke` = colour and `stroke-width` = size, so a
+ * shape keeps crisp uniform edges however it is scaled or rotated.
+ */
+export function shapePathD(stroke: Pick<InkStroke, 'points' | 'shape'>): string {
+  const pts = stroke.points
+  const n = pts.length
+  if (n === 0) return ''
+  if (n === 1) return `M ${round1(pts[0]!.x)} ${round1(pts[0]!.y)}`
+  if (stroke.shape?.kind === 'ellipse') {
+    // Closed quadratic smoothing through the sampled perimeter — the last
+    // sample duplicates the first, drop it so the loop has no cusp.
+    const m = pts[n - 1]!.x === pts[0]!.x && pts[n - 1]!.y === pts[0]!.y ? n - 1 : n
+    if (m < 3) return polylineToPath(pts)
+    const xs = new Float64Array(m)
+    const ys = new Float64Array(m)
+    for (let i = 0; i < m; i++) {
+      xs[i] = pts[i]!.x
+      ys[i] = pts[i]!.y
+    }
+    return smoothClosedPath(xs, ys, m)
+  }
+  let d = `M ${round1(pts[0]!.x)} ${round1(pts[0]!.y)}`
+  for (let i = 1; i < n; i++) d += ` L ${round1(pts[i]!.x)} ${round1(pts[i]!.y)}`
+  if (stroke.shape?.closed) d += ' Z'
+  return d
+}

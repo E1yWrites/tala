@@ -9,6 +9,12 @@ import {
 } from '@/database/repositories'
 import { useNoteStore } from '@/store/noteStore'
 
+/**
+ * Legacy JSON backup. Text-only: imported documents (PDF / Word /
+ * PowerPoint files and their page annotations) are NOT included — the ZIP
+ * package (src/lib/package) is the complete format. Document-backed notes
+ * are exported as plain notes so the file stays a valid v2 backup.
+ */
 export interface BackupFile {
   app: 'tala'
   /** 1 = pre-v2 inline note.ink; 2 = handwriting in inkDocs. */
@@ -35,7 +41,8 @@ export async function buildBackup(): Promise<BackupFile> {
     app: 'tala',
     version: 2,
     exportedAt: Date.now(),
-    notes,
+    // JSON cannot carry the document binaries — drop the dangling reference
+    notes: notes.map(({ documentId: _documentId, ...n }) => n),
     folders,
     tags,
     settings,
@@ -164,7 +171,7 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 
 /** Minimal shape check for an out-of-line handwriting record. */
-function sanitizeInkDoc(rec: unknown): Note['ink'] {
+export function sanitizeInkDoc(rec: unknown): Note['ink'] {
   if (!isObj(rec)) return null
   const doc = rec.doc
   if (!isObj(doc) || !Array.isArray((doc as { strokes?: unknown }).strokes)) return null
@@ -180,7 +187,7 @@ function isStorableRecord(v: unknown): v is Folder | Tag {
  * defaults and dropping entries too broken to display. Prevents a hand-edited
  * or future-drifted file from crashing the app after import.
  */
-function normalizeNote(raw: unknown): Note | null {
+export function normalizeNote(raw: unknown): Note | null {
   if (!isObj(raw) || !isStr(raw.id)) return null
   const num = (v: unknown, fallback: number): number =>
     typeof v === 'number' && Number.isFinite(v) ? v : fallback
@@ -195,6 +202,7 @@ function normalizeNote(raw: unknown): Note | null {
     ? (raw.tagIds as unknown[]).filter(isStr)
     : []
   return {
+    ...(isStr(raw.documentId) ? { documentId: raw.documentId } : {}),
     id: raw.id,
     title: typeof raw.title === 'string' ? raw.title : '',
     content,
@@ -225,21 +233,39 @@ export async function restoreBackup(
   const { hydrateAll } = await import('@/database/hydration')
   const inkDocs = backup.inkDocs ?? []
 
-  await db.transaction('rw', [db.notes, db.folders, db.tags, db.settings, db.inkDocs], async () => {
-    if (mode === 'replace') {
-      await Promise.all([
-        db.notes.clear(),
-        db.folders.clear(),
-        db.tags.clear(),
-        db.inkDocs.clear(),
-      ])
-    }
-    await db.folders.bulkPut(backup.folders)
-    await db.tags.bulkPut(backup.tags)
-    await db.notes.bulkPut(backup.notes)
-    if (inkDocs.length > 0) await db.inkDocs.bulkPut(inkDocs)
-    if (backup.settings) await db.settings.put(backup.settings)
-  })
+  await db.transaction(
+    'rw',
+    [db.notes, db.folders, db.tags, db.settings, db.inkDocs, db.documents, db.assets, db.pageInk],
+    async () => {
+      if (mode === 'replace') {
+        await Promise.all([
+          db.notes.clear(),
+          db.folders.clear(),
+          db.tags.clear(),
+          db.inkDocs.clear(),
+          db.documents.clear(),
+          db.assets.clear(),
+          db.pageInk.clear(),
+        ])
+      } else {
+        // A JSON note overwriting a document-backed note drops its document
+        // reference — remove the now-orphaned document rows too.
+        const ids = backup.notes.map((n) => n.id)
+        const existing = await db.notes.where('id').anyOf(ids).toArray()
+        const orphaned = existing.filter((n) => n.documentId).map((n) => n.id)
+        if (orphaned.length > 0) {
+          const docs = await db.documents.where('noteId').anyOf(orphaned).toArray()
+          await db.documents.bulkDelete(docs.map((d) => d.id))
+          await db.pageInk.where('noteId').anyOf(orphaned).delete()
+        }
+      }
+      await db.folders.bulkPut(backup.folders)
+      await db.tags.bulkPut(backup.tags)
+      await db.notes.bulkPut(backup.notes.map(({ documentId: _d, ...n }) => n))
+      if (inkDocs.length > 0) await db.inkDocs.bulkPut(inkDocs)
+      if (backup.settings) await db.settings.put(backup.settings)
+    },
+  )
 
   await hydrateAll()
   // Open editors may hold pre-import docs — let them resync (see NoteEditor)

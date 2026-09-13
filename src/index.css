@@ -173,18 +173,41 @@
   margin-top: 0;
 }
 
-.tiptap ul,
+/* Lists. Tailwind's preflight resets `ul, ol { list-style: none }`, which
+   left bullet / numbered lists rendering as bare indentation — the schema
+   was right (<ul><li><p>), only the markers were suppressed. Restore real
+   markers here (outside position so wrapped lines align) and keep lists as
+   plain blocks: `display: flex` on a list container makes marker rendering
+   engine-dependent (WebKitGTK drops them), so spacing comes from margins. */
+.tiptap ul:not([data-type='taskList']),
 .tiptap ol {
-  padding-left: 20px;
+  display: block;
+  padding-left: 1.6em;
   margin: 0 0 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
+.tiptap ul:not([data-type='taskList']) {
+  list-style: disc outside;
+}
+.tiptap ol {
+  list-style: decimal outside;
+}
+.tiptap ul:not([data-type='taskList']) ul:not([data-type='taskList']) { list-style-type: circle; }
+.tiptap ul:not([data-type='taskList']) ul ul:not([data-type='taskList']) { list-style-type: square; }
+.tiptap ol ol { list-style-type: lower-alpha; }
+.tiptap ol ol ol { list-style-type: lower-roman; }
+.tiptap ul:not([data-type='taskList']) > li,
+.tiptap ol > li {
+  display: list-item;
+  padding-left: 0.2em;
+}
+.tiptap li + li { margin-top: 4px; }
 .tiptap li p { margin: 0; }
 .tiptap li > p { margin: 0; }
 .tiptap ul > li::marker { color: rgb(var(--c-accent) / 0.85); }
-.tiptap ol > li::marker { color: rgb(var(--c-ballpoint)); }
+.tiptap ol > li::marker {
+  color: rgb(var(--c-ballpoint));
+  font-variant-numeric: tabular-nums;
+}
 .tiptap ul ul,
 .tiptap ol ol,
 .tiptap ul ol,
@@ -509,6 +532,18 @@ body.sidebar-resizing {
   fill: rgb(var(--c-overlay));
   stroke: rgb(var(--c-accent));
   stroke-width: 2;
+}
+.ink-handle[data-corner='nw'],
+.ink-handle[data-corner='se'] {
+  cursor: nwse-resize;
+}
+.ink-handle[data-corner='ne'],
+.ink-handle[data-corner='sw'] {
+  cursor: nesw-resize;
+}
+.ink-handle-rotate {
+  cursor: grab;
+  fill: rgb(var(--c-postit));
 }
 
 .ink-cursor-ring {

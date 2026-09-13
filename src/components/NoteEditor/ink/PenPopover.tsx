@@ -14,6 +14,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { INK_PRESETS, OPACITY_RANGE, sizesForTool } from '@/types/ink'
 import type { InkRecent, PencilSettings } from '@/store/uiStore'
+import type { GestureConfig } from '@/utils/gestures'
 import { PENCIL_ACTIONS, PENCIL_ACTION_LABELS, usePencilCapabilities, type PencilAction } from '@/lib/pencil'
 import { cn } from '@/utils/cn'
 import { Popover, type PopoverAnchor } from '../../UI/Popover'
@@ -93,10 +94,12 @@ export interface PenPrefs {
   pencilOpacity: number
   recents: InkRecent[]
   pencil: PencilSettings
+  gestures: GestureConfig
 }
 
-export type PenPrefsPatch = Partial<Omit<PenPrefs, 'pencil' | 'recents'>> & {
+export type PenPrefsPatch = Partial<Omit<PenPrefs, 'pencil' | 'recents' | 'gestures'>> & {
   pencil?: Partial<PencilSettings>
+  gestures?: Partial<GestureConfig>
 }
 
 interface PenPopoverProps {
@@ -159,6 +162,7 @@ export function PenPopover({
   onClose,
 }: PenPopoverProps): ReactNode {
   const [stylusOpen, setStylusOpen] = useState(false)
+  const [gesturesOpen, setGesturesOpen] = useState(false)
   const caps = usePencilCapabilities()
 
   const drawTool =
@@ -468,7 +472,103 @@ export function PenPopover({
         </button>
         {stylusOpen && <StylusSettings caps={caps} settings={prefs.pencil} onChange={(pencil) => onPrefs({ pencil })} />}
       </div>
+
+      {/* Handwriting gestures */}
+      <div className="mt-2 border-t border-lineSoft pt-2">
+        <button
+          type="button"
+          onClick={() => setGesturesOpen((o) => !o)}
+          aria-expanded={gesturesOpen}
+          className="flex w-full items-center gap-2 rounded-wobbly-sm px-1 py-1 text-left text-xs font-medium text-muted transition-colors hover:text-ink"
+        >
+          <ChevronDown size={14} className={cn('transition-transform', !gesturesOpen && '-rotate-90')} aria-hidden="true" />
+          Gestures
+          <span className="ml-auto text-[11px] font-normal text-faint">
+            {prefs.gestures.shapeSnap || prefs.gestures.scribbleErase ? 'On' : 'Off'}
+          </span>
+        </button>
+        {gesturesOpen && <GestureSettings settings={prefs.gestures} onChange={(gestures) => onPrefs({ gestures })} />}
+      </div>
     </Popover>
+  )
+}
+
+/* ---------------------------- Gesture settings ---------------------------- */
+
+function GestureSettings({
+  settings,
+  onChange,
+}: {
+  settings: GestureConfig
+  onChange: (patch: Partial<GestureConfig>) => void
+}): ReactNode {
+  return (
+    <div className="mt-1 space-y-2 px-1 pb-1 animate-fade-in">
+      <ToggleRow
+        label="Hold to make shapes"
+        hint={<span className="text-[11px] text-faint">pause the pen → line, circle, box…</span>}
+        checked={settings.shapeSnap}
+        onChange={(shapeSnap) => onChange({ shapeSnap })}
+      />
+      <ToggleRow
+        label="Scribble to erase"
+        hint={<span className="text-[11px] text-faint">scratch out ink to delete it</span>}
+        checked={settings.scribbleErase}
+        onChange={(scribbleErase) => onChange({ scribbleErase })}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs">Hold delay</span>
+        <div role="radiogroup" aria-label="Hold delay" className="inline-flex rounded-wobbly-sm border border-lineSoft p-0.5">
+          {(
+            [
+              { v: 400, label: 'Quick' },
+              { v: 600, label: 'Normal' },
+              { v: 900, label: 'Slow' },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              role="radio"
+              aria-checked={settings.holdMs === o.v}
+              onClick={() => onChange({ holdMs: o.v })}
+              className={cn(
+                'rounded-[6px_3px_7px_3px] px-2.5 py-1 text-xs transition-colors',
+                settings.holdMs === o.v ? 'bg-postit text-postit-ink' : 'text-muted hover:text-ink',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs">Recognition</span>
+        <div role="radiogroup" aria-label="Recognition strictness" className="inline-flex rounded-wobbly-sm border border-lineSoft p-0.5">
+          {(
+            [
+              { v: 0.7, label: 'Eager' },
+              { v: 0.8, label: 'Balanced' },
+              { v: 0.9, label: 'Strict' },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              role="radio"
+              aria-checked={Math.abs(settings.shapeConfidence - o.v) < 0.01}
+              onClick={() => onChange({ shapeConfidence: o.v, scribbleConfidence: o.v - 0.05 })}
+              className={cn(
+                'rounded-[6px_3px_7px_3px] px-2.5 py-1 text-xs transition-colors',
+                Math.abs(settings.shapeConfidence - o.v) < 0.01 ? 'bg-postit text-postit-ink' : 'text-muted hover:text-ink',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 

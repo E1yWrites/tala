@@ -82,6 +82,24 @@ export function CommandPalette(): React.ReactNode {
           openModal({ kind: 'search' })
         },
       },
+      {
+        id: 'import-document',
+        label: 'Import document (PDF, Word, PowerPoint)',
+        icon: Import,
+        run: () => {
+          closeAllModals()
+          openModal({ kind: 'import-document' })
+        },
+      },
+      {
+        id: 'import-package',
+        label: 'Import Tala package (.zip)',
+        icon: Import,
+        run: () => {
+          closeAllModals()
+          openModal({ kind: 'import-package' })
+        },
+      },
       { id: 'go-home', label: 'Go to Home', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
       { id: 'go-all', label: 'Go to All Notes', icon: Notebook, run: () => { closeAllModals(); setView({ kind: 'all' }) } },
       { id: 'go-favorites', label: 'Go to Favorites', icon: Bookmark, run: () => { closeAllModals(); setView({ kind: 'favorites' }) } },

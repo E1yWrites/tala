@@ -3,6 +3,7 @@ import type { ModalIntent, ViewRef } from '@/types/models'
 import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { OPACITY_RANGE, PEN_SIZES } from '@/types/ink'
 import { isPencilAction, type PencilAction } from '@/lib/pencil'
+import { DEFAULT_GESTURE_CONFIG, sanitizeGestureConfig, type GestureConfig } from '@/utils/gestures'
 
 const SIDEBAR_KEY = 'tala:sidebar-collapsed'
 const SIDEBAR_WIDTH_KEY = 'tala:sidebar-width'
@@ -89,6 +90,8 @@ export interface InkPrefs {
   pencilOpacity: number
   recents: InkRecent[]
   pencil: PencilSettings
+  /** Handwriting gestures — hold-to-shape, scribble erase (see utils/gestures). */
+  gestures: GestureConfig
 }
 
 const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'pencil', 'highlighter', 'eraser']
@@ -116,6 +119,7 @@ export const DEFAULT_INK_PREFS: InkPrefs = {
   pencilOpacity: 0.82,
   recents: [],
   pencil: DEFAULT_PENCIL_SETTINGS,
+  gestures: DEFAULT_GESTURE_CONFIG,
 }
 
 const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{3,8}$/i.test(v)
@@ -192,6 +196,7 @@ function readInkPrefs(): InkPrefs {
       pencilOpacity: clampOpacity(parsed.pencilOpacity, 'pencil', DEFAULT_INK_PREFS.pencilOpacity),
       recents: readRecents(parsed.recents),
       pencil: readPencil(parsed.pencil),
+      gestures: sanitizeGestureConfig(parsed.gestures),
     }
   } catch {
     return DEFAULT_INK_PREFS
@@ -241,7 +246,10 @@ interface UIState {
   setSidebarDrawer: (open: boolean) => void
   toggleFocusMode: () => void
   setInkPrefs: (
-    patch: Partial<Omit<InkPrefs, 'pencil'>> & { pencil?: Partial<PencilSettings> },
+    patch: Partial<Omit<InkPrefs, 'pencil' | 'gestures'>> & {
+      pencil?: Partial<PencilSettings>
+      gestures?: Partial<GestureConfig>
+    },
   ) => void
   pushInkRecent: (recent: InkRecent) => void
   openModal: (intent: ModalIntent) => void
@@ -337,6 +345,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
       ...prev,
       ...patch,
       pencil: patch.pencil ? { ...prev.pencil, ...patch.pencil } : prev.pencil,
+      gestures: patch.gestures ? sanitizeGestureConfig({ ...prev.gestures, ...patch.gestures }) : prev.gestures,
     }
     set({ inkPrefs: next })
     try {

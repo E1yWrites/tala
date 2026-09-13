@@ -3,6 +3,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
+import { useFileDrop } from '@/hooks/useFileDrop'
 import { Sidebar } from '@/components/Sidebar/Sidebar'
 import { SidebarResizeHandle } from '@/components/Sidebar/SidebarResizeHandle'
 import { MobileNav } from './MobileNav'
@@ -40,6 +41,18 @@ export function AppShell(): React.ReactNode {
 
   // Global keyboard shortcuts
   useHotkeys()
+  // Drop a PDF / Word / PowerPoint / .zip package anywhere to import it
+  const fileDragging = useFileDrop()
+  const dropHint = fileDragging ? (
+    <div
+      className="pointer-events-none fixed inset-0 z-[60] grid place-items-center bg-canvas/70 backdrop-blur-[2px]"
+      aria-hidden="true"
+    >
+      <div className="rounded-wobbly-md border-[3px] border-dashed border-accent bg-panel px-6 py-4 font-display text-xl text-ink shadow-sketch">
+        Drop to import
+      </div>
+    </div>
+  ) : null
 
   // The drawer declares aria-modal — move focus in and keep Tab inside.
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -135,6 +148,7 @@ export function AppShell(): React.ReactNode {
         </div>
         {!selectedNoteId && <MobileNav />}
         {drawer}
+        {dropHint}
         <ModalHost />
       </div>
     )
@@ -191,6 +205,7 @@ export function AppShell(): React.ReactNode {
       )}
 
       {drawer}
+      {dropHint}
       <ModalHost />
     </div>
   )

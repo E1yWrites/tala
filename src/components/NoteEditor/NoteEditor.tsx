@@ -2,14 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
-import { Extension, InputRule } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import ImageExtension from '@tiptap/extension-image'
-import { Placeholder } from '@tiptap/extensions'
-import { FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
-import { TextAlign } from '@tiptap/extension-text-align'
+import { buildEditorExtensions } from '@/lib/editorExtensions'
 import {
   ArrowLeft,
   Check,
@@ -50,29 +43,10 @@ import { PenPopover, patchForTool, type PenPrefs, type PenPrefsPatch } from './i
 import { FloatingInkToolbar } from './ink/FloatingInkToolbar'
 import { AdaptiveToolbar, type EditorMode, type InkToolbarBundle } from './toolbar/AdaptiveToolbar'
 import { DrawControl } from './toolbar/DrawControl'
+import { PdfDocumentView } from './document/PdfDocumentView'
+import { RenderedDocumentView } from './document/RenderedDocumentView'
+import { DocumentBar } from './document/DocumentBar'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
-
-/* ------------------------- Markdown-style shortcuts ------------------------ */
-
-/** `[ ] ` / `[x] ` at the start of a line creates a checklist item. */
-const TaskSyntaxInput = Extension.create({
-  name: 'taskSyntaxInput',
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /^\[([ xX])\]\s$/,
-        handler: ({ chain, range, match }) => {
-          const checked = match[1]?.toLowerCase() === 'x'
-          chain()
-            .deleteRange(range)
-            .toggleTaskList()
-            .updateAttributes('taskItem', { checked })
-            .run()
-        },
-      }),
-    ]
-  },
-})
 
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved'
 
@@ -106,6 +80,11 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
   const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
   const [selectionCount, setSelectionCount] = useState(0)
+  const [selectionShapes, setSelectionShapes] = useState(0)
+  const handleSelectionChange = useCallback((count: number, shapes = 0) => {
+    setSelectionCount(count)
+    setSelectionShapes(shapes)
+  }, [])
   /** Draw popover — null = closed. Cursor anchors come from right-click on the canvas. */
   const [palette, setPalette] = useState<{ anchor: PopoverAnchor; mode: 'cursor' | 'trigger' } | null>(
     null,
@@ -151,6 +130,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   }, [flushInk])
 
   const inkDocs = useNoteStore((s) => s.inkDocs)
+  /** Imported document backing this note, if any (PDF pages / rendered layout / attachment). */
+  const docRecord = useNoteStore((s) => (note?.documentId ? s.documents[note.documentId] : undefined))
+  const isPdf = docRecord?.kind === 'pdf'
+  const isRendered = docRecord?.kind === 'rendered-html'
 
   /** Stable prefs object — InkLayer's effects depend on its identity. */
   const inkLayerPrefs = useMemo(
@@ -169,6 +152,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       tilt: inkPrefs.pencil.tilt,
       hoverPreview: inkPrefs.pencil.hoverPreview,
       touchDraws: inkPrefs.pencil.touchDraws,
+      gestures: inkPrefs.gestures,
     }),
     [
       penTool,
@@ -178,6 +162,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       inkPrefs.hlOpacity,
       inkPrefs.pencilOpacity,
       inkPrefs.pencil,
+      inkPrefs.gestures,
     ],
   )
 
@@ -241,6 +226,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       pencilOpacity: inkPrefs.pencilOpacity,
       recents: inkPrefs.recents,
       pencil: inkPrefs.pencil,
+      gestures: inkPrefs.gestures,
     }),
     [penTool, inkPrefs],
   )
@@ -390,10 +376,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         recolor: (color) => inkLayerRef.current?.recolorSelection(color),
         remove: () => inkLayerRef.current?.deleteSelection(),
         clear: () => inkLayerRef.current?.clearSelection(),
+        setStyle: (patch) => inkLayerRef.current?.setShapeStyle(patch),
+        resize: (factor) => inkLayerRef.current?.resizeSelection(factor),
+        shapes: selectionShapes,
       },
       selectionCount,
     }),
-    [inkHistory, inkPrefs.color, palette, penPrefs, penTool, selectionCount, togglePalette, updatePenPrefs],
+    [inkHistory, inkPrefs.color, palette, penPrefs, penTool, selectionCount, selectionShapes, togglePalette, updatePenPrefs],
   )
 
   const [title, setTitle] = useState(note?.title ?? '')
@@ -529,25 +518,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   const editor = useEditor(
     {
-      extensions: [
-        StarterKit.configure({
-          heading: { levels: [1, 2, 3] },
-          link: { openOnClick: false, autolink: true },
-        }),
-        Underline,
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        ImageExtension,
-        TextStyle,
-        FontFamily,
-        FontSize,
-        TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        TaskSyntaxInput,
-        Placeholder.configure({
-          placeholder:
-            'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',
-        }),
-      ],
+      extensions: buildEditorExtensions(),
       content: note?.content ?? '',
       editable: !note?.isDeleted,
       autofocus: false,
@@ -674,7 +645,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         ...buildNoteMenu(note, { surface }),
       ]
 
-  const canDraw = !note.isDeleted && !readingLayout
+  // Rendered-layout documents are read-only surfaces: no handwriting there.
+  const canDraw = !note.isDeleted && !readingLayout && !isRendered
   const touchInk = canDraw && penMode && isCoarse
   const headerTools = canDraw && !touchInk && (editorMode !== 'text' || inlineTools)
   const rowTools = canDraw && editorMode === 'text' && !inlineTools
@@ -701,7 +673,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <AdaptiveToolbar
               mode={editorMode}
               variant="inline"
-              editor={editor}
+              editor={isPdf ? null : editor}
               density={textDensity}
               ink={inkToolbar}
               onEnterDraw={enterDraw}
@@ -855,7 +827,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         }}
       >
         <div
-          className="relative mx-auto w-full max-w-[720px] px-6 pb-24 pt-5 md:px-10 md:pt-7"
+          className={cn(
+            'relative mx-auto w-full px-6 pb-24 pt-5 md:px-10 md:pt-7',
+            isPdf ? 'max-w-[1100px]' : 'max-w-[720px]',
+          )}
           style={
             {
               '--editor-font-size': `${fontSize}px`,
@@ -937,18 +912,38 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             className="w-full bg-transparent font-display text-[30px] leading-tight placeholder:text-faint/70 disabled:cursor-default"
           />
 
+          {docRecord && <DocumentBar document={docRecord} readOnly={note.isDeleted} />}
+
           {/* Content — editor stays mounted (hidden) so state/undo survive the toggle */}
-          {readingLayout ? (
+          {docRecord && isPdf ? (
+            <PdfDocumentView
+              key={docRecord.id}
+              ref={inkLayerRef}
+              note={note}
+              document={docRecord}
+              drawing={penMode}
+              prefs={inkLayerPrefs}
+              readOnly={note.isDeleted}
+              scrollRef={scrollRef}
+              onHistoryChange={handleInkHistory}
+              onPaletteRequest={handlePaletteRequest}
+              onSelectionChange={handleSelectionChange}
+              onStrokeCommitted={handleStrokeCommitted}
+              onRequestTool={selectTool}
+            />
+          ) : docRecord && isRendered ? (
+            <RenderedDocumentView document={docRecord} />
+          ) : readingLayout ? (
             <ReadingView noteId={note.id} doc={note.content} />
           ) : (
             <EditorContent
-              editor={editor}
+              editor={isPdf ? null : editor}
               className={cn('mt-3 [&_.tiptap]:min-h-[45vh]', note.isDeleted && 'opacity-80')}
             />
           )}
 
           {/* Handwriting overlay — above the typed content, active only in pen mode */}
-          {!readingLayout && !note.isDeleted && (
+          {!readingLayout && !note.isDeleted && !isPdf && !isRendered && (
             <InkLayer
               key={note.id}
               ref={inkLayerRef}
@@ -959,8 +954,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               prefs={inkLayerPrefs}
               onHistoryChange={handleInkHistory}
               onPaletteRequest={handlePaletteRequest}
-              onSelectionChange={setSelectionCount}
+              onSelectionChange={handleSelectionChange}
               onStrokeCommitted={handleStrokeCommitted}
+              onRequestTool={selectTool}
             />
           )}
         </div>

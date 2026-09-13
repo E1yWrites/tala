@@ -9,3 +9,6 @@ npm-debug.log*
 # Tauri (added when the desktop shell lands)
 src-tauri/target
 src-tauri/gen/schemas
+
+# pdf.js runtime assets (copied from node_modules by scripts/copy-pdfjs-assets.mjs)
+public/pdfjs/

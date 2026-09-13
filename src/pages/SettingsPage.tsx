@@ -26,6 +26,7 @@ import {
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { db } from '@/database/db'
 import { downloadBackup, parseBackup, restoreBackup, type BackupFile } from '@/utils/exportImport'
+import { downloadPackage } from '@/lib/package/download'
 import { Button } from '@/components/UI/Button'
 import { cn } from '@/utils/cn'
 import { Avatar } from '@/components/UI/Avatar'
@@ -482,14 +483,28 @@ export function SettingsPage(): React.ReactNode {
               : 'Everything lives in this browser only.'
           }
         >
-          <SettingRow label="Export backup" hint="Download a JSON snapshot you can re-import anywhere">
+          <SettingRow label="Export library" hint="A complete .zip package: notes, handwriting, imported documents and annotations">
+            <Button variant="outline" size="sm" onClick={() => void downloadPackage({})}>
+              <Download className="size-4" />
+              Export .zip
+            </Button>
+          </SettingRow>
+
+          <SettingRow label="Import package" hint="Restore a .zip library backup or add shared notes">
+            <Button variant="outline" size="sm" onClick={() => openModal({ kind: 'import-package' })}>
+              <Import className="size-4" />
+              Choose .zip…
+            </Button>
+          </SettingRow>
+
+          <SettingRow label="Export JSON (legacy)" hint="Text-only snapshot — imported PDF/Word/PowerPoint files are not included">
             <Button variant="outline" size="sm" onClick={() => void downloadBackup()}>
               <Download className="size-4" />
               Export JSON
             </Button>
           </SettingRow>
 
-          <SettingRow label="Import backup" hint="Merge into your library or replace everything">
+          <SettingRow label="Import JSON backup" hint="Merge into your library or replace everything">
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
               <Import className="size-4" />
               Choose file…

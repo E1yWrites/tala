@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
 import { CheckSquare, CheckCircle2, PinFilled, StarFilled } from 'lucide-react'
 import type { Note } from '@/types/models'
+import { useNoteStore } from '@/store/noteStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { displayTitle } from '@/utils/noteFilters'
 import { docPreview, countTasks } from '@/utils/doc'
+import { describeDocument } from '@/utils/documentPreview'
 import { formatRelative } from '@/utils/dates'
 import { highlightText } from '@/utils/search'
 import { cn } from '@/utils/cn'
@@ -82,7 +84,8 @@ export function NoteRow({
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter((t) => t !== undefined)
   const tasks = useMemo(() => countTasks(note.content), [note.content])
   const title = displayTitle(note)
-  const preview = docPreview(note.content, 110)
+  const docRecord = useNoteStore((s) => (note.documentId ? s.documents[note.documentId] : undefined))
+  const preview = docPreview(note.content, 110) || describeDocument(docRecord)
 
   return (
     <div
@@ -190,7 +193,8 @@ export function NoteGridCard({
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter((t) => t !== undefined)
   const tasks = useMemo(() => countTasks(note.content), [note.content])
   const title = displayTitle(note)
-  const preview = docPreview(note.content, 180)
+  const docRecord = useNoteStore((s) => (note.documentId ? s.documents[note.documentId] : undefined))
+  const preview = docPreview(note.content, 180) || describeDocument(docRecord)
 
   return (
     <div

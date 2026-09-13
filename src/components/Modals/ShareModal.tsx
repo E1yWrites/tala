@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckSoft, Copy, Download } from 'lucide-react'
+import { CheckSoft, Copy, Download, FileArchive } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
 import { useUIStore } from '@/store/uiStore'
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/utils/markdown'
 import { Modal } from '@/components/UI/Modal'
 import { Button } from '@/components/UI/Button'
+import { downloadPackage } from '@/lib/package/download'
 
 /** navigator.clipboard is unavailable on http:// origins — fall back gracefully. */
 async function copyText(text: string): Promise<boolean> {
@@ -39,6 +40,7 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
   const note = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const [copied, setCopied] = useState(false)
+  const [packing, setPacking] = useState(false)
   const copiedTimer = useRef<number>(undefined)
 
   // Clear the "Copied" flip-back timer when the modal unmounts
@@ -67,6 +69,16 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
   }
 
   const base = sanitizeFilename(note.title)
+  const document = note.documentId ? useNoteStore.getState().documents[note.documentId] : undefined
+  const sharePackage = async (): Promise<void> => {
+    if (packing) return
+    setPacking(true)
+    try {
+      await downloadPackage({ noteIds: [note.id], fileName: `${base}.tala.zip` })
+    } finally {
+      setPacking(false)
+    }
+  }
 
   return (
     <Modal
@@ -96,7 +108,15 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
           <Download className="size-3.5" />
           .txt file
         </Button>
+        <Button variant="outline" size="sm" disabled={packing} onClick={() => void sharePackage()}>
+          <FileArchive className="size-3.5" />
+          {packing ? 'Packing…' : 'Tala package (.zip)'}
+        </Button>
       </div>
+      <p className="mt-2 text-xs text-faint">
+        The Tala package keeps handwriting{document ? ', the imported document and its annotations' : ''} intact and can be
+        imported into any Tala.
+      </p>
 
       <pre className="mt-3 max-h-[40vh] overflow-auto rounded-wobbly-md border-2 border-line bg-canvas p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
         {markdown || '(empty note)'}

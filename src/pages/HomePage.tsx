@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
 import { docPreview, countTasks } from '@/utils/doc'
+import { describeDocument } from '@/utils/documentPreview'
 import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
 import { useTick } from '@/hooks/useTick'
 import { Button } from '@/components/UI/Button'
@@ -56,6 +57,7 @@ export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
 
   const notes = useNoteStore((s) => s.notes)
+  const documents = useNoteStore((s) => s.documents)
   const folderCount = useFolderStore((s) => s.folders.length)
   const openModal = useUIStore((s) => s.openModal)
   const firstName = useSettingsStore(
@@ -158,7 +160,9 @@ export function HomePage(): React.ReactNode {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px]">{displayTitle(note)}</p>
-                      <p className="truncate text-xs text-faint">{docPreview(note.content, 80) || 'Empty note'}</p>
+                      <p className="truncate text-xs text-faint">
+                        {docPreview(note.content, 80) || describeDocument(note.documentId ? documents[note.documentId] : undefined) || 'Empty note'}
+                      </p>
                     </div>
                     <time className="shrink-0 text-xs tabular-nums text-faint">
                       {formatRelative(note.updatedAt)}
