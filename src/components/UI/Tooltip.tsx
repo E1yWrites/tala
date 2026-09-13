@@ -114,12 +114,28 @@ export function Tooltip({
     if (isVisible) updatePosition()
   }, [label, isVisible, updatePosition])
 
+  // The child may carry its own ref (toolbar buttons anchor popovers to
+  // themselves) — keep it wired alongside ours.
+  const childRef =
+    typeof children === 'object' && children !== null && 'props' in children
+      ? ((children as React.ReactElement<any>).props.ref as React.Ref<HTMLElement> | undefined)
+      : undefined
+  const mergedRef = useCallback(
+    (node: HTMLElement | null) => {
+      ;(triggerRef as React.MutableRefObject<HTMLElement | null>).current = node
+      if (typeof childRef === 'function') childRef(node)
+      else if (childRef && typeof childRef === 'object')
+        (childRef as React.MutableRefObject<HTMLElement | null>).current = node
+    },
+    [childRef],
+  )
+
   // Clone the child to add ref, aria-describedby and hover/focus listeners.
   const childWithProps =
     typeof children === 'object' && children !== null && 'props' in children
       ? Object.assign({}, children, {
           props: Object.assign({}, (children as React.ReactElement<any>).props, {
-            ref: triggerRef,
+            ref: mergedRef,
             'aria-describedby': isVisible ? tooltipId : undefined,
             onMouseEnter: ((e: React.MouseEvent) => {
               setIsVisible(true)

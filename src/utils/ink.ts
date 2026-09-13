@@ -35,6 +35,15 @@ function halfWidthAt(size: number, p?: number, hasPressure?: boolean): number {
   return base * (0.45 + 0.7 * Math.max(0, Math.min(1, p)))
 }
 
+/**
+ * Tilt widening for the pencil: a stylus laid flatter drags more graphite,
+ * so the mark grows up to ~1.9× at full tilt. Pressure and tilt compose.
+ */
+function tiltFactor(t?: number): number {
+  if (t === undefined || t <= 0) return 1
+  return 1 + 0.9 * Math.min(1, t)
+}
+
 /** Smooth a polyline into an SVG path using quadratic midpoint curves. */
 export function polylineToPath(pts: InkPoint[]): string {
   const n = pts.length
@@ -68,7 +77,8 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
   // Dot: single tap → circle
   if (n === 1) {
     const p0 = pts[0]!
-    const r = halfWidthAt(stroke.size, p0.p)
+    const r =
+      halfWidthAt(stroke.size, p0.p) * (stroke.tool === 'pencil' ? tiltFactor(p0.t) : 1)
     return circlePath(p0.x, p0.y, r)
   }
 
@@ -86,9 +96,12 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
   const nx = new Float64Array(n)
   const ny = new Float64Array(n)
   const isHl = stroke.tool === 'highlighter'
+  const isPencil = stroke.tool === 'pencil'
   for (let i = 0; i < n; i++) {
     const pt = pts[i]!
-    hw[i] = isHl ? stroke.size / 2 : halfWidthAt(stroke.size, pt.p, hasPressure)
+    hw[i] = isHl
+      ? stroke.size / 2
+      : halfWidthAt(stroke.size, pt.p, hasPressure) * (isPencil ? tiltFactor(pt.t) : 1)
     const prev = pts[Math.max(0, i - 1)]!
     const next = pts[Math.min(n - 1, i + 1)]!
     let tx = next.x - prev.x
@@ -425,4 +438,47 @@ export function scaleStrokeInto(
       y: round1(to.y0 + (p.y - from.y0) * sy),
     })),
   }
+}
+
+/** Rotate every point around (cx, cy) by `rad` radians (clockwise on screen). */
+export function rotateStroke(stroke: InkStroke, cx: number, cy: number, rad: number): InkStroke {
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  return {
+    ...stroke,
+    points: stroke.points.map((p) => {
+      const dx = p.x - cx
+      const dy = p.y - cy
+      return { ...p, x: round1(cx + dx * cos - dy * sin), y: round1(cy + dx * sin + dy * cos) }
+    }),
+  }
+}
+
+/* --------------------------------- Lasso ---------------------------------- */
+
+/** Even-odd ray cast — polygon given as a flat list of points. */
+export function pointInPolygon(x: number, y: number, poly: readonly InkPoint[]): boolean {
+  let inside = false
+  const n = poly.length
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const a = poly[i]!
+    const b = poly[j]!
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y || 1e-9) + a.x) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+/**
+ * A stroke belongs to a lasso when most of its points fall inside the loop —
+ * tolerant of a sloppy drag that clips the tail of a word, strict enough that
+ * a neighbouring line the loop barely grazes stays put.
+ */
+export function strokeInLasso(stroke: InkStroke, poly: readonly InkPoint[]): boolean {
+  const pts = stroke.points
+  if (pts.length === 0 || poly.length < 3) return false
+  let inside = 0
+  for (const p of pts) if (pointInPolygon(p.x, p.y, poly)) inside++
+  return inside * 2 >= pts.length
 }

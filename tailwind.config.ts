@@ -88,21 +88,9 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.45' },
         },
-        'pen-pop-in': {
-          from: { opacity: '0', transform: 'scale(0.85)' },
-          to: { opacity: '1', transform: 'scale(1)' },
-        },
-        'pen-pop-out': {
-          from: { opacity: '1', transform: 'scale(1)' },
-          to: { opacity: '0', transform: 'scale(0.85)' },
-        },
-        'pen-node': {
-          from: { opacity: '0', transform: 'scale(0.6)' },
-          to: { opacity: '1', transform: 'scale(1)' },
-        },
-        'pen-swap': {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
+        'popover-in': {
+          from: { opacity: '0', transform: 'scale(0.96) translateY(-4px)' },
+          to: { opacity: '1', transform: 'scale(1) translateY(0)' },
         },
         'note-collapse': {
           from: { opacity: '1', transform: 'scale(1)' },
@@ -132,10 +120,7 @@ export default {
         wiggle: 'wiggle 3s ease-in-out infinite',
         'bounce-soft': 'bounce-soft 3s ease-in-out infinite',
         'pulse-soft': 'pulse-soft 1.6s ease-in-out infinite',
-        'pen-pop-in': 'pen-pop-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.15)',
-        'pen-pop-out': 'pen-pop-out 130ms ease-in forwards',
-        'pen-node': 'pen-node 170ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards',
-        'pen-swap': 'pen-swap 140ms ease-out',
+        'popover-in': 'popover-in 140ms cubic-bezier(0.16, 1, 0.3, 1)',
         'note-collapse': 'note-collapse 200ms ease-in forwards',
         'note-expand': 'note-expand 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         'star-pop': 'star-pop 400ms cubic-bezier(0.2, 0.9, 0.3, 1.2)',

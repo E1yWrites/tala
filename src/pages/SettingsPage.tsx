@@ -574,6 +574,11 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl S', 'Force save'],
   ['Ctrl ⇧ D', 'Toggle dark mode'],
   ['Ctrl ,', 'Open settings'],
+  ['Ctrl .', 'Draw / type toggle'],
+  ['1 · 2 · 3', 'Pen · pencil · highlighter (drawing)'],
+  ['E / L', 'Eraser / lasso (drawing)'],
+  ['[ / ]', 'Thinner / thicker stroke (drawing)'],
+  ['Ctrl C · X · V · D', 'Copy · cut · paste · duplicate ink'],
   ['/', 'Search in list'],
   ['Esc', 'Close / go back'],
 ]
