@@ -11,6 +11,23 @@ import { snoozeSuggestion, useSuggestion } from './useSuggestion'
 import { useWritingPause } from './useWritingPause'
 
 function wording(s: Suggestion): { title: string; body: string; action: string; later: string } {
+  if (s.id === 'wrapup') {
+    const c = BITUIN.nudge.wrapup
+    return {
+      title: c.title,
+      body: c.body(s.minutes, s.pagesAdded, s.tasksLeft),
+      action: s.tasksLeft > 0 ? c.actionTasks : c.actionDone,
+      later: c.later,
+    }
+  }
+  if (s.id === 'goal') {
+    const c = BITUIN.nudge.goal
+    return { title: c.title, body: c.body(s.days), action: c.action, later: c.later }
+  }
+  if (s.id === 'resurface') {
+    const c = BITUIN.nudge.resurface
+    return { title: c.title, body: c.body(s.title, s.days), action: c.action, later: c.later }
+  }
   if (s.id === 'backup') {
     const c = BITUIN.nudge.backup
     return { title: c.title, body: c.body(s.daysSince), action: c.action, later: c.later }
@@ -20,7 +37,17 @@ function wording(s: Suggestion): { title: string; body: string; action: string; 
 }
 
 function run(s: Suggestion): void {
-  if (s.id === 'backup') void downloadBackup()
+  if (s.id === 'wrapup') {
+    // the task list is where unticked items live; with nothing left, "Thanks!" just closes the card
+    if (s.tasksLeft > 0) useUIStore.getState().setView({ kind: 'tasks' })
+    snoozeSuggestion(s)
+  } else if (s.id === 'goal') snoozeSuggestion(s)
+  else if (s.id === 'resurface') {
+    const ui = useUIStore.getState()
+    ui.setView({ kind: 'all' })
+    ui.selectNote(s.noteId)
+    snoozeSuggestion(s)
+  } else if (s.id === 'backup') void downloadBackup()
   else if (s.variant === 'android') void promptInstall()
   else useUIStore.getState().openModal({ kind: 'install-guide' })
 }

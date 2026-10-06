@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ChevronLeft,
   Download,
+  FlaskConical,
   HardDrive,
   Import,
   Keyboard,
@@ -22,6 +23,10 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
 import { detectEnv } from '@/coach/env'
+import { BITUIN } from '@/coach/copy'
+import { MAX_WEEKLY_GOAL } from '@/coach/study'
+import { setWeeklyGoal, useStudyStore } from '@/library/study'
+import { getEngine, indexAllInk, unindexedPages } from '@/library/inkText'
 import { isPersisted } from '@/library/storage'
 import { formatRelative } from '@/utils/dates'
 import { wipe } from '@/library/snapshot'
@@ -123,10 +128,12 @@ function Switch({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   label: string
+  disabled?: boolean
 }): React.ReactNode {
   return (
     <button
@@ -134,9 +141,10 @@ function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-7 w-12 rounded-full border border-line transition-colors',
+        'relative h-7 w-12 rounded-full border border-line transition-colors disabled:pointer-events-none disabled:opacity-40',
         checked ? 'border-accent bg-accent' : 'bg-canvas',
       )}
     >
@@ -172,9 +180,21 @@ export function SettingsPage(): React.ReactNode {
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const env = detectEnv()
   const quietMode = usePrefsStore((s) => s.quietMode)
+  const weeklyGoal = useStudyStore((st) => st.goal)
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
   const leftHanded = usePrefsStore((s) => s.leftHanded)
   const setLeftHanded = usePrefsStore((s) => s.setLeftHanded)
+  const handwritingSearch = usePrefsStore((s) => s.handwritingSearch)
+  const setHandwritingSearch = usePrefsStore((s) => s.setHandwritingSearch)
+  const [recognizer, setRecognizer] = useState<'checking' | 'built-in' | 'none'>('checking')
+  const [reading, setReading] = useState<string | null>(null)
+  useEffect(() => {
+    let stale = false
+    void getEngine().then((e) => !stale && setRecognizer(e ? 'built-in' : 'none'))
+    return () => {
+      stale = true
+    }
+  }, [])
   const lastBackupAt = usePrefsStore((s) => s.coach.lastBackupAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingRef = useRef<BackupFile | null>(null)
@@ -451,12 +471,72 @@ export function SettingsPage(): React.ReactNode {
           >
             <Switch checked={quietMode} onChange={toggleQuietMode} label="Quiet mode" />
           </SettingRow>
+          <SettingRow label={BITUIN.week.goalLabel} hint={BITUIN.week.goalHint}>
+            <select
+              value={weeklyGoal}
+              onChange={(e) => setWeeklyGoal(Number(e.target.value))}
+              aria-label={BITUIN.week.goalLabel}
+              className="h-10 w-full rounded-card border border-lineSoft bg-canvas px-2.5 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            >
+              {Array.from({ length: MAX_WEEKLY_GOAL }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} study {n === 1 ? 'day' : 'days'} a week
+                </option>
+              ))}
+            </select>
+          </SettingRow>
           <SettingRow
             label="Left-handed layout"
             hint="Mirrors the phone tab bar, the pen bar and Bituin's corner."
           >
             <Switch checked={leftHanded} onChange={setLeftHanded} label="Left-handed layout" />
           </SettingRow>
+        </Section>
+
+        {/* Experiments */}
+        <Section
+          icon={FlaskConical}
+          title="Experiments"
+          description="Things that work on some devices and may change or go away."
+        >
+          <SettingRow
+            label="Handwriting search"
+            hint={
+              recognizer === 'none'
+                ? 'This browser has no handwriting recognition (Chrome on ChromeOS and some Android devices does; Safari on iPad does not yet). Nothing is downloaded or sent anywhere.'
+                : 'Reads your handwriting in the background so search can find it. It uses your browser’s built-in recognizer, so nothing leaves this device. Accuracy varies.'
+            }
+          >
+            <Switch
+              checked={handwritingSearch && recognizer === 'built-in'}
+              onChange={setHandwritingSearch}
+              label="Handwriting search"
+              disabled={recognizer !== 'built-in'}
+            />
+          </SettingRow>
+          {handwritingSearch && recognizer === 'built-in' && (
+            <SettingRow
+              label="Read existing handwriting"
+              hint="Notes written before you turned this on are not searchable by their handwriting until they are read."
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={reading !== null}
+                onClick={() => {
+                  const todo = unindexedPages().length
+                  if (todo === 0) return void toast.info('All your handwriting has been read.')
+                  setReading(`Reading 0 of ${todo}…`)
+                  void indexAllInk((done, total) => setReading(`Reading ${done} of ${total}…`))
+                    .then((n) => toast.success(`Read ${n} page${n === 1 ? '' : 's'} of handwriting.`))
+                    .catch(() => toast.error('Could not read the handwriting.'))
+                    .finally(() => setReading(null))
+                }}
+              >
+                {reading ?? 'Read it now'}
+              </Button>
+            </SettingRow>
+          )}
         </Section>
 
         {/* Shortcuts */}

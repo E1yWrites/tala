@@ -29,7 +29,7 @@ const note = (id: string, patch: Partial<Note> = {}): Note => ({
 const ink = { version: 1, width: 700, strokes: [{ id: 's1' }] }
 
 /** Opens a raw database exactly as an older release declared it. */
-async function seedOld(version: 1 | 2 | 3, fill: (old: Dexie) => Promise<void>): Promise<void> {
+async function seedOld(version: 1 | 2 | 3 | 4, fill: (old: Dexie) => Promise<void>): Promise<void> {
   db.close()
   await Dexie.delete('tala')
   const old = new Dexie('tala')
@@ -40,9 +40,10 @@ async function seedOld(version: 1 | 2 | 3, fill: (old: Dexie) => Promise<void>):
     settings: 'key',
   })
   if (version >= 2) old.version(2).stores({ inkDocs: 'noteId' })
-  if (version === 3) {
+  if (version >= 3) {
     old.version(3).stores({ folders: 'id, name, parentId', pages: 'id, noteId, [noteId+index]', pdfs: 'noteId' })
   }
+  if (version >= 4) old.version(4).stores({ blobs: 'id' })
   await old.open()
   await fill(old)
   old.close()
@@ -98,8 +99,8 @@ describe('upgradePages', () => {
   })
 })
 
-describe('Dexie upgrade to v4', () => {
-  it('v2 → v4: every note gets a page 1 with a copy of its text; ink is untouched', async () => {
+describe('Dexie upgrade to v5', () => {
+  it('v2 → v5: every note gets a page 1 with a copy of its text; ink is untouched', async () => {
     await seedOld(2, async (old) => {
       await old.table('notes').bulkPut([
         note('typed', { content: doc('lecture one') }),
@@ -110,7 +111,7 @@ describe('Dexie upgrade to v4', () => {
     })
 
     await db.open()
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
 
     const pages = await db.pages.toArray()
     expect(pages.map((p) => p.id).sort()).toEqual(['blank', 'inked', 'typed'])
@@ -165,5 +166,31 @@ describe('Dexie upgrade to v4', () => {
     await db.open()
     expect(await db.notes.count()).toBe(1)
     expect(await db.pages.count()).toBe(0)
+  })
+})
+
+describe('Dexie v4 → v5', () => {
+  it('adds the audio and meta tables and leaves everything else alone', async () => {
+    await seedOld(4, async (old) => {
+      await old.table('notes').put(note('kept', { content: doc('still here') }))
+      await old.table('pages').put({ id: 'kept', noteId: 'kept', index: 0, template: 'blank', content: doc('still here'), text: 'still here', createdAt: 1, updatedAt: 1 })
+      await old.table('blobs').put({ id: 'b1', data: new Blob(['x'], { type: 'text/plain' }) })
+    })
+
+    await db.open()
+    expect(db.verno).toBe(5)
+    expect((await db.pages.get('kept'))!.text).toBe('still here')
+    expect(await db.blobs.count()).toBe(1)
+
+    // the new tables are usable, and chunks are found by recording id
+    await db.recordings.put({ id: 'r1', noteId: 'kept', startedAt: 1, durationMs: 5000, mime: 'audio/webm', status: 'complete', chunkCount: 2, bytes: 10 })
+    await db.audioChunks.bulkPut([
+      { recordingId: 'r1', seq: 0, data: new Blob(['a']) },
+      { recordingId: 'r1', seq: 1, data: new Blob(['b']) },
+      { recordingId: 'r2', seq: 0, data: new Blob(['c']) },
+    ])
+    expect(await db.audioChunks.where('recordingId').equals('r1').count()).toBe(2)
+    await db.meta.put({ key: 'coach:weeklyGoal', value: 4 })
+    expect((await db.meta.get('coach:weeklyGoal'))!.value).toBe(4)
   })
 })

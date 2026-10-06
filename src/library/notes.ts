@@ -8,6 +8,7 @@ import type { InkDocRecord, Note, PageRecord, PdfRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
 import { createId } from '@/utils/id'
 import { PAGE_SIZES } from './pageSize'
+import { abortRecordingFor } from './recorder'
 
 /*
   The only code that mutates or persists notes, pages, ink and the blobs they
@@ -358,8 +359,9 @@ export function duplicateNote(id: string): Note | undefined {
   return copy
 }
 
-/** Permanently removes notes with their pages, ink, PDF and unreferenced blobs. */
+/** Permanently removes notes with their pages, ink, PDF, recordings and unreferenced blobs. */
 export async function deleteForever(ids: string[]): Promise<void> {
+  abortRecordingFor(ids)
   await flush()
   const notes = useNoteStore.getState().notes.filter((n) => ids.includes(n.id))
   const pages = Object.fromEntries(ids.map((id) => [id, getPages(id)]))
@@ -375,8 +377,11 @@ export async function deleteForever(ids: string[]): Promise<void> {
   }
   await enqueue(
     async () => {
-      await db.transaction('rw', db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, async () => {
+      await db.transaction('rw', [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks], async () => {
         const rows = await db.pages.where('noteId').anyOf(ids).toArray()
+        const recordingIds = (await db.recordings.where('noteId').anyOf(ids).primaryKeys()) as string[]
+        await db.audioChunks.where('recordingId').anyOf(recordingIds).delete()
+        await db.recordings.bulkDelete(recordingIds)
         const pdfs = (await db.pdfs.bulkGet(ids)).filter((p): p is PdfRecord => !!p)
         await db.notes.bulkDelete(ids)
         await db.inkDocs.bulkDelete([...rows.map((p) => p.id), ...ids])
@@ -396,7 +401,7 @@ export async function emptyTrash(): Promise<void> {
   if (ids.length > 0) await deleteForever(ids)
 }
 
-/** Erases every note, page, ink doc and blob. Folders, tags and settings stay. */
+/** Erases every note, page, ink doc, blob and recording. Folders, tags and settings stay. */
 export async function clearAll(): Promise<void> {
   await flush()
   const notes = useNoteStore.getState().notes
@@ -406,8 +411,8 @@ export async function clearAll(): Promise<void> {
   usePageStore.setState({ pagesByNote: {} })
   await enqueue(
     async () => {
-      await db.transaction('rw', db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, async () => {
-        await Promise.all([db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs].map((t) => t.clear()))
+      await db.transaction('rw', [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks], async () => {
+        await Promise.all([db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks].map((t) => t.clear()))
       })
       onDisk = new Set()
     },
@@ -422,8 +427,27 @@ export async function clearAll(): Promise<void> {
 /* ---------------------------------- Ink ----------------------------------- */
 
 /** Handwriting for one page. Lands in the store at once and in IndexedDB right behind it. */
+let inkSavedHook: ((noteId: string, pageId: string) => void) | null = null
+/** Lets the handwriting indexer hear about edits (and only edits: boot and restore don't come through here). */
+export function onInkSaved(fn: (noteId: string, pageId: string) => void): void {
+  inkSavedHook = fn
+}
+
+/** Stores the text recognised from a page's handwriting. A derived value: it does not count as an edit. */
+export function setInkText(noteId: string, pageId: string, text: string): Promise<SaveResult> {
+  const pages = getPages(noteId)
+  const page = pages.find((p) => p.id === pageId)
+  if (!page) return Promise.resolve('gone')
+  if (page.inkText === text) return Promise.resolve('saved')
+  setPages(noteId, pages.map((p) => (p.id === pageId ? { ...p, inkText: text } : p)))
+  return commit(noteId, 'save handwriting text', async () => {
+    await db.pages.update(pageId, { inkText: text })
+  })
+}
+
 export function saveInk(noteId: string, pageId: string, doc: InkDoc): void {
   useNoteStore.setState((s) => ({ inkDocs: { ...s.inkDocs, [pageId]: doc } }))
+  inkSavedHook?.(noteId, pageId)
   if (!touches.has(pageId)) {
     touches.set(pageId, { noteId, timer: setTimeout(() => runTouch(pageId), INK_TOUCH_DELAY) })
   }

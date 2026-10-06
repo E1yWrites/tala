@@ -1,4 +1,15 @@
-import type { AppSettings, BlobRecord, Folder, InkDocRecord, Note, PageRecord, PdfRecord, Tag } from '@/types/models'
+import type {
+  AppSettings,
+  BlobRecord,
+  Folder,
+  InkDocRecord,
+  MetaRecord,
+  Note,
+  PageRecord,
+  PdfRecord,
+  RecordingRecord,
+  Tag,
+} from '@/types/models'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import { sanitizeDoc } from '@/utils/doc'
 import JSZip from 'jszip'
@@ -22,6 +33,10 @@ export interface BackupFile {
   /** Multi-page notes + PDF pages. Optional so v1/v2 JSON imports still work. */
   pages?: PageRecord[]
   pdfs?: PdfRecord[]
+  /** Lecture audio rows (metadata only: the audio itself is never inside a backup). */
+  recordings?: RecordingRecord[]
+  /** Study days and the weekly goal. */
+  meta?: MetaRecord[]
   /** Binary payloads: the bytes are separate zip entries named `blobs/<id>`. */
   blobs?: Array<{ id: string; type: string }>
   /** Runtime only (filled by importBackupFile from the zip entries); never serialized. */
@@ -41,6 +56,8 @@ function snapshotToBackup(s: Snapshot): BackupFile {
     inkDocs: s.inkDocs,
     pages: s.pages,
     pdfs: s.pdfs,
+    recordings: s.recordings,
+    meta: s.meta,
     blobs: s.blobs.map((b) => ({ id: b.id, type: b.data.type })),
   }
 }
@@ -187,6 +204,14 @@ export function parseBackup(text: string): BackupFile {
         .map((x) => ({ id: x.id, type: typeof x.type === 'string' ? x.type : '' }))
     : []
 
+  const recordings = Array.isArray(b.recordings)
+    ? (b.recordings as unknown[]).map(normalizeRecording).filter((r): r is RecordingRecord => r !== null)
+    : []
+  const meta = Array.isArray(b.meta)
+    ? (b.meta as unknown[]).filter((m): m is MetaRecord => isObj(m) && isStr(m.key) && 'value' in m)
+        .map((m) => ({ key: m.key, value: m.value }))
+    : []
+
   return {
     ...(b as BackupFile),
     version: 3,
@@ -198,6 +223,24 @@ export function parseBackup(text: string): BackupFile {
     pages,
     pdfs,
     blobs,
+    recordings,
+    meta,
+  }
+}
+
+function normalizeRecording(raw: unknown): RecordingRecord | null {
+  if (!isObj(raw) || !isStr(raw.id) || !isStr(raw.noteId)) return null
+  const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : d)
+  return {
+    id: raw.id,
+    noteId: raw.noteId,
+    startedAt: num(raw.startedAt, Date.now()),
+    durationMs: num(raw.durationMs, 0),
+    mime: typeof raw.mime === 'string' ? raw.mime : '',
+    // a lecture cannot be live inside a file
+    status: raw.status === 'complete' ? 'complete' : 'interrupted',
+    chunkCount: num(raw.chunkCount, 0),
+    bytes: num(raw.bytes, 0),
   }
 }
 
@@ -228,6 +271,7 @@ function normalizePage(raw: unknown): PageRecord | null {
   // Pre-v4 pages carry no `content`: leave it undefined so restore() upgrades them.
   if (isObj(raw.content) || raw.content === null) page.content = sanitizeDoc(raw.content)
   if (typeof raw.text === 'string') page.text = raw.text
+  if (typeof raw.inkText === 'string') page.inkText = raw.inkText
   const size = raw.size
   if (
     isObj(size) &&
@@ -365,6 +409,8 @@ export async function restoreBackup(
       pages: backup.pages,
       pdfs: backup.pdfs,
       blobs: backup.blobData,
+      recordings: backup.recordings,
+      meta: backup.meta,
     },
     mode,
   )

@@ -60,12 +60,44 @@ export const BITUIN = {
       action: 'Show me how',
       later: 'Not now',
     },
+    wrapup: {
+      title: 'Galing! Good session.',
+      body: (minutes: number, pages: number, tasks: number): string => {
+        const bits = [`${minutes} min of writing`]
+        if (pages > 0) bits.push(`${pages} new page${pages === 1 ? '' : 's'}`)
+        const tail = tasks > 0 ? ` ${tasks} task${tasks === 1 ? ' is' : 's are'} still unticked.` : ' Everything is ticked off.'
+        return `${bits.join(', ')}.${tail}`
+      },
+      actionTasks: 'See tasks',
+      actionDone: 'Thanks!',
+      later: 'Dismiss',
+    },
+    goal: {
+      title: 'Weekly goal reached! Ang galing!',
+      body: (days: number): string => `${days} study days this week. Rest or keep going: missing a day never resets anything.`,
+      action: 'Salamat!',
+      later: 'Dismiss',
+    },
+    resurface: {
+      title: 'Remember this one?',
+      body: (title: string, days: number): string => `“${title}” hasn’t been opened in ${days} days. A quick look helps it stick.`,
+      action: 'Open it',
+      later: 'Not now',
+    },
     installAndroid: {
       title: 'Install Tala',
       body: 'Install it for a full-screen notebook that works offline and keeps your notes protected.',
       action: 'Install',
       later: 'Not now',
     },
+  },
+
+  week: {
+    title: 'This week',
+    summary: (days: number, goal: number): string => `${days} of ${goal} study days`,
+    hint: 'A study day is five minutes of writing or marking up.',
+    goalLabel: 'Weekly study goal',
+    goalHint: 'Bituin cheers when you reach it. Missing a day resets nothing.',
   },
 
   reaction: {

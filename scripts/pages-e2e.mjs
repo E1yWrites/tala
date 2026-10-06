@@ -1,7 +1,8 @@
 /* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, the Tasks view, ink tools (zoom, wet ink, lasso, page strip, PDF
- * export) and the backup nudge (snooze, Quiet mode).
+ * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
+ * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
  * Headless-shell needs: LD_LIBRARY_PATH=/tmp/opencode/nssroot/usr/lib/x86_64-linux-gnu */
 import { chromium } from 'playwright-core'
@@ -101,8 +102,11 @@ const canvasHasInk = (p) =>
     return false
   })
 
-const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
+// A fake microphone, so lecture recording runs for real in headless Chromium
+const browser = await chromium.launch({
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
+})
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, permissions: ['microphone'] })
 const page = await ctx.newPage()
 page.on('pageerror', (err) => {
   failures++
@@ -519,6 +523,153 @@ await rm(pdfPath, { force: true })
 await page.keyboard.press('Escape')
 await wait(300)
 
+/* ---- 6c. Lecture audio: record, write, replay, save, survive a crash ----------- */
+await newNote(page)
+await page.locator('text=Blank note').first().click()
+await wait(700)
+await page.click('.ProseMirror')
+await page.keyboard.type('AUDIO-LECTURE-NOTE')
+await wait(900)
+const audioRows = () =>
+  page.evaluate(
+    () =>
+      new Promise((res) => {
+        const r = indexedDB.open('tala')
+        r.onsuccess = () => {
+          const out = {}
+          const t = r.result.transaction(['recordings', 'audioChunks', 'inkDocs'])
+          t.objectStore('recordings').getAll().onsuccess = (e) => (out.rec = e.target.result)
+          t.objectStore('audioChunks').count().onsuccess = (e) => (out.chunks = e.target.result)
+          t.objectStore('inkDocs').getAll().onsuccess = (e) => (out.ink = e.target.result)
+          t.oncomplete = () => res(out)
+        }
+      }),
+  )
+const lastRec = (r) => [...r.rec].sort((x, y) => x.startedAt - y.startedAt).at(-1)
+await page.click('button[aria-label="Lecture audio"]')
+await wait(400)
+await page.click('button[aria-label="Start recording"]')
+await wait(1500)
+check('Stop shows while a lecture records', await page.locator('button[aria-label="Stop recording"]').isVisible())
+await page.click('button[aria-label="Pen mode"]')
+await wait(300)
+const audioSvg = await page.locator('svg.ink-svg').boundingBox()
+const ax2 = Math.max(audioSvg.x, 700) + 100
+const ay2 = 520
+await page.mouse.move(ax2, ay2)
+await page.mouse.down()
+await page.mouse.move(ax2 + 90, ay2 + 30, { steps: 6 })
+await page.mouse.up()
+await wait(7500)
+let audio = await audioRows()
+check('a 5 s chunk is on disk while still recording', audio.chunks >= 1 && lastRec(audio).status === 'recording', `${audio.chunks} chunk(s)`)
+check('handwriting written during a lecture carries a timestamp', audio.ink.some((r) => typeof r.doc.strokes[0]?.ts === 'number'))
+await page.click('button[aria-label="Exit pen mode"]')
+await page.click('button[aria-label="Stop recording"]')
+await wait(1500)
+audio = await audioRows()
+check('the lecture finishes complete with audio and a duration', lastRec(audio).status === 'complete' && audio.chunks >= 2 && lastRec(audio).durationMs > 7000, `${lastRec(audio).durationMs} ms ${lastRec(audio).mime}`)
+await page.click('button[aria-label="Play"]')
+await wait(1500)
+check('Play shows a pause button and a scrubber', (await page.locator('button[aria-label="Pause"]').count()) === 1 && (await page.locator('input[aria-label="Playback position"]').count()) === 1)
+await page.click('button[aria-label="Pause"]')
+await page.click('button[aria-label="Pen mode"]')
+await page.keyboard.press('v')
+await wait(200)
+await page.mouse.move(ax2 + 45, ay2 + 15)
+await page.mouse.down()
+await page.mouse.up()
+await wait(1500)
+check('tapping the stroke with the lasso plays the lecture from then', (await page.locator('button[aria-label="Pause"]').count()) === 1)
+await page.click('button[aria-label="Exit pen mode"]')
+const audioFile = page.waitForEvent('download', { timeout: 10000 })
+await page.click('button[aria-label="Save audio file"]')
+check('Save audio downloads the recording', /\.(webm|m4a|ogg)$/.test((await audioFile).suggestedFilename()))
+await page.click('button[aria-label="Start recording"]')
+await wait(6500)
+await page.reload({ waitUntil: 'networkidle' }) // kills the recorder mid-lecture, like a crash
+await ready(page)
+const crashed = lastRec(await audioRows())
+check('after a crash the lecture is interrupted but its audio is kept', crashed.status === 'interrupted' && crashed.chunkCount >= 1, `${crashed.chunkCount} chunk(s)`)
+check('boot tells the owner about it', await page.locator('text=A recording was interrupted').first().waitFor({ timeout: 4000 }).then(() => true, () => false))
+
+/* ---- 6d. Snap-to-shape: hold the pen still at the end of a stroke ------------------ */
+await newNote(page)
+await page.locator('text=Blank note').first().click()
+await wait(700)
+await page.click('button[aria-label="Pen mode"]')
+await wait(300)
+const snapBox = await page.locator('svg.ink-svg').boundingBox()
+const px = Math.max(snapBox.x, 480) + 140
+const py = 330
+let seed = 11
+const jitter = () => {
+  seed = (seed * 1103515245 + 12345) % 2147483648
+  return (seed / 2147483648 - 0.5) * 5
+}
+const strokeDocs = async () => {
+  const rows = await page.evaluate(
+    () =>
+      new Promise((res) => {
+        const r = indexedDB.open('tala')
+        r.onsuccess = () => {
+          const g = r.result.transaction('inkDocs').objectStore('inkDocs').getAll()
+          g.onsuccess = () => res(g.result)
+        }
+      }),
+  )
+  return rows.flatMap((r) => r.doc.strokes)
+}
+const drag = async (pts, holdMs) => {
+  await page.mouse.move(pts[0].x, pts[0].y)
+  await page.mouse.down()
+  for (const q of pts.slice(1)) await page.mouse.move(q.x, q.y)
+  if (holdMs) await wait(holdMs)
+  await page.mouse.up()
+  await wait(400)
+}
+const circle = (cx, cy, r) => Array.from({ length: 41 }, (_, i) => ({ x: cx + r * Math.cos((i / 40) * 2 * Math.PI) + jitter(), y: cy + r * Math.sin((i / 40) * 2 * Math.PI) + jitter() }))
+const ringError = (pts, cx, cy) => {
+  const rs = pts.map((q) => Math.hypot(q.x - cx, q.y - cy))
+  const mean = rs.reduce((a, b) => a + b, 0) / rs.length
+  return Math.max(...rs.map((r) => Math.abs(r - mean)))
+}
+
+const drawn = async (pts, holdMs) => {
+  const known = new Set((await strokeDocs()).map((st) => st.id))
+  await drag(pts, holdMs)
+  await wait(900)
+  return (await strokeDocs()).find((st) => !known.has(st.id))?.points ?? []
+}
+const centre = (pts) => {
+  const xs = pts.map((q) => q.x)
+  const ys = pts.map((q) => q.y)
+  return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
+}
+
+const snappedCircle = await drawn(circle(px, py, 60), 900)
+const sc = centre(snappedCircle)
+check('holding the pen still turns a rough circle into a true one', ringError(snappedCircle, sc.x, sc.y) < 1.5, `ring error ${ringError(snappedCircle, sc.x, sc.y).toFixed(2)}, ${snappedCircle.length} pts`)
+
+const lastFree = await drawn(circle(px + 220, py, 60), 0)
+const lc = centre(lastFree)
+check('without holding, the stroke stays as drawn', ringError(lastFree, lc.x, lc.y) > 1.8, `ring error ${ringError(lastFree, lc.x, lc.y).toFixed(2)}`)
+
+const rx0 = px - 60
+const ry0 = py + 150
+const corners = [[rx0, ry0], [rx0 + 160, ry0 + 3], [rx0 + 158, ry0 + 90], [rx0 + 2, ry0 + 88], [rx0 + 1, ry0 + 2]]
+const edge = []
+for (let i = 0; i < corners.length - 1; i++) {
+  for (let k = 0; k < 10; k++) {
+    edge.push({ x: corners[i][0] + ((corners[i + 1][0] - corners[i][0]) * k) / 10 + jitter() / 2, y: corners[i][1] + ((corners[i + 1][1] - corners[i][1]) * k) / 10 + jitter() / 2 })
+  }
+}
+const rect = await drawn(edge, 900)
+const xs = [...new Set(rect.map((q) => Math.round(q.x)))]
+const ys = [...new Set(rect.map((q) => Math.round(q.y)))]
+check('a rough rectangle becomes an exact one', rect.length <= 6 && xs.length === 2 && ys.length === 2, `${rect.length} points, ${xs.length}x${ys.length} distinct`)
+await page.click('button[aria-label="Exit pen mode"]')
+
 /* ---- 7. Bituin: weekly backup nudge, snooze, Quiet mode ----------------------- */
 const weekOld = JSON.stringify({ state: { coach: { firstSeenAt: Date.now() - 10 * 86400000 } }, version: 1 })
 async function nudgeSession(prefs) {
@@ -613,6 +764,117 @@ async function nudgeSession(prefs) {
   await pg.keyboard.type('x')
   await wait(200)
   check('phone: the chip steps aside the moment writing resumes', !(await pg.isVisible('[role="status"] >> text=Back up your notes?')))
+  await c.close()
+}
+
+/* ---- 8. Coach loop: wrap-up, weekly goal, resurfacing --------------------------- */
+async function coachSession(setup, { clock = false } = {}) {
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
+  const pg = await c.newPage()
+  pg.on('pageerror', (err) => { failures++; console.log('FAIL  page error —', err.message) })
+  if (clock) await pg.clock.install() // time still flows; fastForward jumps it
+  await pg.goto(BASE, { waitUntil: 'networkidle' })
+  await ready(pg)
+  await onboard(pg)
+  await setup?.(pg)
+  return { c, pg }
+}
+const putRows = (pg, tables) =>
+  pg.evaluate(
+    (t) =>
+      new Promise((res, rej) => {
+        const r = indexedDB.open('tala')
+        r.onerror = () => rej(r.error)
+        r.onsuccess = () => {
+          const tx = r.result.transaction(Object.keys(t), 'readwrite')
+          for (const [name, rows] of Object.entries(t)) rows.forEach((row) => tx.objectStore(name).put(row))
+          tx.oncomplete = () => res()
+        }
+      }),
+    tables,
+  )
+const textDoc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
+const oldNote = (id, title, ageDays) => {
+  const at = Date.now() - ageDays * 86400000
+  return {
+    note: { id, title, content: null, ink: null, folderId: null, tagIds: [], isPinned: false, isFavorite: false, isArchived: false, isDeleted: false, deletedAt: null, createdAt: at, updatedAt: at },
+    page: { id, noteId: id, index: 0, template: 'blank', content: textDoc('enzymes and substrates'), text: 'enzymes and substrates', size: { w: 595, h: 842, kind: 'a4' }, createdAt: at, updatedAt: at },
+  }
+}
+const goHome = async (pg) => {
+  await pg.click('nav >> text=Home').catch(() => {})
+  await wait(500)
+}
+
+{
+  const { note, page: pageRow } = oldNote('stale-1', 'Organic Chemistry', 10)
+  const { c, pg } = await coachSession((p) => putRows(p, { notes: [note], pages: [pageRow] }))
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await goHome(pg)
+  check('Bituin brings back a note untouched for 10 days', await pg.isVisible('text=Remember this one?'))
+  check('…and names it and the days', await pg.isVisible('text=“Organic Chemistry” hasn’t been opened in 10 days'))
+  await pg.click('button:has-text("Not now")')
+  await wait(300)
+  check('"Not now" rests the reminder', !(await pg.isVisible('text=Remember this one?')))
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await goHome(pg)
+  check('…across reloads', !(await pg.isVisible('text=Remember this one?')))
+  await c.close()
+}
+
+{
+  // This week's Monday..Thursday, five minutes each => the default goal of 4
+  const monday = new Date()
+  monday.setHours(12, 0, 0, 0)
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+  const p2 = (n) => String(n).padStart(2, '0')
+  const meta = [0, 1, 2, 3].map((i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return { key: `study:${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, value: 600 }
+  })
+  const { note, page: pageRow } = oldNote('fresh-1', 'This week', 0)
+  const { c, pg } = await coachSession((p) => putRows(p, { notes: [note], pages: [pageRow], meta }))
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await goHome(pg)
+  check('Home shows study days this week', await pg.isVisible('text=4 of 4 study days'))
+  check('Bituin cheers the weekly goal', await pg.isVisible('text=Weekly goal reached!'))
+  await pg.click('button:has-text("Salamat!")')
+  await wait(300)
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await goHome(pg)
+  check('the cheer comes once per week', !(await pg.isVisible('text=Weekly goal reached!')))
+  await pg.click('nav >> text=Settings').catch(() => pg.click('button[aria-label="Settings"]'))
+  await wait(500)
+  await pg.selectOption('select[aria-label="Weekly study goal"]', '6')
+  await wait(400)
+  check('handwriting search says so when the browser cannot read handwriting', (await pg.isVisible('text=This browser has no handwriting recognition')) && (await pg.locator('button[aria-label="Handwriting search"]').isDisabled()))
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await goHome(pg)
+  check('the weekly goal setting persists', await pg.isVisible('text=4 of 6 study days'))
+  await c.close()
+}
+
+{
+  const { c, pg } = await coachSession(null, { clock: true })
+  await newNote(pg)
+  await pg.locator('text=Blank note').first().click()
+  await wait(700)
+  await pg.click('.ProseMirror')
+  for (const word of ['one', 'two', 'three', 'four']) {
+    await pg.keyboard.type(`${word} `)
+    await pg.clock.fastForward(25_000) // under the 30 s gap that counts as a pause
+  }
+  await pg.clock.fastForward(11 * 60_000) // ten idle minutes end the session
+  await pg.clock.fastForward(3000) // and Bituin waits for the pen to rest
+  await wait(300)
+  check('Bituin wraps up the session after ten idle minutes', await pg.isVisible('text=Galing! Good session.'))
+check('…with minutes of writing', await pg.isVisible('text=/\\d+ min of writing/'))
   await c.close()
 }
 

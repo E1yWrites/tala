@@ -2,12 +2,15 @@ import Dexie from 'dexie'
 import { db, SAFETY_DB } from '@/database/db'
 import type {
   AppSettings,
+  AudioChunkRecord,
   BlobRecord,
   Folder,
   InkDocRecord,
+  MetaRecord,
   Note,
   PageRecord,
   PdfRecord,
+  RecordingRecord,
   Tag,
 } from '@/types/models'
 import { upgradePages } from './migrate'
@@ -25,6 +28,9 @@ export const LIBRARY_TABLES = [
   'pages',
   'pdfs',
   'blobs',
+  'recordings',
+  'audioChunks',
+  'meta',
 ] as const
 
 export interface Snapshot {
@@ -36,13 +42,22 @@ export interface Snapshot {
   pages: PageRecord[]
   pdfs: PdfRecord[]
   blobs: BlobRecord[]
+  recordings: RecordingRecord[]
+  /** Always empty in a dump: audio is saved per lecture, never inside a backup (see dump). */
+  audioChunks: AudioChunkRecord[]
+  meta: MetaRecord[]
 }
 
-/** Reads every library table. Tables an older schema doesn't have yet come back empty. */
+/**
+ * Reads every library table. Tables an older schema doesn't have yet come back empty.
+ * Audio bytes are left out on purpose: a zip is built in memory, and an
+ * audio-inclusive backup can crash Safari. Recording rows still travel, so a
+ * restored lecture shows up as "audio not in this backup".
+ */
 export async function dump(source: Dexie = db): Promise<Snapshot> {
   const existing = new Set(source.tables.map((t) => t.name))
   const rows = await Promise.all(
-    LIBRARY_TABLES.map((t) => (existing.has(t) ? source.table(t).toArray() : [])),
+    LIBRARY_TABLES.map((t) => (t !== 'audioChunks' && existing.has(t) ? source.table(t).toArray() : [])),
   )
   return Object.fromEntries(LIBRARY_TABLES.map((t, i) => [t, rows[i]])) as unknown as Snapshot
 }
@@ -67,6 +82,10 @@ export async function restore(data: Partial<Snapshot>, mode: 'merge' | 'replace'
     pages: [...(data.pages ?? []).filter((p) => !upgradedIds.has(p.id)), ...upgraded.pages],
     pdfs: data.pdfs ?? [],
     blobs: [...(data.blobs ?? []), ...upgraded.blobs],
+    // a backup taken mid-lecture must not restore a recording that claims to be live
+    recordings: (data.recordings ?? []).map((r) => (r.status === 'recording' ? { ...r, status: 'interrupted' as const } : r)),
+    audioChunks: data.audioChunks ?? [],
+    meta: data.meta ?? [],
   }
 
   await db.transaction('rw', LIBRARY_TABLES.map((t) => db.table(t)), async () => {

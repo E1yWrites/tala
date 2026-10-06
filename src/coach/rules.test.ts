@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_COACH_PREFS, type CoachPrefs } from '@/store/prefsStore'
-import { DAY, INSTALL_MAX_DISMISSALS, nextSuggestion, type CoachState } from './rules'
+import { DAY, INSTALL_MAX_DISMISSALS, RESURFACE_AFTER_DAYS, WRAPUP_FRESH_MS, nextSuggestion, type CoachState } from './rules'
 
 const NOW = 1_000 * DAY
 
@@ -10,6 +10,9 @@ const state = (patch: Omit<Partial<CoachState>, 'coach'> & { coach?: Partial<Coa
   env: { platform: 'desktop', standalone: false },
   canPromptInstall: false,
   quietMode: false,
+  wrapup: null,
+  week: { key: '2026-10-05', studyDays: 0, goal: 4 },
+  staleNote: null,
   ...patch,
   coach: { ...DEFAULT_COACH_PREFS, firstSeenAt: NOW - 2 * DAY, ...patch.coach },
 })
@@ -72,3 +75,42 @@ describe('nextSuggestion', () => {
     expect(nextSuggestion({ ...s, env: { platform: 'ios', standalone: true } })).toMatchObject({ id: 'backup' })
   })
 })
+
+describe('the coach loop', () => {
+  const wrapup = { noteId: 'n', title: 'Enzymes', minutes: 14, pagesAdded: 2, tasksLeft: 3, at: NOW - 60_000 }
+
+  it('wraps up a session first, ahead of reminders', () => {
+    const coach = { firstSeenAt: NOW - 30 * DAY } // a backup is also due
+    expect(nextSuggestion(state({ wrapup, coach }))).toEqual({ id: 'wrapup', ...wrapup })
+  })
+  it('lets a stale wrap-up go', () => {
+    expect(nextSuggestion(state({ wrapup: { ...wrapup, at: NOW - WRAPUP_FRESH_MS - 1 } }))).toBeNull()
+  })
+
+  it('cheers the weekly goal once per week', () => {
+    const week = { key: '2026-10-05', studyDays: 4, goal: 4 }
+    expect(nextSuggestion(state({ week }))).toEqual({ id: 'goal', days: 4, goal: 4, week: '2026-10-05' })
+    expect(nextSuggestion(state({ week: { ...week, studyDays: 3 } }))).toBeNull()
+    expect(nextSuggestion(state({ week, coach: { goalCheeredWeek: '2026-10-05' } }))).toBeNull()
+    // next week it can cheer again
+    expect(nextSuggestion(state({ week: { ...week, key: '2026-10-12' }, coach: { goalCheeredWeek: '2026-10-05' } }))?.id).toBe('goal')
+  })
+
+  it('missing days never produces a guilt message', () => {
+    expect(nextSuggestion(state({ week: { key: '2026-10-05', studyDays: 0, goal: 4 } }))).toBeNull()
+  })
+
+  it('brings back a note untouched for a week, then rests', () => {
+    const staleNote = { id: 'old', title: 'Organic Chemistry', updatedAt: NOW - 9 * DAY }
+    expect(nextSuggestion(state({ staleNote }))).toEqual({ id: 'resurface', noteId: 'old', title: 'Organic Chemistry', days: 9 })
+    expect(nextSuggestion(state({ staleNote: { ...staleNote, updatedAt: NOW - (RESURFACE_AFTER_DAYS - 1) * DAY } }))).toBeNull()
+    expect(nextSuggestion(state({ staleNote, coach: { resurfaceSnoozeUntil: NOW + DAY } }))).toBeNull()
+  })
+
+  it('keeps reminders ahead of the old-note nudge, and Quiet mode silences all of it', () => {
+    const staleNote = { id: 'old', title: 'Old', updatedAt: NOW - 20 * DAY }
+    expect(nextSuggestion(state({ staleNote, coach: { firstSeenAt: NOW - 30 * DAY } }))?.id).toBe('backup')
+    expect(nextSuggestion(state({ staleNote, wrapup, quietMode: true }))).toBeNull()
+  })
+})
+

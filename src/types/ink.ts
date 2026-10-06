@@ -75,6 +75,8 @@ export interface InkStroke {
   /** Stroke width in capture-space px (before note scaling) */
   size: number
   points: InkPoint[]
+  /** Epoch ms when the stroke began, only while a lecture recording was running: `ts - startedAt` is the audio position. */
+  ts?: number
 }
 
 export interface InkDoc {

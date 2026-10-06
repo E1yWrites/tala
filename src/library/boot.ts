@@ -12,6 +12,10 @@ import { markOnDisk } from './notes'
 import { repairRefs } from './references'
 import { keepSafetyCopy, settleSafetyCopy } from './safety'
 import { requestPersistence } from './storage'
+import { interruptStale, formatDuration } from './recordings'
+import { loadStudy } from './study'
+import { startInkIndexer } from './inkText'
+import { toast } from 'sonner'
 
 /**
  * Reads the light tables into the Zustand stores, repairing what an
@@ -84,6 +88,7 @@ export async function load(): Promise<void> {
   useTagStore.getState().hydrate(tags)
   applyThemeToDom(settings.theme)
   useSettingsStore.setState({ settings })
+  await loadStudy().catch((err) => console.error('[tala] could not load study days', err))
 
   // An import/restore can wipe the folder or tag the user is looking at —
   // fall back to All Notes instead of lingering on a ghost view.
@@ -109,9 +114,23 @@ export function bootApp(): Promise<void> {
     const copied = await keepSafetyCopy()
     await load()
     await settleSafetyCopy(copied)
+    await announceInterruptedRecordings()
     void requestPersistence()
+    startInkIndexer()
   })()
   return bootPromise
+}
+
+/** A recording still marked live at boot means the app died mid-lecture: keep it, and say so. */
+async function announceInterruptedRecordings(): Promise<void> {
+  try {
+    const fixed = await interruptStale()
+    for (const r of fixed) {
+      toast.message(`A recording was interrupted. ${formatDuration(r.durationMs)} was saved and is in that note.`)
+    }
+  } catch (err) {
+    console.error('[tala] could not check for interrupted recordings', err)
+  }
 }
 
 /** Re-reads everything into the stores (after import/restore). */

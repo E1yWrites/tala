@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { AppSettings, Folder, Note, PageRecord, PdfRecord, Tag } from '@/types/models'
-import type { BlobRecord, InkDocRecord } from '@/types/models'
+import type { AudioChunkRecord, BlobRecord, InkDocRecord, MetaRecord, RecordingRecord } from '@/types/models'
 import { upgradePages } from '@/library/migrate'
 
 /* ---------------------------------------------------------------------------
@@ -11,7 +11,8 @@ import { upgradePages } from '@/library/migrate'
    field is still called `noteId`, renaming a primary key needs a new table).
    v3 adds nested folders (parentId), pages and pdfs.
    v4 makes a Page own its typed text (copied, never moved, from Note.content),
-   and adds `blobs` for binary data so boot never loads it. Additive only: there
+   and adds `blobs` for binary data so boot never loads it.
+   v5 adds lecture audio (`recordings` rows + `audioChunks`) and `meta`. Additive only: there
    is no downgrade path, which is why boot keeps a safety copy first.
 --------------------------------------------------------------------------- */
 
@@ -24,6 +25,9 @@ class TalaDatabase extends Dexie {
   pages!: Table<PageRecord, string>
   pdfs!: Table<PdfRecord, string>
   blobs!: Table<BlobRecord, string>
+  recordings!: Table<RecordingRecord, string>
+  audioChunks!: Table<AudioChunkRecord, [string, number]>
+  meta!: Table<MetaRecord, string>
 
   constructor() {
     super('tala')
@@ -123,6 +127,19 @@ class TalaDatabase extends Dexie {
         if (blobs.length > 0) await tx.table('blobs').bulkPut(blobs)
         if (pages.length > 0) await tx.table('pages').bulkPut(pages)
       })
+    this.version(5).stores({
+      notes: 'id, folderId, updatedAt, isDeleted',
+      folders: 'id, name, parentId',
+      tags: 'id, name',
+      settings: 'key',
+      inkDocs: 'noteId',
+      pages: 'id, noteId, [noteId+index]',
+      pdfs: 'noteId',
+      blobs: 'id',
+      recordings: 'id, noteId',
+      audioChunks: '[recordingId+seq], recordingId',
+      meta: 'key',
+    })
   }
 }
 

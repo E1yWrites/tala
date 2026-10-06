@@ -21,6 +21,7 @@ import {
   Maximize2,
   Minimize2,
   PenTool,
+  Mic,
   Pin,
   Plus,
   RotateCcw,
@@ -70,6 +71,10 @@ import { PenBar } from './ink/PenBar'
 import { PageBackground } from './PageBackground'
 import { ZoomColumn } from '@/canvas/ZoomColumn'
 import { PageStrip } from '@/canvas/PageStrip'
+import { RecordingsPanel } from './Recordings'
+import type { RecordingsHandle } from './Recordings'
+import { useRecorderStore } from '@/library/recorder'
+import { endSession, noteWriting, openSession } from '@/library/study'
 import type { ZoomHandle } from '@/canvas/ZoomColumn'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
@@ -178,6 +183,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const zoomRef = useRef<ZoomHandle>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [showStrip, setShowStrip] = useState(false)
+  const [recordingsOpen, setRecordingsOpen] = useState(false)
+  const recordingsRef = useRef<RecordingsHandle>(null)
+  const recordingHere = useRecorderStore((s) => s.active?.noteId === noteId)
   /** Stable id for cleanup effects that must not re-run per render. */
   const noteIdRef = useRef(noteId)
   noteIdRef.current = noteId
@@ -191,9 +199,16 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     (doc: InkDoc) => {
       if (!note) return
       saveInk(note.id, activePageId, doc)
+      noteWriting()
     },
     [activePageId, note],
   )
+
+  // A Session lasts while this note is open; Bituin wraps it up when it closes
+  useEffect(() => {
+    openSession(noteId)
+    return () => endSession()
+  }, [noteId])
 
   // Land pending ink touch-ups before the editor lets go of the note (unmount/switch)
   useEffect(() => {
@@ -489,6 +504,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       onUpdate: ({ editor: ed }) => {
         pendingRef.current.page = { id: activePageId, doc: ed.getJSON() }
         markDirty()
+        noteWriting()
       },
     },
     // One editor per page: switching pages recreates it with that page's text
@@ -640,6 +656,20 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           >
             <Share2 size={HEADER_ICON_SIZE} />
           </HeaderToggle>
+          {!note.isDeleted && (
+            <HeaderToggle
+              label={recordingHere ? 'Lecture audio (recording)' : 'Lecture audio'}
+              active={recordingsOpen || recordingHere}
+              onClick={() => setRecordingsOpen((o) => !o)}
+            >
+              <span className="relative grid place-items-center">
+                <Mic size={HEADER_ICON_SIZE} />
+                {recordingHere && (
+                  <span aria-hidden="true" className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-danger" />
+                )}
+              </span>
+            </HeaderToggle>
+          )}
           {!note.isDeleted && !readingLayout && (
             <HeaderToggle
               label={penMode ? 'Exit pen mode' : 'Pen mode'}
@@ -886,6 +916,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           </div>
         </div>
       )}
+      <RecordingsPanel ref={recordingsRef} noteId={note.id} open={recordingsOpen} readOnly={note.isDeleted} />
       {!note.isDeleted && showStrip && pages.length > 0 && (
         <PageStrip
           noteId={note.id}
@@ -1096,6 +1127,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               onSelectionChange={setSelectionCount}
               onPaletteRequest={handlePaletteRequest}
               onToolShortcut={handleToolShortcut}
+              recording={recordingHere}
+              onStrokeTap={(ts) => {
+                void recordingsRef.current?.seekToTime(ts).then((ok) => ok && setRecordingsOpen(true))
+              }}
             />
           )}
         </ZoomColumn>
@@ -1156,10 +1191,11 @@ function SaveStatusChip({
   return (
     <span
       aria-live="polite"
-      className={cn('ml-2 inline-flex items-center gap-1.5 text-xs transition-opacity duration-200', cls)}
+      className={cn('ml-1 inline-flex items-center gap-1.5 text-xs transition-opacity duration-200 sm:ml-2', cls)}
     >
       {icon}
-      {label}
+      {/* icon alone on phones: the header has no room for the word */}
+      <span className="sr-only sm:not-sr-only">{label}</span>
     </span>
   )
 }

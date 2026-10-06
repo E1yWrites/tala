@@ -6,6 +6,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useZoom } from '@/canvas/ZoomColumn'
 import { paintWetSegments, wetCanvasSize } from '@/canvas/wetInk'
 import { lassoPath, strokesInLasso } from '@/canvas/lasso'
+import { classifyShape, shapeToPoints } from '@/canvas/snapShape'
 
 /** True while the user is typing in a text field. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -40,6 +41,11 @@ import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, sizesForTool } from '@/type
 // Thickness presets live in types/ink.ts (next to the data model they feed);
 // re-exported here for the tool UI which has always imported them from here.
 export { PEN_SIZES, HIGHLIGHTER_SIZES, ERASER_SIZES }
+
+/** Resting the pen this long at the end of a stroke snaps it to a clean shape. */
+const SNAP_HOLD_MS = 550
+/** Pen movement (screen px) that still counts as holding still. */
+const SNAP_JITTER_PX = 4
 
 /** Extra room kept below the lowest stroke. */
 const HEIGHT_SLACK = 96
@@ -108,6 +114,10 @@ interface InkLayerProps {
   onSelectionChange?: (count: number) => void
   /** E / V shortcuts — desktop keyboard tool switching (mirrors the palette). */
   onToolShortcut?: (tool: InkPointerMode) => void
+  /** A lecture is being recorded for this note: new strokes get a timestamp. */
+  recording?: boolean
+  /** Select-tool tap on a timestamped stroke: jump the lecture audio to when it was written. */
+  onStrokeTap?: (ts: number) => void
 }
 
 interface InkOp {
@@ -132,10 +142,10 @@ function historyFor(pageId: string): { undo: InkOp[]; redo: InkOp[] } {
 }
 
 type Gesture =
-  | { kind: 'draw'; stroke: InkStroke; pts: InkPoint[] }
+  | { kind: 'draw'; stroke: InkStroke; pts: InkPoint[]; anchor?: InkPoint; snapped?: boolean }
   | { kind: 'erase'; base: InkStroke[]; working: InkStroke[]; changed: boolean }
   | { kind: 'pinch' }
-  | { kind: 'select-move'; dx: number; dy: number; last: InkPoint }
+  | { kind: 'select-move'; dx: number; dy: number; last: InkPoint; hit: InkStroke }
   | {
       kind: 'select-scale'
       anchor: InkPoint
@@ -169,6 +179,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     onPaletteRequest,
     onSelectionChange,
     onToolShortcut,
+    recording,
+    onStrokeTap,
   },
   ref,
 ) {
@@ -179,6 +191,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   /** Wet-ink canvas for the opaque pen: segments painted so far for the current stroke. */
   const wetRef = useRef<HTMLCanvasElement | null>(null)
   const wetDrawn = useRef(0)
+  const holdTimer = useRef<number | null>(null)
   /** Set when `localStorage['tala:inkdebug']` is on: pointerdown time awaiting its first wet paint. */
   const latencyT0 = useRef(0)
 
@@ -273,6 +286,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   useEffect(
     () => () => {
       activePenId.current = null
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
@@ -543,14 +557,45 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
   }, [renderLive])
 
+  const clearHold = useCallback((): void => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }, [])
+
+  /** The pen has rested: if the stroke so far is a recognisable shape, replace it with the clean one. */
+  const trySnap = useCallback((): void => {
+    holdTimer.current = null
+    const g = gestureRef.current
+    if (!g || g.kind !== 'draw' || g.snapped) return
+    const shape = classifyShape(g.pts)
+    if (!shape) return
+    const pressures = g.pts.filter((p) => p.p !== undefined).map((p) => p.p!)
+    const p = pressures.length > 0 ? Math.round((pressures.reduce((a, b) => a + b, 0) / pressures.length) * 100) / 100 : undefined
+    g.pts = shapeToPoints(shape).map((pt) => ({ x: r01(pt.x), y: r01(pt.y), ...(p !== undefined ? { p } : {}) }))
+    g.stroke.points = g.pts
+    g.snapped = true
+    clearWet()
+    liveBuiltLenRef.current = 0
+    liveBuiltAtRef.current = -1e9
+    liveTipRef.current?.setAttribute('r', '0')
+    navigator.vibrate?.(8)
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
+  }, [clearWet, renderLive])
+
+  const armHold = useCallback((): void => {
+    clearHold()
+    holdTimer.current = window.setTimeout(trySnap, SNAP_HOLD_MS)
+  }, [clearHold, trySnap])
+
   const cancelCurrentDraw = useCallback(() => {
+    clearHold()
     const g = gestureRef.current
     if (g && g.kind === 'draw') {
       gestureRef.current = null
       if (livePathRef.current) livePathRef.current.setAttribute('d', '')
       clearWet()
     }
-  }, [clearWet])
+  }, [clearHold, clearWet])
 
   const finishDraw = useCallback((g: Extract<Gesture, { kind: 'draw' }>): void => {
     if (livePathRef.current) livePathRef.current.setAttribute('d', '')
@@ -645,7 +690,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       flushUi()
       setMovePreview(null)
       uiPendingRef.current.move = null
-      if (g.dx === 0 && g.dy === 0) return
+      if (g.dx === 0 && g.dy === 0) {
+        // a plain tap on handwriting written during a lecture plays the audio from that moment
+        if (g.hit.ts !== undefined) onStrokeTap?.(g.hit.ts)
+        return
+      }
       const doc = inkRef.current!
       const next = doc.strokes.map((s) =>
         selected.has(s.id) ? translateStroke(s, g.dx, g.dy) : s,
@@ -653,7 +702,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       // Moved selection may have grown downward
       commit(next, doc.strokes, (selectionBBox?.y1 ?? 0) + g.dy)
     },
-    [commit, flushUi, selectionBBox, selected],
+    [commit, flushUi, onStrokeTap, selectionBBox, selected],
   )
 
   const finishSelectScale = useCallback(
@@ -763,7 +812,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           next.add(hit.id)
           return next
         })
-        gestureRef.current = { kind: 'select-move', dx: 0, dy: 0, last: p }
+        gestureRef.current = { kind: 'select-move', dx: 0, dy: 0, last: p, hit }
       } else {
         setSelected(new Set())
         gestureRef.current = { kind: 'lasso', pts: [p] }
@@ -787,7 +836,14 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
-      stroke: { id: createId(), tool: prefs.tool, color: prefs.color, size, points: [] },
+      stroke: {
+        id: createId(),
+        tool: prefs.tool,
+        color: prefs.color,
+        size,
+        points: [],
+        ...(recording ? { ts: Date.now() } : {}),
+      },
     }
     scheduleRenderLive()
   }
@@ -831,6 +887,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (events.length === 0) events.push(native)
 
     if (g.kind === 'draw') {
+      if (g.snapped) return // the shape is set; lifting the pen keeps it
       // Shift = straight-line constraint: snap to the nearest 0/45/90° from
       // the stroke's start instead of accumulating free-form points.
       if (e.shiftKey && g.pts.length > 0) {
@@ -858,6 +915,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       }
       g.stroke.points = g.pts
       scheduleRenderLive()
+      // Resting the pen (barely moving) for a moment snaps a recognisable shape
+      const tip = g.pts[g.pts.length - 1]!
+      if (!g.anchor || Math.hypot(tip.x - g.anchor.x, tip.y - g.anchor.y) > SNAP_JITTER_PX / (scale || 1)) {
+        g.anchor = tip
+        armHold()
+      }
       return
     }
 
@@ -911,6 +974,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       return
     }
     gestureRef.current = null
+    clearHold()
 
     switch (g.kind) {
       case 'draw':

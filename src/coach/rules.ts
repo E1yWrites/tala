@@ -1,5 +1,6 @@
 import type { CoachPrefs } from '@/store/prefsStore'
 import type { CoachEnv } from './env'
+import type { Wrapup } from './study'
 
 /*
   Pure rules: library and device state in, at most one suggestion out. No
@@ -12,10 +13,18 @@ export const BACKUP_SNOOZE_DAYS = 3
 export const INSTALL_SNOOZE_DAYS = 7
 /** After this many "Not now" taps the install prompt stops appearing by itself. */
 export const INSTALL_MAX_DISMISSALS = 3
+/** A note untouched this long may come back as a gentle reminder. */
+export const RESURFACE_AFTER_DAYS = 7
+export const RESURFACE_SNOOZE_DAYS = 3
+/** A wrap-up stops being news after this long. */
+export const WRAPUP_FRESH_MS = 2 * 60 * 60_000
 
 export type Suggestion =
+  | ({ id: 'wrapup' } & Wrapup)
+  | { id: 'goal'; days: number; goal: number; week: string }
   | { id: 'install'; variant: 'ios' | 'android' | 'android-menu' }
   | { id: 'backup'; daysSince: number }
+  | { id: 'resurface'; noteId: string; title: string; days: number }
 
 export interface CoachState {
   now: number
@@ -26,13 +35,24 @@ export interface CoachState {
   /** The browser is holding an install prompt we can fire (Chromium). */
   canPromptInstall: boolean
   quietMode: boolean
+  /** Bituin's summary of the Session that just ended, if any. */
+  wrapup: Wrapup | null
+  week: { key: string; studyDays: number; goal: number }
+  /** The most recently edited live note that has sat untouched, or null. */
+  staleNote: { id: string; title: string; updatedAt: number } | null
 }
 
 export function nextSuggestion(s: CoachState): Suggestion | null {
   // Quiet mode silences reminders; nothing is suggested without notes to protect
   if (s.quietMode || s.liveNotes < 1) return null
 
-  // Protected storage first: an evicted library can't be backed up
+  // Good news first: it is about what the owner just did
+  if (s.wrapup && s.now - s.wrapup.at < WRAPUP_FRESH_MS) return { id: 'wrapup', ...s.wrapup }
+  if (s.week.studyDays >= s.week.goal && s.coach.goalCheeredWeek !== s.week.key) {
+    return { id: 'goal', days: s.week.studyDays, goal: s.week.goal, week: s.week.key }
+  }
+
+  // Protected storage next: an evicted library can't be backed up
   const wantsInstall =
     (s.env.platform === 'ios' || s.env.platform === 'android') &&
     !s.env.standalone &&
@@ -48,6 +68,13 @@ export function nextSuggestion(s: CoachState): Suggestion | null {
   if (since !== null && s.now >= s.coach.backupSnoozeUntil) {
     const days = Math.floor((s.now - since) / DAY)
     if (days >= BACKUP_EVERY_DAYS) return { id: 'backup', daysSince: days }
+  }
+
+  // Last and lightest: an old note that might deserve another look
+  const stale = s.staleNote
+  if (stale && s.now >= s.coach.resurfaceSnoozeUntil) {
+    const days = Math.floor((s.now - stale.updatedAt) / DAY)
+    if (days >= RESURFACE_AFTER_DAYS) return { id: 'resurface', noteId: stale.id, title: stale.title, days }
   }
   return null
 }

@@ -113,6 +113,10 @@ export interface CoachPrefs {
   backupSnoozeUntil: number
   installSnoozeUntil: number
   installDismissals: number
+  /** Bituin's "remember this note?" rests until then. */
+  resurfaceSnoozeUntil: number
+  /** Week (see coach/study.ts weekKey) whose goal has already been cheered. */
+  goalCheeredWeek: string | null
 }
 
 export const DEFAULT_COACH_PREFS: CoachPrefs = {
@@ -121,6 +125,8 @@ export const DEFAULT_COACH_PREFS: CoachPrefs = {
   backupSnoozeUntil: 0,
   installSnoozeUntil: 0,
   installDismissals: 0,
+  resurfaceSnoozeUntil: 0,
+  goalCheeredWeek: null,
 }
 
 function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
@@ -133,6 +139,8 @@ function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
     backupSnoozeUntil: time(r.backupSnoozeUntil) ?? 0,
     installSnoozeUntil: time(r.installSnoozeUntil) ?? 0,
     installDismissals: count(r.installDismissals),
+    resurfaceSnoozeUntil: time(r.resurfaceSnoozeUntil) ?? 0,
+    goalCheeredWeek: typeof r.goalCheeredWeek === 'string' && r.goalCheeredWeek ? r.goalCheeredWeek : null,
   }
 }
 
@@ -146,11 +154,14 @@ interface PrefsState {
   quietMode: boolean
   /** Mirrors the pen bar, the phone tab bar and Bituin's corner for left-handed writers. */
   leftHanded: boolean
+  /** EXPERIMENT: read handwriting in the background so searches can find it. Off unless chosen. */
+  handwritingSearch: boolean
   coach: CoachPrefs
   toggleSidebar: () => void
   toggleReadingLayout: () => void
   toggleQuietMode: () => void
   setLeftHanded: (on: boolean) => void
+  setHandwritingSearch: (on: boolean) => void
   setCoach: (patch: Partial<CoachPrefs>) => void
   setInkPrefs: (patch: Partial<InkPrefs>) => void
 }
@@ -201,11 +212,13 @@ export const usePrefsStore = create<PrefsState>()(
       inkPrefs: DEFAULT_INK_PREFS,
       quietMode: false,
       leftHanded: false,
+      handwritingSearch: false,
       coach: DEFAULT_COACH_PREFS,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleReadingLayout: () => set((s) => ({ readingLayout: !s.readingLayout })),
       toggleQuietMode: () => set((s) => ({ quietMode: !s.quietMode })),
       setLeftHanded: (on) => set({ leftHanded: on }),
+      setHandwritingSearch: (on) => set({ handwritingSearch: on }),
       setCoach: (patch) => set((s) => ({ coach: { ...s.coach, ...patch } })),
       setInkPrefs: (patch) => set((s) => ({ inkPrefs: { ...s.inkPrefs, ...patch } })),
     }),
@@ -213,12 +226,13 @@ export const usePrefsStore = create<PrefsState>()(
       name: 'tala:prefs',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
-      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, coach }) => ({
+      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, handwritingSearch, coach }) => ({
         sidebarCollapsed,
         readingLayout,
         inkPrefs,
         quietMode,
         leftHanded,
+        handwritingSearch,
         coach,
       }),
       // Validate on the way in: a hand-edited or older value must never crash the editor
@@ -231,6 +245,7 @@ export const usePrefsStore = create<PrefsState>()(
           inkPrefs: sanitizeInkPrefs(p.inkPrefs),
           quietMode: p.quietMode === true,
           leftHanded: p.leftHanded === true,
+          handwritingSearch: p.handwritingSearch === true,
           coach: sanitizeCoachPrefs(p.coach),
         }
       },

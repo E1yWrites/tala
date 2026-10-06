@@ -51,6 +51,8 @@ export interface PageRecord {
   content?: JSONContent | null
   /** Plain text of `content` (typed pages) or the PDF text layer, for search and previews. */
   text?: string
+  /** EXPERIMENT: text recognised from the page's handwriting (see library/inkText.ts). Searched, never shown. */
+  inkText?: string
   /** Missing on legacy rows; read it through `pageSize()`. */
   size?: PageSize
   /** 1-based page number inside the note's imported PDF (see PdfRecord). */
@@ -67,6 +69,34 @@ export interface PageRecord {
 export interface BlobRecord {
   id: string
   data: Blob
+}
+
+/** Lecture audio. Rows are light; the bytes live in `audioChunks` and are never loaded at boot. */
+export interface RecordingRecord {
+  id: string
+  noteId: string
+  /** Epoch ms. Strokes drawn while recording carry `ts`; `ts - startedAt` is the audio position. */
+  startedAt: number
+  /** Tracked by the recorder itself: browsers report `Infinity` for a chunked WebM. */
+  durationMs: number
+  mime: string
+  /** `recording` on a row at boot means the app died mid-lecture; it becomes `interrupted`. */
+  status: 'recording' | 'complete' | 'interrupted'
+  chunkCount: number
+  bytes: number
+}
+
+/** One timesliced piece of a recording, written the moment the browser hands it over. */
+export interface AudioChunkRecord {
+  recordingId: string
+  seq: number
+  data: Blob
+}
+
+/** Small key/value rows that belong in a backup (study days, weekly goal). Device prefs live in prefsStore instead. */
+export interface MetaRecord {
+  key: string
+  value: unknown
 }
 
 /** The original PDF a note was imported from; the bytes live in `blobs`. */

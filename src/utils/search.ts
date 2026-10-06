@@ -15,6 +15,10 @@ export interface SearchDoc {
   folderNameLower: string | null
 }
 
+/** Typed text plus (experimental) recognised handwriting: what a search looks through. */
+const noteBody = (pages: PageRecord[]): string =>
+  [pagesText(pages), ...pages.map((p) => p.inkText ?? '')].filter(Boolean).join('\n')
+
 export function buildSearchDocs(
   notes: Note[],
   tags: Tag[],
@@ -26,7 +30,7 @@ export function buildSearchDocs(
   return notes.map((note) => ({
     note,
     titleLower: note.title.toLowerCase(),
-    bodyLower: pagesText(pagesByNote[note.id] ?? []).toLowerCase(),
+    bodyLower: noteBody(pagesByNote[note.id] ?? []).toLowerCase(),
     tagNamesLower: note.tagIds.map((id) => tagNameById.get(id) ?? ''),
     folderNameLower: note.folderId ? (folderNameById.get(note.folderId) ?? null) : null,
   }))

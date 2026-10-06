@@ -9,6 +9,9 @@ import { pagesText, textPreview } from '@/utils/doc'
 import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
 import { useTick } from '@/hooks/useTick'
 import { Bituin } from '@/coach/Bituin'
+import { studyDaysThisWeek, weekDays } from '@/coach/study'
+import { useStudyStore } from '@/library/study'
+import { cn } from '@/utils/cn'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
 import { Button } from '@/components/UI/Button'
@@ -46,6 +49,8 @@ export function HomePage(): React.ReactNode {
         </header>
 
         <BituinNudge placement="card" className="" />
+
+        {recent.length > 0 && <WeekCard />}
 
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => openModal({ kind: 'new-note' })}>
@@ -100,4 +105,41 @@ function openNote(id: string): void {
   const ui = useUIStore.getState()
   ui.setView({ kind: 'all' })
   ui.selectNote(id)
+}
+
+/** Study days this week: seven small stars, gold for the days that count. Passive, never a nag. */
+function WeekCard(): React.ReactNode {
+  const seconds = useStudyStore((s) => s.seconds)
+  const goal = useStudyStore((s) => s.goal)
+  const now = Date.now()
+  const days = weekDays(seconds, now)
+  const done = studyDaysThisWeek(seconds, now)
+  const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+  return (
+    <section aria-label={BITUIN.week.title} className="rounded-card border border-lineSoft bg-panel px-4 py-3 shadow-rest">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[13px] font-medium text-muted">{BITUIN.week.title}</h2>
+        <p className="text-[13px] tabular-nums text-ink">{BITUIN.week.summary(done, goal)}</p>
+      </div>
+      <ol className="mt-2 flex justify-between gap-1" aria-label="Study days this week">
+        {days.map((d, i) => (
+          <li key={d.key} className="flex flex-col items-center gap-1">
+            <span
+              role="img"
+              aria-label={`${LETTERS[i]}: ${d.studied ? 'studied' : d.today ? 'today' : 'no study'}`}
+              className={cn(
+                'grid size-8 place-items-center rounded-full border text-[18px] leading-none',
+                d.studied ? 'border-gold/60 bg-gold-soft text-gold' : 'border-lineSoft text-faint',
+                d.today && !d.studied && 'border-dashed border-line',
+              )}
+            >
+              {d.studied ? '★' : '·'}
+            </span>
+            <span className={cn('text-[11px]', d.today ? 'font-medium text-ink' : 'text-faint')}>{LETTERS[i]}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-xs text-faint">{BITUIN.week.hint}</p>
+    </section>
+  )
 }
