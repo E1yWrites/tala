@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { downloadBackup } from '@/utils/exportImport'
@@ -52,7 +53,7 @@ export function CommandPalette(): React.ReactNode {
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const openModal = useUIStore((s) => s.openModal)
   const setView = useUIStore((s) => s.setView)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
   const toggleFocusMode = useUIStore((s) => s.toggleFocusMode)
   const theme = useSettingsStore((s) => s.settings.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
@@ -103,7 +104,7 @@ export function CommandPalette(): React.ReactNode {
       { id: 'toggle-sidebar', label: 'Toggle sidebar', icon: Notebook, run: () => { closeAllModals(); toggleSidebar() } },
       {
         id: 'export',
-        label: 'Export backup (JSON)',
+        label: 'Export backup (.tala)',
         icon: Import,
         run: () => {
           closeAllModals()

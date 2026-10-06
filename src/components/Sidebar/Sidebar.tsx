@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { TalaMark } from '@/components/Brand/TalaMark'
 import {
   Archive,
+  ChevronRight,
   Clock,
   Folder as FolderIcon,
   MoreHorizontal,
@@ -23,6 +24,7 @@ import { Avatar } from '../UI/Avatar'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { ViewKind, ViewRef } from '@/types/models'
@@ -30,7 +32,7 @@ import { cn } from '@/utils/cn'
 import { Tooltip } from '../UI/Tooltip'
 import { ThemeToggle } from '../UI/ThemeToggle'
 import { useTick } from '@/hooks/useTick'
-import { DropdownMenu } from '../UI/DropdownMenu'
+import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
 
 interface NavItemSpec {
@@ -52,10 +54,13 @@ export function Sidebar({
   const tags = useTagStore((s) => s.tags)
   const activeView = useUIStore((s) => s.activeView)
   const setView = useUIStore((s) => s.setView)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
   const openModal = useUIStore((s) => s.openModal)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
   const deleteFolder = useFolderStore((s) => s.deleteFolder)
+  const expandedFolderIds = useFolderStore((s) => s.expandedFolderIds)
+  const toggleFolderExpand = useFolderStore((s) => s.toggleFolderExpand)
+  const moveFolder = useFolderStore((s) => s.moveFolder)
   const [pendingFolderDelete, setPendingFolderDelete] = useState<{
     id: string
     name: string
@@ -169,55 +174,20 @@ export function Sidebar({
           {folders.length === 0 ? (
             <p className="px-2 py-1 text-xs text-faint">No folders yet</p>
           ) : (
-            <ul className="mt-1 flex flex-col gap-0.5">
-              {folders.map((folder) => {
-                const active = activeView.kind === 'folder' && activeView.refId === folder.id
-                return (
-                  <li key={folder.id} className="group/f relative flex items-center">
-                    <NavItemInline
-                      active={active}
-                      onClick={() => navigate({ kind: 'folder', refId: folder.id })}
-                      icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
-                      label={folder.name}
-                      count={counts.perFolder.get(folder.id)}
-                    />
-                    <DropdownMenu
-                      align="end"
-                      items={[
-                        {
-                          id: 'rename',
-                          label: 'Rename folder',
-                          onSelect: () => openModal({ kind: 'folder-editor', folderId: folder.id }),
-                        },
-                        {
-                          id: 'delete',
-                          label: 'Delete folder',
-                          danger: true,
-                          onSelect: () =>
-                            setPendingFolderDelete({
-                              id: folder.id,
-                              name: folder.name,
-                              count: notes.filter(
-                                (n) => n.folderId === folder.id && !n.isDeleted,
-                              ).length,
-                            }),
-                        },
-                      ]}
-                      trigger={(props) => (
-                        <button
-                          {...props}
-                          type="button"
-                          aria-label={`Options for folder ${folder.name}`}
-                          className="absolute right-1 grid size-6 place-items-center rounded-wobbly-sm text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
-                        >
-                          <MoreHorizontal size={13} />
-                        </button>
-                      )}
-                    />
-                  </li>
-                )
-              })}
-            </ul>
+            <FolderTree
+              folders={folders}
+              parentId={null}
+              depth={0}
+              activeView={activeView}
+              navigate={navigate}
+              counts={counts.perFolder}
+              openModal={openModal}
+              notes={notes}
+              expandedFolderIds={expandedFolderIds}
+              toggleFolderExpand={toggleFolderExpand}
+              moveFolder={moveFolder}
+              setPendingFolderDelete={setPendingFolderDelete}
+            />
           )}
 
           {/* Tags */}
@@ -303,6 +273,122 @@ export function Sidebar({
 }
 
 /* ------------------------------ Sub-components ----------------------------- */
+
+/** Recursive folder tree with expand/collapse and per-folder actions. */
+function FolderTree(props: {
+  folders: ReturnType<typeof useFolderStore.getState>['folders']
+  parentId: string | null
+  depth: number
+  activeView: { kind: string; refId?: string | undefined }
+  navigate: (view: ViewRef) => void
+  counts: Map<string, number>
+  openModal: ReturnType<typeof useUIStore.getState>['openModal']
+  notes: ReturnType<typeof useNoteStore.getState>['notes']
+  expandedFolderIds: Set<string>
+  toggleFolderExpand: (id: string) => void
+  moveFolder: (id: string, newParentId: string | null) => Promise<boolean>
+  setPendingFolderDelete: (d: { id: string; name: string; count: number }) => void
+}): ReactNode {
+  const children = props.folders
+    .filter((f) => f.parentId === props.parentId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return (
+    <ul className="mt-1 flex flex-col gap-0.5">
+      {children.map((folder) => {
+        const subfolders = props.folders.filter((f) => f.parentId === folder.id)
+        const isExpanded = props.expandedFolderIds.has(folder.id)
+        const active = props.activeView.kind === 'folder' && props.activeView.refId === folder.id
+        return (
+          <li key={folder.id}>
+            <div className="group/f relative flex items-center">
+              {subfolders.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => props.toggleFolderExpand(folder.id)}
+                  aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+                  aria-expanded={isExpanded}
+                  className={cn(
+                    'grid w-5 shrink-0 place-items-center text-faint transition-transform duration-100',
+                    isExpanded && 'rotate-90',
+                  )}
+                  style={{ marginLeft: `${props.depth * 14}px` }}
+                >
+                  <ChevronRight size={12} />
+                </button>
+              ) : (
+                <span
+                  className="w-5 shrink-0"
+                  style={{ marginLeft: `${props.depth * 14}px` }}
+                />
+              )}
+              <NavItemInline
+                active={active}
+                onClick={() => props.navigate({ kind: 'folder', refId: folder.id })}
+                icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
+                label={folder.name}
+                count={props.counts.get(folder.id)}
+              />
+              <DropdownMenu
+                align="end"
+                items={[
+                  {
+                    id: 'rename',
+                    label: 'Rename folder',
+                    onSelect: () => props.openModal({ kind: 'folder-editor', folderId: folder.id }),
+                  },
+                  {
+                    id: 'new-subfolder',
+                    label: 'New subfolder',
+                    onSelect: () => props.openModal({ kind: 'folder-editor', parentId: folder.id }),
+                  },
+                  ...props.folders
+                    .filter((f) => f.id !== folder.id && f.parentId !== folder.id)
+                    .map<MenuItem>((f) => ({
+                      id: `move-${f.id}`,
+                      label: `Move into “${f.name}”`,
+                      onSelect: () => void props.moveFolder(folder.id, f.id),
+                    })),
+                  {
+                    id: 'move-root',
+                    label: 'Move to root',
+                    onSelect: () => void props.moveFolder(folder.id, null),
+                  },
+                  {
+                    id: 'delete',
+                    label: 'Delete folder',
+                    danger: true,
+                    onSelect: () =>
+                      props.setPendingFolderDelete({
+                        id: folder.id,
+                        name: folder.name,
+                        count: props.notes.filter(
+                          (n) => n.folderId === folder.id && !n.isDeleted,
+                        ).length,
+                      }),
+                  },
+                ]}
+                trigger={(triggerProps) => (
+                  <button
+                    {...triggerProps}
+                    type="button"
+                    aria-label={`Options for folder ${folder.name}`}
+                    className="absolute right-1 grid size-6 place-items-center rounded-wobbly-sm text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
+                  >
+                    <MoreHorizontal size={13} />
+                  </button>
+                )}
+              />
+            </div>
+            {isExpanded && subfolders.length > 0 && (
+              <FolderTree {...props} parentId={folder.id} depth={props.depth + 1} />
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 function NavItemButton({
   item,

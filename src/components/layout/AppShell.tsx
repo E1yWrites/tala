@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore, SIDEBAR_WIDTH } from '@/store/uiStore'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
@@ -25,8 +26,8 @@ export function AppShell(): React.ReactNode {
   const focusMode = useUIStore((s) => s.focusMode)
   const sidebarDrawerOpen = useUIStore((s) => s.sidebarDrawerOpen)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const sidebarCollapsed = usePrefsStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
 
   const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
   const isMobile = useMediaQuery(BREAKPOINTS.mobile)

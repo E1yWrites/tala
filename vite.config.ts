@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -10,7 +11,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff,woff2}'],
         navigateFallback: null,
       },
     }),
@@ -26,6 +27,11 @@ export default defineConfig({
       { find: /^lucide-react$/, replacement: path.resolve(__dirname, './src/lib/lucideShim.tsx') },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ],
+  },
+  test: {
+    environment: 'node',
+    setupFiles: ['fake-indexeddb/auto'],
+    include: ['src/**/*.test.ts'],
   },
   build: {
     target: 'es2020',

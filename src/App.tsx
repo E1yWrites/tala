@@ -3,7 +3,7 @@ import type { ErrorInfo, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { toast, Toaster } from 'sonner'
 import { CheckSoft, Info } from 'lucide-react'
-import { bootApp } from '@/database/hydration'
+import { bootApp } from '@/library/boot'
 import { useSettingsStore } from '@/store/settingsStore'
 import { AppShell } from '@/components/layout/AppShell'
 

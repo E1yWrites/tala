@@ -13,6 +13,8 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Folder as FolderIcon,
   Hash,
   LoaderCircle,
@@ -29,13 +31,29 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { isEmptyNote, useNoteStore } from '@/store/noteStore'
+import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
+import { useNotePages } from '@/store/pageStore'
+import {
+  addPage,
+  deletePage,
+  duplicatePage,
+  flush as flushLibrary,
+  patchNote,
+  restoreNote,
+  saveInk,
+  savePageContent,
+  saveTitle,
+  setTemplate,
+} from '@/library/notes'
+import type { SaveResult } from '@/library/notes'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Note } from '@/types/models'
 import type { InkDoc, InkPointerMode } from '@/types/ink'
+import { INK_PRESETS } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { formatFull, formatRelative } from '@/utils/dates'
 import { processImageFile } from '@/utils/image'
@@ -47,8 +65,10 @@ import { EditorToolbar } from './EditorToolbar'
 import { ReadingView } from './ReadingView'
 import { InkLayer } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
-import { PenToolbar } from './ink/PenToolbar'
-import type { PenPaletteState } from './ink/PenToolbar'
+import { PenBar } from './ink/PenBar'
+import { PageBackground } from './PageBackground'
+import { PenPalette } from './ink/PenPalette'
+import type { PenPaletteState } from './ink/PenPalette'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
 
 /* ------------------------- Markdown-style shortcuts ------------------------ */
@@ -75,62 +95,93 @@ const TaskSyntaxInput = Extension.create({
 
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved'
 
+function templateLabel(t: 'blank' | 'ruled' | 'grid'): string {
+  switch (t) {
+    case 'ruled':
+      return 'Ruled'
+    case 'grid':
+      return 'Grid'
+    default:
+      return 'Blank'
+  }
+}
+
 interface PendingPatch {
   title?: string
-  content?: JSONContent | null
+  /** Typed text of the page that was being edited. */
+  page?: { id: string; doc: JSONContent }
 }
 
 export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const note: Note | undefined = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
-  const saveContent = useNoteStore((s) => s.saveContent)
-  const restoreNote = useNoteStore((s) => s.restoreNote)
   const folders = useFolderStore((s) => s.folders)
   const tags = useTagStore((s) => s.tags)
   const selectNote = useUIStore((s) => s.selectNote)
   const focusMode = useUIStore((s) => s.focusMode)
   const toggleFocusMode = useUIStore((s) => s.toggleFocusMode)
-  const readingLayout = useUIStore((s) => s.readingLayout)
-  const toggleReadingLayout = useUIStore((s) => s.toggleReadingLayout)
+  const readingLayout = usePrefsStore((s) => s.readingLayout)
+  const toggleReadingLayout = usePrefsStore((s) => s.toggleReadingLayout)
   const openModal = useUIStore((s) => s.openModal)
   const autosaveEnabled = useSettingsStore((s) => s.settings.autosaveEnabled)
   const fontSize = useSettingsStore((s) => s.settings.editorFontSize)
   const lineHeight = useSettingsStore((s) => s.settings.editorLineHeight)
 
+  /* --------------------------------- Pages --------------------------------- */
+
+  const pages = useNotePages(noteId)
+  const [activePageIndex, setActivePageIndex] = useState(0)
+  const activePage = pages[activePageIndex] ?? pages[0]
+  const activePageId = activePage?.id ?? noteId
+  /** PDF-imported page: its sheet is the page, no typed content. */
+  const isBgPage = !!(activePage?.pdfPage || activePage?.backgroundBlobId)
+
+  // Reset to first page when note changes
+  useEffect(() => {
+    setActivePageIndex(0)
+  }, [noteId])
+
+  const onDuplicatePage = useCallback(() => {
+    if (!activePage || !note) return
+    const copy = duplicatePage(note.id, activePage.id)
+    if (copy) setActivePageIndex(copy.index)
+  }, [activePage, note])
+
   /* --------------------------------- Pen mode ------------------------------ */
 
-  const inkPrefs = useUIStore((s) => s.inkPrefs)
-  const setInkPrefs = useUIStore((s) => s.setInkPrefs)
+  const inkPrefs = usePrefsStore((s) => s.inkPrefs)
+  const setInkPrefs = usePrefsStore((s) => s.setInkPrefs)
   const [penMode, setPenMode] = useState(false)
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
   const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
   /** Radial palette state — null = closed; cursor mode when opened by right-click. */
   const [penPalette, setPenPalette] = useState<PenPaletteState | null>(null)
+  /** Count of selected ink strokes — drives the contextual delete button in PenBar. */
+  const [selectionCount, setSelectionCount] = useState(0)
   const inkLayerRef = useRef<InkLayerHandle>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   /** Stable id for cleanup effects that must not re-run per render. */
   const noteIdRef = useRef(noteId)
   noteIdRef.current = noteId
+  /** Fresh pen-mode flag for the native pencil event listener. */
+  const penModeRef = useRef(penMode)
+  penModeRef.current = penMode
 
   /** Ink commits hit the store instantly; IndexedDB write is debounced in
    *  the store and force-flushed when this editor unmounts or the note swaps. */
-  const saveInk = useNoteStore((s) => s.saveInk)
-  const flushInk = useNoteStore((s) => s.flushInk)
   const handleInkChange = useCallback(
     (doc: InkDoc) => {
       if (!note) return
-      saveInk(note.id, doc)
-      markDirty()
+      saveInk(note.id, activePageId, doc)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [note?.id, saveInk],
+    [activePageId, note],
   )
 
-  // Flush pending ink before the editor lets go of a note (unmount/switch)
+  // Land pending ink touch-ups before the editor lets go of the note (unmount/switch)
   useEffect(() => {
     return () => {
-      void flushInk(noteIdRef.current)
+      void flushLibrary(noteIdRef.current)
     }
-  }, [flushInk])
+  }, [])
 
   const inkDocs = useNoteStore((s) => s.inkDocs)
 
@@ -141,8 +192,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       color: inkPrefs.color,
       sizeIdx: inkPrefs.sizeIdx,
       eraserMode: inkPrefs.eraserMode,
+      pencilHover: inkPrefs.pencil.hover,
     }),
-    [penTool, inkPrefs.color, inkPrefs.sizeIdx, inkPrefs.eraserMode],
+    [penTool, inkPrefs.color, inkPrefs.sizeIdx, inkPrefs.eraserMode, inkPrefs.pencil.hover],
   )
 
   /** Only fires when the undo/redo availability actually flips. */
@@ -156,6 +208,19 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     setPenPalette({ open: true, anchor: { x, y }, mode: 'cursor' })
   }, [])
 
+  /** Tool the E/eraser shortcut should restore to when pressed again. */
+  const preShortcutToolRef = useRef<InkPointerMode>(penTool)
+  const handleToolShortcut = useCallback(
+    (tool: InkPointerMode) => {
+      setPenTool((cur) => {
+        if (cur === tool) return preShortcutToolRef.current
+        preShortcutToolRef.current = cur
+        return tool
+      })
+    },
+    [],
+  )
+
   const updatePenPrefs = useCallback(
     (
       patch: Partial<{
@@ -164,6 +229,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         sizeIdx: number
         eraserMode: 'stroke' | 'pixel'
         preset: import('@/types/ink').InkPreset
+        pencil: import('@/store/prefsStore').PencilShortcuts
       }>,
     ) => {
       if (patch.tool !== undefined) setPenTool(patch.tool)
@@ -172,6 +238,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       if (patch.sizeIdx !== undefined) persistPatch.sizeIdx = patch.sizeIdx
       if (patch.eraserMode !== undefined) persistPatch.eraserMode = patch.eraserMode
       if (patch.preset !== undefined) persistPatch.preset = patch.preset
+      if (patch.pencil !== undefined)
+        persistPatch.pencil = { ...usePrefsStore.getState().inkPrefs.pencil, ...patch.pencil }
       if (patch.tool !== undefined && patch.tool !== 'select') persistPatch.tool = patch.tool
       if (Object.keys(persistPatch).length > 0) setInkPrefs(persistPatch)
     },
@@ -196,6 +264,45 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     if (!penMode) setPenPalette(null)
   }, [penMode])
 
+  /* ----------------------- Apple Pencil native contract --------------------
+     The PencilKit (iPad) wrapper dispatches:
+       window.dispatchEvent(new CustomEvent('tala:pencil', {
+         detail: { kind: 'doubletap' | 'squeeze', timestamp: Date.now() },
+       }))
+     The web app replies by running whatever shortcut action the user picked
+     in the radial palette (Pencil settings). Desktop browsers have no
+     double-tap / squeeze surface, so this is inert here — but the E2E smoke
+     drives it with a synthetic event to prove the pipeline. */
+  useEffect(() => {
+    const onPencil = (e: Event): void => {
+      const kind = (e as CustomEvent<{ kind?: unknown; timestamp?: number }>).detail?.kind
+      if (kind !== 'doubletap' && kind !== 'squeeze') return
+      if (!penModeRef.current) {
+        return
+      }
+      const ui = useUIStore.getState()
+      if (ui.modalStack.length > 0) return
+      const prefs = usePrefsStore.getState().inkPrefs
+      const action = kind === 'doubletap' ? prefs.pencil.doubleTap : prefs.pencil.squeeze
+      if (action === 'undo') {
+        inkLayerRef.current?.undo()
+        return
+      }
+      if (action === 'palette') {
+        setPenPalette({
+          open: true,
+          anchor: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+          mode: 'trigger',
+        })
+        return
+      }
+      // eraser / pen: route through the same setter the palette uses
+      updatePenPrefs({ tool: action === 'eraser' ? 'eraser' : prefs.tool })
+    }
+    window.addEventListener('tala:pencil', onPencil)
+    return () => window.removeEventListener('tala:pencil', onPencil)
+  }, [updatePenPrefs])
+
   const [title, setTitle] = useState(note?.title ?? '')
   const [syncKey, setSyncKey] = useState(0)
   const [status, setStatus] = useState<SaveStatus>('idle')
@@ -205,62 +312,53 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   /* ------------------------------ Autosave core --------------------------- */
 
-  type FlushResult = 'saved' | 'nothing' | 'dropped'
+  type FlushResult = 'saved' | 'nothing' | 'dropped' | 'failed'
 
-  const flush = useCallback(
-    async (opts?: { silent?: boolean }): Promise<FlushResult> => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current)
-        timerRef.current = null
-      }
-      const patch = pendingRef.current
-      const hadPending = Object.keys(patch).length > 0
-      // Read note from the store directly to avoid stale closure — `note` is
-      // derived via .find() and would force this callback to be recreated on
-      // every store update.
-      const currentNote = useNoteStore.getState().notes.find((n) => n.id === noteIdRef.current)
-      // A permanently deleted note can never save — discard honestly.
-      // A *trashed* note still exists, though: keep edits made before the
-      // trash so restoring it brings the user's words back.
-      if (!currentNote) {
-        pendingRef.current = {}
-        setStatus('idle')
-        return hadPending ? 'dropped' : 'nothing'
-      }
-      if (!hadPending) {
-        setStatus('idle')
-        return 'nothing'
-      }
+  const flush = useCallback(async (opts?: { silent?: boolean }): Promise<FlushResult> => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    const patch = pendingRef.current
+    const hadPending = Object.keys(patch).length > 0
+    const id = noteIdRef.current
+    // A permanently deleted note can never save — discard honestly.
+    // A *trashed* note still exists, though: keep edits made before the
+    // trash so restoring it brings the user's words back.
+    if (!useNoteStore.getState().notes.some((n) => n.id === id)) {
       pendingRef.current = {}
-      const hadRealContent = (() => {
-        // Peek at what the store will hold after this patch — an untitled,
-        // content-less note is memory-only by design, so don't claim "saved".
-        const before = useNoteStore.getState().notes.find((n) => n.id === currentNote.id)
-        const after = { ...(before ?? currentNote), ...patch }
-        return !isEmptyNote(after, useNoteStore.getState().inkDocs)
-      })()
-      setStatus('saving')
-      try {
-        saveContent(currentNote.id, patch)
-        // Brief pause so the "Saving…" state is perceivable on fast devices
-        await new Promise((r) => setTimeout(r, 150))
-        if (Object.keys(pendingRef.current).length > 0) {
-          // Edits arrived while "saving" — keep the unsaved guard active
-          setStatus('dirty')
-        } else if (!hadRealContent) {
-          setStatus('idle')
-        } else if (opts?.silent) {
-          setStatus('idle')
-        } else {
-          setStatus('saved')
-        }
-        return 'saved'
-      } finally {
-        if (opts?.silent && Object.keys(pendingRef.current).length === 0) setStatus('idle')
-      }
-    },
-    [saveContent],
-  )
+      setStatus('idle')
+      return hadPending ? 'dropped' : 'nothing'
+    }
+    if (!hadPending) {
+      setStatus('idle')
+      return 'nothing'
+    }
+    pendingRef.current = {}
+    setStatus('saving')
+    const saves: Array<Promise<SaveResult>> = []
+    if (patch.title !== undefined) saves.push(saveTitle(id, patch.title))
+    if (patch.page) saves.push(savePageContent(id, patch.page.id, patch.page.doc))
+    const results = await Promise.all(saves)
+    // Brief pause so the "Saving…" state is perceivable on fast devices
+    await new Promise((r) => setTimeout(r, 150))
+    if (results.includes('failed')) {
+      // The library rolled back and told the user; keep the edit so the next save retries it
+      pendingRef.current = { ...patch, ...pendingRef.current }
+      setStatus('dirty')
+      return 'failed'
+    }
+    if (Object.keys(pendingRef.current).length > 0) {
+      // Edits arrived while "saving" — keep the unsaved guard active
+      setStatus('dirty')
+    } else if (opts?.silent || results.every((r) => r === 'scratch' || r === 'gone')) {
+      // An untitled, content-less note is memory-only by design: don't claim "saved"
+      setStatus('idle')
+    } else {
+      setStatus('saved')
+    }
+    return results.includes('gone') ? 'dropped' : 'saved'
+  }, [])
 
   const flushRef = useRef(flush)
   flushRef.current = flush
@@ -283,13 +381,20 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }
   }, [noteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Leaving a page: land its edits before the editor is recreated for the next one
+  useEffect(() => {
+    return () => {
+      void flushRef.current({ silent: true })
+    }
+  }, [activePageId])
+
   // Ctrl+S force save (event dispatched by global hotkeys)
   useEffect(() => {
     const onSave = (): void => {
       void flush().then((result) => {
         if (result === 'dropped') {
           toast.error('That note was deleted — unsaved changes could not be kept')
-        } else {
+        } else if (result !== 'failed') {
           toast.success('Saved')
         }
       })
@@ -325,6 +430,21 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     return () => window.removeEventListener('beforeunload', handler)
   }, [status])
 
+  // Tab hidden or page closing: don't wait out the 700 ms debounce. iPad
+  // home-screen PWAs never fire beforeunload, so this is the only save there.
+  useEffect(() => {
+    const flushNow = (): void => void flushRef.current({ silent: true })
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') flushNow()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flushNow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flushNow)
+    }
+  }, [])
+
   /* -------------------------------- Editor -------------------------------- */
 
   const editor = useEditor(
@@ -344,21 +464,24 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',
         }),
       ],
-      content: note?.content ?? '',
+      content: activePage?.content ?? '',
       editable: !note?.isDeleted,
       autofocus: false,
       onUpdate: ({ editor: ed }) => {
-        pendingRef.current.content = ed.getJSON()
+        pendingRef.current.page = { id: activePageId, doc: ed.getJSON() }
         markDirty()
       },
     },
-    [noteId, syncKey],
+    // One editor per page: switching pages recreates it with that page's text
+    [noteId, activePageId, syncKey],
   )
 
   /* `editable` only applies at editor creation — keep it in sync afterwards
      (restore from trash must re-enable typing; trashing while open must lock). */
   useEffect(() => {
-    editor?.setEditable(!note?.isDeleted)
+    // emitUpdate=false: setEditable fires `update` by default, which made merely
+    // opening a note autosave it (bumping updatedAt and wiping a PDF page's text layer)
+    editor?.setEditable(!note?.isDeleted, false)
   }, [editor, note?.isDeleted])
 
   /* If the open note disappears (deleted forever elsewhere), close it. */
@@ -429,13 +552,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       id: 'none',
       label: 'No folder',
       checked: note.folderId === null,
-      onSelect: () => useNoteStore.getState().patchNote(note.id, { folderId: null }),
+      onSelect: () => patchNote(note.id, { folderId: null }),
     },
     ...folders.map<MenuItem>((f) => ({
       id: f.id,
       label: f.name,
       checked: note.folderId === f.id,
-      onSelect: () => useNoteStore.getState().patchNote(note.id, { folderId: f.id }),
+      onSelect: () => patchNote(note.id, { folderId: f.id }),
     })),
   ]
 
@@ -458,12 +581,18 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
         <SaveStatusChip status={status} autosave={autosaveEnabled} />
 
+        {isBgPage && (
+          <span className="ml-1 max-w-[220px] truncate font-display text-lg leading-tight text-ink">
+            {note.title.trim() || note.title || 'Untitled'}
+          </span>
+        )}
+
         <div className="ml-auto flex items-center gap-0.5">
           {!note.isDeleted && (
             <HeaderToggle
               label={note.isPinned ? 'Unpin' : 'Pin'}
               active={note.isPinned}
-              onClick={() => useNoteStore.getState().patchNote(note.id, { isPinned: !note.isPinned })}
+              onClick={() => patchNote(note.id, { isPinned: !note.isPinned })}
             >
               <Pin size={HEADER_ICON_SIZE} className={cn(note.isPinned && 'rotate-45')} />
             </HeaderToggle>
@@ -473,7 +602,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               label={note.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               active={note.isFavorite}
               onClick={() =>
-                useNoteStore.getState().patchNote(note.id, { isFavorite: !note.isFavorite })
+                patchNote(note.id, { isFavorite: !note.isFavorite })
               }
             >
               {note.isFavorite ? (
@@ -589,10 +718,91 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         </div>
       )}
 
+      {/* Page navigation */}
+      {!note.isDeleted && pages.length > 0 && (
+        <div className="mx-6 mt-3 flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Previous page"
+            disabled={activePageIndex <= 0}
+            onClick={() => setActivePageIndex((i) => Math.max(0, i - 1))}
+          >
+            <ChevronLeft size={14} />
+          </Button>
+          <div className="w-32 text-center text-xs tabular-nums text-faint">
+            Page {activePageIndex + 1} of {pages.length}
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Next page"
+            disabled={activePageIndex >= pages.length - 1}
+            onClick={() => setActivePageIndex((i) => Math.min(pages.length - 1, i + 1))}
+          >
+            <ChevronRight size={14} />
+          </Button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <DropdownMenu
+              align="end"
+              items={[
+                ...(['blank', 'ruled', 'grid'] as const).map<MenuItem>((t) => ({
+                  id: `template-${t}`,
+                  label: `Template: ${templateLabel(t)}`,
+                  checked: activePage.template === t,
+                  onSelect: () => setTemplate(note.id, activePage.id, t),
+                })),
+                { id: 'sep1', label: '', type: 'separator', onSelect: () => {} },
+                {
+                  id: 'add-page',
+                  label: 'Add page',
+                  onSelect: () => {
+                    addPage(note.id)
+                    setActivePageIndex(pages.length)
+                  },
+                },
+                {
+                  id: 'duplicate-page',
+                  label: 'Duplicate page',
+                  onSelect: onDuplicatePage,
+                },
+                {
+                  id: 'delete-page',
+                  label: 'Delete page',
+                  disabled: pages.length <= 1,
+                  onSelect: () => {
+                    if (pages.length <= 1) return
+                    deletePage(note.id, activePage.id)
+                    setActivePageIndex((i) => Math.max(0, i - 1))
+                  },
+                },
+              ]}
+              trigger={(triggerProps) => (
+                <Button size="sm" variant="ghost" {...triggerProps}>
+                  {templateLabel(activePage.template)} <ChevronDown size={12} />
+                </Button>
+              )}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                addPage(note.id)
+                setActivePageIndex(pages.length)
+              }}
+            >
+              <Plus size={14} />
+              Add page
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Scrollable document */}
       <div
         ref={scrollRef}
         className="editor-scroll min-h-0 flex-1 overflow-y-auto"
+        data-template={activePage?.template ?? 'blank'}
         onPaste={onPasteOrDrop}
         onDrop={onPasteOrDrop}
         onClick={(e) => {
@@ -612,7 +822,10 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         }}
       >
         <div
-          className="relative mx-auto w-full max-w-[720px] px-6 pb-24 pt-6 md:px-10"
+          className={cn(
+            'relative mx-auto w-full max-w-[720px] px-6 pb-24 md:px-10',
+            !isBgPage && 'pt-6',
+          )}
           style={
             {
               '--editor-font-size': `${fontSize}px`,
@@ -620,6 +833,37 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             } as CSSProperties
           }
         >
+          {isBgPage && activePage ? (
+            <>
+              {/* PDF page rendered as the page background */}
+              <PageBackground
+                noteId={note.id}
+                page={activePage}
+                label={`Page ${activePageIndex + 1} of PDF`}
+              />
+              {penMode && !note.isDeleted && (
+                <div className="mt-3">
+                  <PenBar
+                    tool={penTool}
+                    color={inkPrefs.color}
+                    presetLabel={INK_PRESETS[inkPrefs.preset].label}
+                    canUndo={inkHistory.canUndo}
+                    canRedo={inkHistory.canRedo}
+                    onUndo={() => inkLayerRef.current?.undo()}
+                    onRedo={() => inkLayerRef.current?.redo()}
+                    onClear={() => {
+                      inkLayerRef.current?.clearAll()
+                      toast.success('Handwriting cleared')
+                    }}
+                    onOpenPalette={(anchor) => setPenPalette({ open: true, anchor, mode: 'trigger' })}
+                    selectionCount={selectionCount}
+                    onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
           {/* Meta row */}
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <time
@@ -658,9 +902,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     key={tag.id}
                     tag={tag}
                     onRemove={() =>
-                      useNoteStore
-                        .getState()
-                        .patchNote(note.id, { tagIds: note.tagIds.filter((t) => t !== tag.id) })
+                      patchNote(note.id, { tagIds: note.tagIds.filter((t) => t !== tag.id) })
                     }
                   />
                 ))}
@@ -694,20 +936,14 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             className="w-full bg-transparent font-display text-[30px] leading-tight placeholder:text-faint/70 disabled:cursor-default"
           />
 
-          {/* Formatting toolbar — hidden while reading */}
+          {/* Toolbar row — swaps to the writing (pen) control while pen mode is on */}
           {editor && !note.isDeleted && !readingLayout && (
             <div className="sticky top-0 z-40 -mx-1 mt-4 mb-4 bg-gradient-to-b from-canvas via-canvas to-transparent pb-2 pt-1">
-              <EditorToolbar editor={editor} />
-              {penMode && (
-                <PenToolbar
-                  prefs={{
-                    tool: penTool,
-                    color: inkPrefs.color,
-                    sizeIdx: inkPrefs.sizeIdx,
-                    eraserMode: inkPrefs.eraserMode,
-                    preset: inkPrefs.preset,
-                  }}
-                  onPrefs={updatePenPrefs}
+              {penMode ? (
+                <PenBar
+                  tool={penTool}
+                  color={inkPrefs.color}
+                  presetLabel={INK_PRESETS[inkPrefs.preset].label}
                   canUndo={inkHistory.canUndo}
                   canRedo={inkHistory.canRedo}
                   onUndo={() => inkLayerRef.current?.undo()}
@@ -716,41 +952,74 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     inkLayerRef.current?.clearAll()
                     toast.success('Handwriting cleared')
                   }}
-                  palette={
-                    penPalette ?? { open: false, anchor: { x: 0, y: 0 }, mode: 'trigger' }
+                  onOpenPalette={(anchor) =>
+                    setPenPalette({ open: true, anchor, mode: 'trigger' })
                   }
-                  onPalette={setPenPalette}
+                  selectionCount={selectionCount}
+                  onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
                 />
+              ) : (
+                <EditorToolbar editor={editor} />
               )}
             </div>
           )}
 
           {/* Content — editor stays mounted (hidden) so state/undo survive the toggle */}
           {readingLayout ? (
-            <ReadingView noteId={note.id} doc={note.content} />
+            <ReadingView noteId={note.id} doc={activePage?.content ?? null} />
           ) : (
             <EditorContent
               editor={editor}
               className={cn('[&_.tiptap]:min-h-[45vh]', note.isDeleted && 'opacity-80')}
             />
           )}
+            </>
+          )}
 
           {/* Handwriting overlay — above the typed content, active only in pen mode */}
           {!readingLayout && !note.isDeleted && (
             <InkLayer
-              key={note.id}
+              key={activePageId}
               ref={inkLayerRef}
-              ink={inkDocs[note.id] ?? note.ink ?? null}
+              ink={inkDocs[activePageId] ?? null}
               onChange={handleInkChange}
               scrollRef={scrollRef}
               active={penMode}
               prefs={inkLayerPrefs}
               onHistoryChange={handleInkHistory}
+              onSelectionChange={setSelectionCount}
               onPaletteRequest={handlePaletteRequest}
+              onToolShortcut={handleToolShortcut}
             />
           )}
         </div>
       </div>
+
+      {/* Radial pen palette — hoisted once (portal) so right-click and
+          pill-click both share the same open/close lifecycle. */}
+      <PenPalette
+        open={penPalette?.open ?? false}
+        anchor={penPalette?.anchor ?? { x: 0, y: 0 }}
+        anchorMode={penPalette?.mode}
+        prefs={{
+          tool: penTool,
+          color: inkPrefs.color,
+          sizeIdx: inkPrefs.sizeIdx,
+          eraserMode: inkPrefs.eraserMode,
+          preset: inkPrefs.preset,
+          pencil: inkPrefs.pencil,
+        }}
+        onPrefs={updatePenPrefs}
+        canUndo={inkHistory.canUndo}
+        canRedo={inkHistory.canRedo}
+        onUndo={() => inkLayerRef.current?.undo()}
+        onRedo={() => inkLayerRef.current?.redo()}
+        onClear={() => {
+          inkLayerRef.current?.clearAll()
+          toast.success('Handwriting cleared')
+        }}
+        onClose={() => setPenPalette(null)}
+      />
     </div>
   )
 }

@@ -19,8 +19,8 @@ import { toast } from 'sonner'
 import type { SortKey, ThemeMode, ViewDensity } from '@/types/models'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useUIStore } from '@/store/uiStore'
-import { db } from '@/database/db'
-import { downloadBackup, parseBackup, restoreBackup, type BackupFile } from '@/utils/exportImport'
+import { wipe } from '@/library/snapshot'
+import { downloadBackup, importBackupFile, restoreBackup, type BackupFile } from '@/utils/exportImport'
 import { Button } from '@/components/UI/Button'
 import { cn } from '@/utils/cn'
 import { Avatar } from '@/components/UI/Avatar'
@@ -186,7 +186,7 @@ export function SettingsPage(): React.ReactNode {
     e.target.value = ''
     if (!file) return
     try {
-      const backup = parseBackup(await file.text())
+      const backup = await importBackupFile(file)
       pendingRef.current = backup
       setPendingName(file.name)
       toast.info(`Backup read: ${backup.notes.length} notes`, {
@@ -224,10 +224,7 @@ export function SettingsPage(): React.ReactNode {
       confirmLabel: 'Delete everything',
       danger: true,
       onConfirm: async () => {
-        // db.delete() blocks forever if another tab still holds the database —
-        // race a timeout so we always reload instead of hanging the UI.
-        const timeout = new Promise<void>((resolve) => window.setTimeout(resolve, 6000))
-        await Promise.race([db.delete().catch(() => undefined), timeout])
+        await wipe()
         try {
           localStorage.clear()
           sessionStorage.clear()
@@ -451,10 +448,10 @@ export function SettingsPage(): React.ReactNode {
               : 'Everything lives in this browser only.'
           }
         >
-          <SettingRow label="Export backup" hint="Download a JSON snapshot you can re-import anywhere">
+          <SettingRow label="Export backup" hint="Download a .tala archive you can re-import anywhere">
             <Button variant="outline" size="sm" onClick={() => void downloadBackup()}>
               <Download className="size-4" />
-              Export JSON
+              Export .tala
             </Button>
           </SettingRow>
 
@@ -466,7 +463,7 @@ export function SettingsPage(): React.ReactNode {
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/json,.json"
+              accept="application/json,.json,.tala"
               className="hidden"
               onChange={(e) => void onFileChosen(e)}
             />

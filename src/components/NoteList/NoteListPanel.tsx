@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
+import { usePageStore } from '@/store/pageStore'
+import { trashNotes } from '@/library/notes'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -58,6 +60,7 @@ export function NoteListPanel({
   onOpenSidebar,
 }: NoteListPanelProps): React.ReactNode {
   const allNotes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const hydrated = useNoteStore((s) => s.hydrated)
   const folders = useFolderStore((s) => s.folders)
   const tags = useTagStore((s) => s.tags)
@@ -102,14 +105,14 @@ export function NoteListPanel({
     let list = notesForView(allNotes, view)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      list = list.filter((n) => searchableText(n).toLowerCase().includes(q))
+      list = list.filter((n) => searchableText(n, pagesByNote[n.id] ?? []).toLowerCase().includes(q))
     }
     if (filterFavoritesOnly) list = list.filter((n) => n.isFavorite)
     if (filterTagIds.length > 0) {
       list = list.filter((n) => filterTagIds.every((t) => n.tagIds.includes(t)))
     }
     return sortNotes(list, sortKey, surface === 'live')
-  }, [allNotes, view, searchQuery, filterFavoritesOnly, filterTagIds, sortKey, surface])
+  }, [allNotes, pagesByNote, view, searchQuery, filterFavoritesOnly, filterTagIds, sortKey, surface])
 
   // Prune stale selectedNoteIds when the visible list changes (search/filter)
   useEffect(() => {
@@ -468,7 +471,6 @@ export function NoteListPanel({
                           message: `${count} ${label} will be moved to the trash. You can restore them later.`,
                           confirmLabel: 'Move to trash',
                           onConfirm: () => {
-                            const { trashNotes } = useNoteStore.getState()
                             trashNotes(selectedNoteIds)
                             toast.success(`${count} ${label} moved to trash`)
                             exitMultiSelectMode()

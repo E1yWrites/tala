@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
+import { usePrefsStore } from '@/store/prefsStore'
 
 const IS_DEV = import.meta.env.DEV
 
@@ -110,7 +111,7 @@ export function useHotkeys(): void {
           // Ignored inside inputs/editor so ProseMirror keeps Ctrl+B = bold.
           if (isTypingTarget(e.target) || blocked) return
           e.preventDefault()
-          ui.toggleSidebar()
+          usePrefsStore.getState().toggleSidebar()
           return
         }
         case ',': {

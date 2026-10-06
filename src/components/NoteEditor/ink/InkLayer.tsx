@@ -74,6 +74,8 @@ export interface InkPrefsSnapshot {
   color: string
   sizeIdx: number
   eraserMode: InkEraserMode
+  /** Whether a hovering Apple Pencil shows a preview tip ring (Pencil Pref). */
+  pencilHover: boolean
 }
 
 export interface InkLayerHandle {
@@ -97,6 +99,10 @@ interface InkLayerProps {
    * solely while pen mode is active — so the rest of the app keeps its menus.
    */
   onPaletteRequest?: (clientX: number, clientY: number) => void
+  /** Called when the ink selection size changes (contextual selection actions). */
+  onSelectionChange?: (count: number) => void
+  /** E / V shortcuts — desktop keyboard tool switching (mirrors the palette). */
+  onToolShortcut?: (tool: InkPointerMode) => void
 }
 
 interface InkOp {
@@ -123,6 +129,8 @@ interface Pt {
   pointerType: string
   pressure: number
   pointerId: number
+  tiltX?: number
+  tiltY?: number
   getCoalescedEvents?(): Pt[]
   getPredictedEvents?(): Pt[]
 }
@@ -130,7 +138,17 @@ interface Pt {
 const EMPTY_STROKES: InkStroke[] = []
 
 export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLayer(
-  { ink, onChange, scrollRef, active, prefs, onHistoryChange, onPaletteRequest },
+  {
+    ink,
+    onChange,
+    scrollRef,
+    active,
+    prefs,
+    onHistoryChange,
+    onPaletteRequest,
+    onSelectionChange,
+    onToolShortcut,
+  },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
@@ -166,12 +184,23 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   inkRef.current = effDoc
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // Surface selection size so the editor can show contextual actions.
+  const selCount = selected.size
+  useEffect(() => {
+    onSelectionChange?.(selCount)
+  }, [selCount, onSelectionChange])
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
     null,
   )
   const [movePreview, setMovePreview] = useState<{ dx: number; dy: number } | null>(null)
   const [erasingStrokes, setErasingStrokes] = useState<InkStroke[] | null>(null)
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+  const [cursorPos, setCursorPos] = useState<{
+    x: number
+    y: number
+    pen?: boolean
+    mouse?: boolean
+  } | null>(null)
 
   /**
    * Transient gesture visuals (eraser ring, erase preview, marquee, move
@@ -179,7 +208,10 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
    * pointermove fires far more often than paint.
    */
   interface UiPending {
-    cursor?: { x: number; y: number } | null
+    /** Pointer position while idle (eraser ring / brush preview ring). `pen`
+     *  marks a hover-feeding Apple Pencil, `mouse` a desktop mouse — both show
+     *  a brush-size preview ring so the tool feels ready before any stylus. */
+    cursor?: { x: number; y: number; pen?: boolean; mouse?: boolean } | null
     erasing?: InkStroke[] | null
     marquee?: { x0: number; y0: number; x1: number; y1: number } | null
     move?: { dx: number; dy: number } | null
@@ -341,10 +373,20 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       rect && rect.width > 0 && inkRef.current ? inkRef.current.width / rect.width : 1
     const pressure =
       e.pointerType === 'pen' && e.pressure > 0 ? Math.round(e.pressure * 100) / 100 : undefined
+    // Pens report tiltX/tiltY projections even for mouse (0). Only fold the
+    // combined declination in for actual pen pointers so keyboard/mouse
+    // drawings stay at the preset width.
+    const tilt =
+      e.pointerType === 'pen' &&
+      typeof e.tiltX === 'number' &&
+      typeof e.tiltY === 'number'
+        ? Math.round(Math.hypot(e.tiltX, e.tiltY))
+        : undefined
     return {
       x: r01((e.clientX - (rect?.left ?? 0)) * s),
       y: r01((e.clientY - (rect?.top ?? 0)) * s),
       ...(pressure !== undefined ? { p: pressure } : {}),
+      ...(tilt !== undefined && tilt > 0 ? { t: tilt } : {}),
     }
   }, [])
 
@@ -420,6 +462,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const eraserRadiusCapture = useCallback(
     (): number => (sizesForTool('eraser')[prefs.sizeIdx] ?? 24) / 2 / (scale || 1),
     [prefs.sizeIdx, scale],
+  )
+
+  /** Brush preview ring radius for the active draw tool — mouse/pen hover. */
+  const drawRadiusCapture = useCallback(
+    (): number => (sizesForTool(prefs.tool)[prefs.sizeIdx] ?? PEN_SIZES[1]!) / 2 / (scale || 1),
+    [prefs.tool, prefs.sizeIdx, scale],
   )
 
   const eraseAt = useCallback(
@@ -569,7 +617,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     refreshSvgRect()
     const p = toLocal(e.nativeEvent)
 
-    if (prefs.tool === 'eraser') {
+    // Alt = temporary eraser for the duration of this stroke, on any draw tool.
+    if (prefs.tool === 'eraser' || (e.altKey && prefs.tool !== 'select')) {
       gestureRef.current = {
         kind: 'erase',
         base: inkRef.current.strokes,
@@ -638,9 +687,19 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     // One rect read per event batch — coalesced samples reuse the cache.
     refreshSvgRect()
 
-    // Eraser ring follows the pointer even before pressing
-    if (!g && prefs.tool === 'eraser') {
-      uiPendingRef.current.cursor = toLocal(native)
+    // Eraser ring (any pointer) and pen hover preview both follow the pointer
+    // while idle — the canvas stays dominant and the instrument "sits" on it.
+    if (
+      !g &&
+      (prefs.tool === 'eraser' ||
+        (e.pointerType === 'pen' && prefs.pencilHover) ||
+        (e.pointerType === 'mouse' && prefs.tool !== 'select'))
+    ) {
+      uiPendingRef.current.cursor = {
+        ...toLocal(native),
+        pen: e.pointerType === 'pen',
+        mouse: e.pointerType === 'mouse',
+      }
       scheduleUi()
       return
     }
@@ -655,6 +714,21 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (events.length === 0) events.push(native)
 
     if (g.kind === 'draw') {
+      // Shift = straight-line constraint: snap to the nearest 0/45/90° from
+      // the stroke's start instead of accumulating free-form points.
+      if (e.shiftKey && g.pts.length > 0) {
+        const start = g.pts[0]!
+        const last = toLocal(events[events.length - 1]!)
+        const dx = last.x - start.x
+        const dy = last.y - start.y
+        const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4)
+        const dist = Math.hypot(dx, dy)
+        const snapped = { ...last, x: r01(start.x + Math.cos(angle) * dist), y: r01(start.y + Math.sin(angle) * dist) }
+        g.pts = [start, snapped]
+        g.stroke.points = g.pts
+        scheduleRenderLive()
+        return
+      }
       for (const ev of events) {
         const p = toLocal(ev)
         const prev = g.pts[g.pts.length - 1]
@@ -790,11 +864,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         deleteSelection()
         return
       }
-      if (e.key === 'Escape') setSelected(new Set())
+      if (e.key === 'Escape') {
+        setSelected(new Set())
+        return
+      }
+      if (mod) return
+      // Desktop tool shortcuts — mirror the palette so mouse users never need
+      // to reach for it mid-stroke.
+      if (e.key.toLowerCase() === 'e' && onToolShortcut) {
+        e.preventDefault()
+        onToolShortcut('eraser')
+      } else if (e.key.toLowerCase() === 'v' && onToolShortcut) {
+        e.preventDefault()
+        onToolShortcut('select')
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [active, deleteSelection, redo, selected.size, undo])
+  }, [active, deleteSelection, onToolShortcut, redo, selected.size, undo])
 
   /* Drop stale selection ids when strokes change externally (undo etc.) */
   useEffect(() => {
@@ -840,6 +927,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={() => {
+            if (gestureRef.current) return
+            uiPendingRef.current.cursor = null
+            scheduleUi()
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
             onPaletteRequest?.(e.clientX, e.clientY)
@@ -896,11 +988,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
             </>
           )}
 
-          {active && cursorPos && prefs.tool === 'eraser' && (
+          {active && cursorPos && (prefs.tool === 'eraser' || cursorPos.pen || cursorPos.mouse) && (
             <circle
               cx={cursorPos.x}
               cy={cursorPos.y}
-              r={eraserRadiusCapture()}
+              r={prefs.tool === 'eraser' ? eraserRadiusCapture() : drawRadiusCapture()}
               className="ink-cursor-ring"
               vectorEffect="non-scaling-stroke"
             />

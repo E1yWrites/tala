@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import type { Note } from '@/types/models'
 import { useNoteStore } from '@/store/noteStore'
+import { deleteForever, duplicateNote, patchNote, restoreNote, trashNotes } from '@/library/notes'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -32,7 +33,7 @@ export function confirmAction(payload: {
  * rows and showed an error toast) so callers never celebrate a failure.
  */
 export async function deleteForeverAndPrune(ids: string[]): Promise<boolean> {
-  await useNoteStore.getState().deleteForever(ids)
+  await deleteForever(ids)
   const gone = useNoteStore
     .getState()
     .notes.every((n) => !ids.includes(n.id))
@@ -50,8 +51,6 @@ export async function deleteForeverAndPrune(ids: string[]): Promise<boolean> {
  * Centralized so list rows, grid cards and the editor share identical actions.
  */
 export function buildNoteMenu(note: Note, ctx: NoteActionContext): MenuItem[] {
-  const { patchNote, trashNotes, restoreNote, duplicateNote } =
-    useNoteStore.getState()
   const openModal = useUIStore.getState().openModal
   const { confirmBeforeDelete } = useSettingsStore.getState().settings
 

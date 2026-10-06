@@ -10,7 +10,8 @@ import {
   highlightText,
   runSearch,
 } from '@/utils/search'
-import { docToPlainText } from '@/utils/doc'
+import { pagesText } from '@/utils/doc'
+import { useNotePages, usePageStore } from '@/store/pageStore'
 import { formatRelative } from '@/utils/dates'
 import { Modal } from '@/components/UI/Modal'
 import { Kbd } from '@/components/UI/Kbd'
@@ -25,6 +26,7 @@ export function SearchModal(): React.ReactNode {
   const notes = useNoteStore((s) => s.notes)
   const tags = useTagStore((s) => s.tags)
   const folders = useFolderStore((s) => s.folders)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const selectNote = useUIStore((s) => s.selectNote)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const setView = useUIStore((s) => s.setView)
@@ -34,8 +36,8 @@ export function SearchModal(): React.ReactNode {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const docs = useMemo(
-    () => buildSearchDocs(notes.filter((n) => !n.isDeleted), tags, folders),
-    [notes, tags, folders],
+    () => buildSearchDocs(notes.filter((n) => !n.isDeleted), tags, folders, pagesByNote),
+    [notes, tags, folders, pagesByNote],
   )
   const hits = useMemo(() => runSearch(docs, query), [docs, query])
   const results: Note[] = query.trim() ? hits.map((h) => h.note) : recentNotes(notes)
@@ -183,7 +185,7 @@ function ResultRow({
 }): React.ReactNode {
   const allTags = useTagStore((s) => s.tags)
   const tagNameById = new Map(allTags.map((t) => [t.id, t]))
-  const body = docToPlainText(note.content)
+  const body = pagesText(useNotePages(note.id))
   const preview = body || 'Empty note'
 
   return (

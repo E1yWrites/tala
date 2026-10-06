@@ -36,7 +36,7 @@ function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
     case 'share':
       return <ShareModal noteId={intent.noteId} />
     case 'folder-editor':
-      return <FolderEditorModal folderId={intent.folderId ?? null} />
+      return <FolderEditorModal folderId={intent.folderId ?? null} parentId={intent.parentId} />
     case 'move-note':
       return <MoveNoteModal noteId={intent.noteId} />
     case 'tag-editor':

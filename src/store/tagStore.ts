@@ -1,8 +1,7 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
-import { db } from '@/database/db'
 import { tagRepository } from '@/database/repositories/tagRepository'
-import { noteRepository } from '@/database/repositories/noteRepository'
+import { removeTag } from '@/library/references'
 import { useNoteStore } from './noteStore'
 import { useUIStore } from './uiStore'
 import { TAG_COLOR_KEYS } from '@/data/defaults'
@@ -118,29 +117,7 @@ export const useTagStore = create<TagState>()((set, get) => ({
     set((s) => ({ tags: s.tags.filter((t) => t.id !== id) }))
 
     try {
-      // One transaction: tag removal + reference stripping succeed or fail together.
-      await db.transaction('rw', db.tags, db.notes, async () => {
-        await tagRepository.remove(id)
-        // Re-read current notes inside the transaction to avoid stale snapshots
-        const currentAffected = useNoteStore
-          .getState()
-          .notes.filter((n) => n.tagIds.includes(id))
-        if (currentAffected.length > 0) {
-          await noteRepository.bulkPut(
-            currentAffected.map((n) => ({ ...n, tagIds: n.tagIds.filter((t) => t !== id) })),
-          )
-        }
-      })
-      const finalAffected = useNoteStore
-        .getState()
-        .notes.filter((n) => n.tagIds.includes(id))
-      if (finalAffected.length > 0) {
-        useNoteStore.setState((s) => ({
-          notes: s.notes.map((n) =>
-            n.tagIds.includes(id) ? { ...n, tagIds: n.tagIds.filter((t) => t !== id) } : n,
-          ),
-        }))
-      }
+      await removeTag(id)
 
       // If the deleted tag is on screen, don't leave a ghost empty view
       const view = useUIStore.getState().activeView
@@ -164,9 +141,7 @@ export const useTagStore = create<TagState>()((set, get) => ({
     const prevTags = get().tags
     set((s) => ({ tags: s.tags.filter((t) => referenced.has(t.id)) }))
     try {
-      await db.transaction('rw', db.tags, async () => {
-        await tagRepository.bulkRemove(dead.map((t) => t.id))
-      })
+      await tagRepository.bulkRemove(dead.map((t) => t.id))
     } catch (err) {
       console.error('[tala] failed to prune tags', err)
       set({ tags: prevTags })

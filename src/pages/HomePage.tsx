@@ -6,7 +6,8 @@ import { useFolderStore } from '@/store/folderStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
-import { docPreview, countTasks } from '@/utils/doc'
+import { pagesTasks, pagesText, textPreview } from '@/utils/doc'
+import { usePageStore } from '@/store/pageStore'
 import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
 import { useTick } from '@/hooks/useTick'
 import { Button } from '@/components/UI/Button'
@@ -56,6 +57,7 @@ export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
 
   const notes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const folderCount = useFolderStore((s) => s.folders.length)
   const openModal = useUIStore((s) => s.openModal)
   const firstName = useSettingsStore(
@@ -65,7 +67,7 @@ export function HomePage(): React.ReactNode {
   const stats = useMemo(() => {
     const live = notes.filter((n) => !n.isDeleted && !n.isArchived)
     let tasksDone = 0
-    for (const n of live) tasksDone += countTasks(n.content).completed
+    for (const n of live) tasksDone += pagesTasks(pagesByNote[n.id] ?? []).completed
     return {
       notes: live.length,
       favorites: live.filter((n) => n.isFavorite).length,
@@ -158,7 +160,7 @@ export function HomePage(): React.ReactNode {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px]">{displayTitle(note)}</p>
-                      <p className="truncate text-xs text-faint">{docPreview(note.content, 80) || 'Empty note'}</p>
+                      <p className="truncate text-xs text-faint">{textPreview(pagesText(pagesByNote[note.id] ?? []), 80) || 'Empty note'}</p>
                     </div>
                     <time className="shrink-0 text-xs tabular-nums text-faint">
                       {formatRelative(note.updatedAt)}

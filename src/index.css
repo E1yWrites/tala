@@ -383,6 +383,22 @@
   overscroll-behavior: none;
 }
 
+/* Notebook page templates */
+.editor-scroll[data-template='ruled'] {
+  background-image: repeating-linear-gradient(
+      transparent,
+      transparent calc(var(--editor-template-rule, 28px) * 0.96 - 1px),
+      rgb(var(--c-line) / 0.35) calc(var(--editor-template-rule, 28px) * 0.96),
+      transparent calc(var(--editor-template-rule, 28px) * 0.96)
+    );
+}
+.editor-scroll[data-template='grid'] {
+  background-image:
+    linear-gradient(rgb(var(--c-line) / 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--c-line) / 0.25) 1px, transparent 1px);
+  background-size: var(--editor-template-rule, 28px) var(--editor-template-rule, 28px);
+}
+
 /* Reading layout — smooth collapsible sections (grid-rows trick) */
 /*
  * react-doodle-icons wraps every glyph in <g clip-path="url(#clip0)"> whose

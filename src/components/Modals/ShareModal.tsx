@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { CheckSoft, Copy, Download } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
+import { useNotePages } from '@/store/pageStore'
 import { useUIStore } from '@/store/uiStore'
 import {
   noteToMarkdown,
@@ -37,6 +38,7 @@ async function copyText(text: string): Promise<boolean> {
 /** Copy / download the current note as Markdown or plain text. */
 export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
   const note = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
+  const pages = useNotePages(noteId)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const [copied, setCopied] = useState(false)
   const copiedTimer = useRef<number>(undefined)
@@ -44,8 +46,8 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
   // Clear the "Copied" flip-back timer when the modal unmounts
   useEffect(() => () => window.clearTimeout(copiedTimer.current), [])
 
-  const markdown = useMemo(() => (note ? noteToMarkdown(note) : ''), [note])
-  const plain = useMemo(() => (note ? noteToPlainText(note) : ''), [note])
+  const markdown = useMemo(() => (note ? noteToMarkdown(note, pages) : ''), [note, pages])
+  const plain = useMemo(() => (note ? noteToPlainText(note, pages) : ''), [note, pages])
 
   if (!note) {
     return (

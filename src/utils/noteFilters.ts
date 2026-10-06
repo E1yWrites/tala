@@ -1,5 +1,5 @@
-import type { Folder, Note, SortKey, Tag, ViewRef } from '@/types/models'
-import { docPreview } from './doc'
+import type { Folder, Note, PageRecord, SortKey, Tag, ViewRef } from '@/types/models'
+import { pagesText, textPreview } from './doc'
 
 /* Shared logic for "which notes are visible in this view" and ordering. */
 
@@ -99,6 +99,6 @@ export function viewMeta(
 }
 
 /** Text used by search filtering within the current list. */
-export function searchableText(note: Note): string {
-  return `${note.title}\u0000${docPreview(note.content, 4000)}`
+export function searchableText(note: Note, pages: PageRecord[]): string {
+  return `${note.title}\u0000${textPreview(pagesText(pages), 4000)}`
 }

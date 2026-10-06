@@ -4,7 +4,8 @@ import type { Note } from '@/types/models'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { displayTitle } from '@/utils/noteFilters'
-import { docPreview, countTasks } from '@/utils/doc'
+import { pagesTasks, pagesText, textPreview } from '@/utils/doc'
+import { useNotePages } from '@/store/pageStore'
 import { formatRelative } from '@/utils/dates'
 import { highlightText } from '@/utils/search'
 import { cn } from '@/utils/cn'
@@ -80,9 +81,10 @@ export function NoteRow({
   const searchQuery = useUIStore((s) => s.searchQuery)
   const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter((t) => t !== undefined)
-  const tasks = useMemo(() => countTasks(note.content), [note.content])
+  const pages = useNotePages(note.id)
+  const tasks = useMemo(() => pagesTasks(pages), [pages])
   const title = displayTitle(note)
-  const preview = docPreview(note.content, 110)
+  const preview = textPreview(pagesText(pages), 110)
 
   return (
     <div
@@ -188,9 +190,10 @@ export function NoteGridCard({
   const searchQuery = useUIStore((s) => s.searchQuery)
   const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter((t) => t !== undefined)
-  const tasks = useMemo(() => countTasks(note.content), [note.content])
+  const pages = useNotePages(note.id)
+  const tasks = useMemo(() => pagesTasks(pages), [pages])
   const title = displayTitle(note)
-  const preview = docPreview(note.content, 180)
+  const preview = textPreview(pagesText(pages), 180)
 
   return (
     <div

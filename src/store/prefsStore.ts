@@ -1,0 +1,183 @@
+import { create } from 'zustand'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
+import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
+import { PEN_SIZES } from '@/types/ink'
+
+/*
+  Device-local preferences, persisted to localStorage by zustand. Anything that
+  belongs in a backup (study goals, streaks, ...) goes in a Dexie table instead:
+  a backup restored on another device must not depend on this browser.
+*/
+
+export type PencilAction = 'eraser' | 'pen' | 'undo' | 'palette' | 'none'
+
+export interface PencilShortcuts {
+  /** What a native Apple Pencil double-tap does (PencilKit gesture). */
+  doubleTap: PencilAction
+  /** What a native Apple Pencil squeeze does. */
+  squeeze: PencilAction
+  /** Show a tip ring when an Apple Pencil hovers the canvas in pen mode. */
+  hover: boolean
+}
+
+export const DEFAULT_PENCIL_SHORTCUTS: PencilShortcuts = {
+  doubleTap: 'eraser',
+  squeeze: 'palette',
+  hover: true,
+}
+
+export const PENCIL_ACTIONS: PencilAction[] = ['eraser', 'pen', 'undo', 'palette', 'none']
+
+export interface InkPrefs {
+  /** Last active pen tool (what re-selects when entering pen mode). */
+  tool: Exclude<InkPointerMode, 'select'>
+  color: string
+  /** Index into the thickness presets (see PEN_SIZES / HIGHLIGHTER_SIZES) */
+  sizeIdx: number
+  eraserMode: InkEraserMode
+  /** Named preset — drives the toolbar label and default sizes. */
+  preset: InkPreset
+  /** Apple Pencil shortcut/preview behaviour (configured from the pen palette). */
+  pencil: PencilShortcuts
+}
+
+const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'pencil', 'highlighter', 'eraser']
+
+const VALID_PRESETS = new Set<string>([
+  'marker', 'pencil', 'brush-pen', 'fine-pencil', 'highlighter', 'ballpoint',
+])
+
+export const DEFAULT_INK_PREFS: InkPrefs = {
+  tool: 'pen',
+  color: '#2563eb',
+  sizeIdx: 3,
+  eraserMode: 'stroke',
+  preset: 'marker',
+  pencil: DEFAULT_PENCIL_SHORTCUTS,
+}
+
+/** Coerces stored pen prefs: anything missing or of the wrong type falls back to the default. */
+export function sanitizeInkPrefs(raw: unknown): InkPrefs {
+  if (!isObj(raw)) return DEFAULT_INK_PREFS
+  const parsed = raw as Partial<InkPrefs>
+  return {
+      tool: INK_TOOLS.includes(parsed.tool as InkPrefs['tool'])
+        ? (parsed.tool as InkPrefs['tool'])
+        : DEFAULT_INK_PREFS.tool,
+      color:
+        typeof parsed.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(parsed.color)
+          ? parsed.color
+          : DEFAULT_INK_PREFS.color,
+      sizeIdx:
+        typeof parsed.sizeIdx === 'number' && Number.isFinite(parsed.sizeIdx)
+          ? // Clamp rather than reject: presets grew from 3 to 6 slots, and an
+            // old stored index must survive the upgrade (and any future change).
+            Math.min(Math.max(Math.round(parsed.sizeIdx), 0), PEN_SIZES.length - 1)
+          : DEFAULT_INK_PREFS.sizeIdx,
+      eraserMode:
+        parsed.eraserMode === 'pixel' || parsed.eraserMode === 'stroke'
+          ? parsed.eraserMode
+          : DEFAULT_INK_PREFS.eraserMode,
+      preset:
+        typeof parsed.preset === 'string' && VALID_PRESETS.has(parsed.preset)
+          ? (parsed.preset as InkPreset)
+          : DEFAULT_INK_PREFS.preset,
+      pencil: readPencilShortcuts(parsed.pencil),
+  }
+}
+
+function readPencilShortcuts(raw: unknown): PencilShortcuts {
+  const d = DEFAULT_PENCIL_SHORTCUTS
+  const r = isObj(raw) ? (raw as Record<string, unknown>) : {}
+  const act = (v: unknown, fallback: PencilAction): PencilAction =>
+    typeof v === 'string' && (PENCIL_ACTIONS as string[]).includes(v)
+      ? (v as PencilAction)
+      : fallback
+  return {
+    doubleTap: act(r.doubleTap, d.doubleTap),
+    squeeze: act(r.squeeze, d.squeeze),
+    hover: typeof r.hover === 'boolean' ? r.hover : d.hover,
+  }
+}
+
+function isObj(v: unknown): boolean {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+interface PrefsState {
+  sidebarCollapsed: boolean
+  /** Structured "Reading layout" for the note editor (cards + collapsible sections). */
+  readingLayout: boolean
+  /** Pen mode prefs: last tool/color/thickness. */
+  inkPrefs: InkPrefs
+  toggleSidebar: () => void
+  toggleReadingLayout: () => void
+  setInkPrefs: (patch: Partial<InkPrefs>) => void
+}
+
+/** Builds before this store kept each pref under its own key; carry them over once. */
+function readLegacyPrefs(): Pick<PrefsState, 'sidebarCollapsed' | 'readingLayout' | 'inkPrefs'> {
+  try {
+    return {
+      sidebarCollapsed: localStorage.getItem('tala:sidebar-collapsed') === '1',
+      readingLayout: localStorage.getItem('tala:reading-layout') === '1',
+      inkPrefs: sanitizeInkPrefs(JSON.parse(localStorage.getItem('tala:ink-prefs') ?? 'null')),
+    }
+  } catch {
+    return { sidebarCollapsed: false, readingLayout: false, inkPrefs: DEFAULT_INK_PREFS }
+  }
+}
+
+/** localStorage throws in private mode or when full: prefs then simply don't persist. */
+const safeStorage: StateStorage = {
+  getItem: (k) => {
+    try {
+      return localStorage.getItem(k)
+    } catch {
+      return null
+    }
+  },
+  setItem: (k, v) => {
+    try {
+      localStorage.setItem(k, v)
+    } catch {
+      /* ignore */
+    }
+  },
+  removeItem: (k) => {
+    try {
+      localStorage.removeItem(k)
+    } catch {
+      /* ignore */
+    }
+  },
+}
+
+export const usePrefsStore = create<PrefsState>()(
+  persist(
+    (set) => ({
+      sidebarCollapsed: false,
+      readingLayout: false,
+      inkPrefs: DEFAULT_INK_PREFS,
+      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      toggleReadingLayout: () => set((s) => ({ readingLayout: !s.readingLayout })),
+      setInkPrefs: (patch) => set((s) => ({ inkPrefs: { ...s.inkPrefs, ...patch } })),
+    }),
+    {
+      name: 'tala:prefs',
+      version: 1,
+      storage: createJSONStorage(() => safeStorage),
+      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs }) => ({ sidebarCollapsed, readingLayout, inkPrefs }),
+      // Validate on the way in: a hand-edited or older value must never crash the editor
+      merge: (persisted, current) => {
+        const p = (persisted ?? readLegacyPrefs()) as Partial<PrefsState>
+        return {
+          ...current,
+          sidebarCollapsed: p.sidebarCollapsed === true,
+          readingLayout: p.readingLayout === true,
+          inkPrefs: sanitizeInkPrefs(p.inkPrefs),
+        }
+      },
+    },
+  ),
+)

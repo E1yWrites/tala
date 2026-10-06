@@ -11,6 +11,8 @@ export interface MenuItem {
   disabled?: boolean
   /** Shows a trailing checkmark (for toggles like sort options) */
   checked?: boolean
+  /** Renders a visual divider between groups, no action. */
+  type?: 'separator'
 }
 
 interface DropdownMenuProps {
@@ -99,11 +101,11 @@ export function DropdownMenu({
   }, [open, items.length, side])
 
   useEffect(() => {
-    if (open) setActiveIndex(Math.max(0, items.findIndex((i) => !i.disabled)))
+    if (open) setActiveIndex(Math.max(0, items.findIndex((i) => !i.disabled && i.type !== 'separator')))
   }, [open, items])
 
   const select = (item: MenuItem): void => {
-    if (item.disabled) return
+    if (item.disabled || item.type === 'separator') return
     setOpen(false)
     triggerRef.current?.focus()
     item.onSelect()
@@ -161,7 +163,7 @@ export function DropdownMenu({
                 let next = i
                 for (let step = 0; step < items.length; step++) {
                   next = (next + 1) % items.length
-                  if (!items[next].disabled) break
+                  if (!items[next].disabled && !items[next].type) break
                 }
                 return next
               })
@@ -171,7 +173,7 @@ export function DropdownMenu({
                 let next = i
                 for (let step = 0; step < items.length; step++) {
                   next = (next - 1 + items.length) % items.length
-                  if (!items[next].disabled) break
+                  if (!items[next].disabled && !items[next].type) break
                 }
                 return next
               })
@@ -185,7 +187,14 @@ export function DropdownMenu({
             if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false)
           }}
         >
-          {items.map((item, index) => (
+          {items.map((item, index) =>
+            item.type === 'separator' ? (
+              <div
+                key={item.id}
+                className="my-1.5 h-px border-t border-dashed border-line-soft"
+                aria-hidden="true"
+              />
+            ) : (
             <button
               key={item.id}
               type="button"
@@ -210,7 +219,8 @@ export function DropdownMenu({
               <span className="flex-1">{item.label}</span>
               {item.checked && <Check size={13} aria-hidden="true" />}
             </button>
-          ))}
+            ),
+          )}
         </div>
       )}
     </div>

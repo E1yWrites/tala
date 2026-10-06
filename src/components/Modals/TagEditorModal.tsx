@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTagStore } from '@/store/tagStore'
 import { useNoteStore } from '@/store/noteStore'
+import { patchNote } from '@/library/notes'
 import { useUIStore } from '@/store/uiStore'
 import { Modal } from '@/components/UI/Modal'
 import { TagChip } from '@/components/UI/TagChip'
@@ -17,7 +18,6 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
   const tags = useTagStore((s) => s.tags)
   const notes = useNoteStore((s) => s.notes)
   const ensureTag = useTagStore((s) => s.ensureTag)
-  const patchNote = useNoteStore((s) => s.patchNote)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
 
   const [input, setInput] = useState('')

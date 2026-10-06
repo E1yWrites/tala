@@ -31,9 +31,56 @@ export interface InkDocRecord {
   doc: InkDoc
 }
 
+/** Sheet size in PDF points (1 pt = 1/72 in). */
+export interface PageSize {
+  w: number
+  h: number
+  kind: 'a4' | 'letter' | 'slide' | 'pdf'
+}
+
+/** One sheet of a Note. Owns its typed text; its Ink is keyed by this id. */
+export interface PageRecord {
+  id: string
+  noteId: string
+  index: number
+  template: 'blank' | 'ruled' | 'grid'
+  /**
+   * Tiptap JSON typed on this page. `undefined` only on rows written before
+   * v4, where page 1's text still lives in the legacy `Note.content`.
+   */
+  content?: JSONContent | null
+  /** Plain text of `content` (typed pages) or the PDF text layer, for search and previews. */
+  text?: string
+  /** Missing on legacy rows; read it through `pageSize()`. */
+  size?: PageSize
+  /** 1-based page number inside the note's imported PDF (see PdfRecord). */
+  pdfPage?: number
+  /** Pre-rendered raster background (PDF pages imported before v4), stored in `blobs`. */
+  backgroundBlobId?: string
+  /** Pre-v4 data-URL background; the v4 upgrade moves it into `blobs`. */
+  background?: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+/** Binary payload kept out of the light rows so boot never loads it. */
+export interface BlobRecord {
+  id: string
+  data: Blob
+}
+
+/** The original PDF a note was imported from; the bytes live in `blobs`. */
+export interface PdfRecord {
+  noteId: string
+  blobId: string
+  pageCount: number
+  createdAt: number
+}
+
 export interface Folder {
   id: string
   name: string
+  parentId: string | null
   createdAt: number
 }
 
@@ -103,7 +150,7 @@ export type ModalIntent =
   | { kind: 'palette' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
-  | { kind: 'folder-editor'; folderId?: string }
+  | { kind: 'folder-editor'; folderId?: string; parentId?: string }
   | { kind: 'move-note'; noteId: string }
   | { kind: 'tag-editor'; noteId: string }
   | { kind: 'profile-picture' }

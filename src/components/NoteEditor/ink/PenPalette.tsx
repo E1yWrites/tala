@@ -16,6 +16,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
 import { INK_PRESETS, sizesForTool } from '@/types/ink'
+import type { PencilAction, PencilShortcuts } from '@/store/prefsStore'
+import { PENCIL_ACTIONS } from '@/store/prefsStore'
 import { cn } from '@/utils/cn'
 import { Tooltip } from '../../UI/Tooltip'
 
@@ -24,10 +26,12 @@ import { Tooltip } from '../../UI/Tooltip'
    inspired by stylus-first note apps but drawn in Tala's sketch language
    (panel bg, line/postit tokens, wobbly shadows).
 
-   One circular shell hosts three views:
-     tools — pen / pencil / highlighter / eraser / select around a colour hub
-     color — ten ink swatches around the custom picker hub
-     size  — six true-thickness stroke previews around a back hub
+   One circular shell hosts four views:
+     tools  — pen / pencil / highlighter / eraser / select around a colour hub,
+              with a subtool (preset) strip and pencil-shortcut gear for pen tools
+     color  — ten ink swatches around the custom picker hub
+     size   — six true-thickness stroke previews around a back hub
+     pencil — Apple Pencil shortcut actions (double-tap / squeeze / hover ring)
    Selecting a tool keeps the wheel open (fast switching); picking a colour
    returns to the tools view. Esc / outside press / scroll dismiss it.
 --------------------------------------------------------------------------- */
@@ -71,9 +75,41 @@ export interface PenPalettePrefs {
   sizeIdx: number
   eraserMode: InkEraserMode
   preset: InkPreset
+  pencil: PencilShortcuts
 }
 
-type View = 'tools' | 'color' | 'size'
+/** Whether the palette is shown and where its anchor sits in the viewport. */
+export interface PenPaletteState {
+  open: boolean
+  anchor: { x: number; y: number }
+  mode: 'cursor' | 'trigger'
+}
+
+/** Subtool presets offered for each writing tool (the "what am I holding" strip). */
+const PRESETS_BY_TOOL: Record<'pen' | 'pencil', InkPreset[]> = {
+  pen: ['marker', 'brush-pen', 'ballpoint'],
+  pencil: ['pencil', 'fine-pencil'],
+}
+
+/** Short strip labels — full names live in tooltips / INK_PRESETS ids. */
+const PRESET_LABELS: Record<InkPreset, string> = {
+  marker: 'Marker',
+  pencil: 'Pencil',
+  'brush-pen': 'Brush',
+  'fine-pencil': 'Fine',
+  highlighter: 'Highlighter',
+  ballpoint: 'Ballpoint',
+}
+
+const PENCIL_ACTION_LABELS: Record<PencilAction, string> = {
+  eraser: 'Eraser',
+  pen: 'Pen mode',
+  undo: 'Undo',
+  palette: 'Palette',
+  none: 'Off',
+}
+
+type View = 'tools' | 'color' | 'size' | 'pencil'
 
 interface PenPaletteProps {
   open: boolean
@@ -271,11 +307,22 @@ export function PenPalette({
     setView('tools')
   }
 
+  /** Choosing a subtool preset adopts its default thickness. */
+  const pickPreset = (preset: InkPreset) => {
+    if (prefs.preset === preset) return
+    onPrefs({ preset, sizeIdx: INK_PRESETS[preset].defaultSizeIdx })
+  }
+
+  const nextAction = (a: PencilAction): PencilAction => {
+    const i = PENCIL_ACTIONS.indexOf(a)
+    return PENCIL_ACTIONS[(i + 1) % PENCIL_ACTIONS.length]!
+  }
+
   const nodeBase =
     'grid place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95'
   const idle =
     'border-transparent bg-panel text-muted hover:bg-raise dark:hover:bg-raise'
-  // Contract (matches EditorToolbar / PenToolbar): picked = postit fill +
+  // Contract (matches EditorToolbar / PenBar): picked = postit fill +
   // accent ring; idle = muted → ink on hover. No per-tool special cases.
   const picked = 'border-accent bg-postit text-postit-ink shadow-sketch-sm ring-2 ring-accent/40'
 
@@ -417,39 +464,69 @@ export function PenPalette({
           />
         </button>,
       )}
-      {/* Eraser behaviour toggle sits between the hub and the bottom node */}
-      {prefs.tool === 'eraser' && (
-        <span className="absolute inset-x-0 top-[158px] flex justify-center">
+      {/* Writing tools get their subtool strip. The Apple Pencil shortcut gear is
+          hidden: no browser exposes double-tap/squeeze, so nothing dispatches tala:pencil. */}
+      {prefs.tool === 'pen' || prefs.tool === 'pencil' ? (
+        <span className="absolute inset-x-0 top-[158px] flex items-center justify-center gap-1.5">
           <span
             role="radiogroup"
-            aria-label="Eraser mode"
+            aria-label={`${prefs.tool === 'pen' ? 'Pen' : 'Pencil'} preset`}
             className="flex items-center gap-px rounded-full border border-lineSoft bg-canvas p-px"
           >
-            {(
-              [
-                { id: 'stroke', label: 'Whole strokes' },
-                { id: 'pixel', label: 'Partial erase' },
-              ] as const
-            ).map((m) => (
-              <Tooltip key={m.id} label={m.label}>
+            {PRESETS_BY_TOOL[prefs.tool].map((preset) => (
+              <Tooltip key={preset} label={preset}>
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={prefs.eraserMode === m.id}
-                  onClick={() => onPrefs({ eraserMode: m.id })}
+                  aria-checked={prefs.preset === preset}
+                  onClick={() => pickPreset(preset)}
                   className={cn(
-                    'rounded-full px-2 py-0.5 text-[11px] font-medium transition-[background-color,border-color,color] duration-100',
-                    prefs.eraserMode === m.id
+                    'rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-[background-color,border-color,color] duration-100',
+                    prefs.preset === preset
                       ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
                       : 'text-muted hover:text-ink',
                   )}
                 >
-                  {m.id === 'stroke' ? 'Stroke' : 'Pixel'}
+                  {PRESET_LABELS[preset]}
                 </button>
               </Tooltip>
             ))}
           </span>
         </span>
+      ) : (
+        prefs.tool === 'eraser' && (
+          <span className="absolute inset-x-0 top-[158px] flex justify-center">
+            <span
+              role="radiogroup"
+              aria-label="Eraser mode"
+              className="flex items-center gap-px rounded-full border border-lineSoft bg-canvas p-px"
+            >
+              {(
+                [
+                  { id: 'stroke', label: 'Whole strokes' },
+                  { id: 'pixel', label: 'Partial erase' },
+                ] as const
+              ).map((m) => (
+                <Tooltip key={m.id} label={m.label}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={prefs.eraserMode === m.id}
+                    onClick={() => onPrefs({ eraserMode: m.id })}
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[11px] font-medium transition-[background-color,border-color,color] duration-100',
+                      prefs.eraserMode === m.id
+                        ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+                        : 'text-muted hover:text-ink',
+                    )}
+                  >
+                    {m.id === 'stroke' ? 'Stroke' : 'Pixel'}
+                  </button>
+                </Tooltip>
+              ))}
+            </span>
+          </span>
+        )
       )}
     </>
   )
@@ -585,6 +662,86 @@ export function PenPalette({
     </>
   )
 
+  /* ----------------------------- Pencil shortcuts ----------------------------- */
+
+  const pencilView = (
+    <>
+      {orbit(
+        'double-tap',
+        slot(0, OUTER_R, 44),
+        80,
+        `Double-tap → ${PENCIL_ACTION_LABELS[prefs.pencil.doubleTap]}`,
+        <button
+          type="button"
+          aria-label={`Double-tap action: ${PENCIL_ACTION_LABELS[prefs.pencil.doubleTap]}. Click to cycle.`}
+          onClick={() =>
+            onPrefs({ pencil: { ...prefs.pencil, doubleTap: nextAction(prefs.pencil.doubleTap) } })
+          }
+          className={cn(nodeBase, 'size-11 flex-col text-center leading-none')}
+        >
+          <span className="text-[9px] text-muted">Double-tap</span>
+          <span className="text-[10px] font-semibold text-postit-ink">
+            {PENCIL_ACTION_LABELS[prefs.pencil.doubleTap]}
+          </span>
+        </button>,
+      )}
+      {orbit(
+        'squeeze',
+        slot(120, OUTER_R, 44),
+        100,
+        `Squeeze → ${PENCIL_ACTION_LABELS[prefs.pencil.squeeze]}`,
+        <button
+          type="button"
+          aria-label={`Squeeze action: ${PENCIL_ACTION_LABELS[prefs.pencil.squeeze]}. Click to cycle.`}
+          onClick={() =>
+            onPrefs({ pencil: { ...prefs.pencil, squeeze: nextAction(prefs.pencil.squeeze) } })
+          }
+          className={cn(nodeBase, 'size-11 flex-col text-center leading-none')}
+        >
+          <span className="text-[9px] text-muted">Squeeze</span>
+          <span className="text-[10px] font-semibold text-postit-ink">
+            {PENCIL_ACTION_LABELS[prefs.pencil.squeeze]}
+          </span>
+        </button>,
+      )}
+      {orbit(
+        'hover',
+        slot(240, OUTER_R, 44),
+        120,
+        prefs.pencil.hover ? 'Hover ring on' : 'Hover ring off',
+        <button
+          type="button"
+          aria-label={`Hover ring: ${prefs.pencil.hover ? 'on' : 'off'}. Click to toggle.`}
+          onClick={() => onPrefs({ pencil: { ...prefs.pencil, hover: !prefs.pencil.hover } })}
+          className={cn(
+            nodeBase,
+            'size-11',
+            prefs.pencil.hover
+              ? 'border-accent bg-postit text-postit-ink ring-2 ring-accent/40'
+              : idle,
+          )}
+        >
+          <span className="text-[10px] font-semibold">{prefs.pencil.hover ? 'On' : 'Off'}</span>
+        </button>,
+      )}
+      {orbit(
+        'hub-back',
+        { left: CENTER - 27, top: CENTER - 27 },
+        140,
+        'Back to tools',
+        <button
+          type="button"
+          aria-label="Back to tools"
+          data-current="true"
+          onClick={() => setView('tools')}
+          className={cn(nodeBase, 'size-[54px] border-line text-muted hover:text-ink')}
+        >
+          <ArrowLeft className="size-5" />
+        </button>,
+      )}
+    </>
+  )
+
   return createPortal(
     <div
       ref={shellRef}
@@ -610,7 +767,13 @@ export function PenPalette({
         style={{ inset: 24 }}
       />
       <div key={view} className="absolute inset-0 animate-pen-swap">
-        {view === 'tools' ? toolsView : view === 'color' ? colorView : sizeView}
+        {view === 'tools'
+          ? toolsView
+          : view === 'color'
+            ? colorView
+            : view === 'size'
+              ? sizeView
+              : pencilView}
       </div>
     </div>,
     document.body,

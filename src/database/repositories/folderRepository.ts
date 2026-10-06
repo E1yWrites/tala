@@ -8,6 +8,9 @@ export const folderRepository = {
   async put(folder: Folder): Promise<void> {
     await db.folders.put(folder)
   },
+  async bulkPut(folders: Folder[]): Promise<void> {
+    await db.folders.bulkPut(folders)
+  },
   async remove(id: string): Promise<void> {
     await db.folders.delete(id)
   },

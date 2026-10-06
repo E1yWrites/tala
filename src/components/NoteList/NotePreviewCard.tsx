@@ -15,7 +15,9 @@ import { useUIStore } from '@/store/uiStore'
 import { useTagStore } from '@/store/tagStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
-import { docPreview, countTasks } from '@/utils/doc'
+import { pagesTasks, pagesText, textPreview } from '@/utils/doc'
+import { useNotePages } from '@/store/pageStore'
+import { duplicateNote, trashNotes } from '@/library/notes'
 import { formatRelative, formatFull } from '@/utils/dates'
 import { cn } from '@/utils/cn'
 import { confirmAction } from './noteActions'
@@ -68,9 +70,10 @@ export function NotePreviewCard({
 
   const tagMap = new Map(tags.map((t) => [t.id, t]))
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter(Boolean)
-  const tasks = countTasks(note.content)
-  const hasInk = Boolean(inkDocs[note.id]?.strokes?.length)
-  const preview = docPreview(note.content, 300)
+  const pages = useNotePages(note.id)
+  const tasks = pagesTasks(pages)
+  const hasInk = pages.some((p) => Boolean(inkDocs[p.id]?.strokes?.length))
+  const preview = textPreview(pagesText(pages), 300)
 
   const measure = useCallback(() => {
     const el = shellRef.current
@@ -113,7 +116,7 @@ export function NotePreviewCard({
 
   const handleDuplicate = () => {
     onClose()
-    useNoteStore.getState().duplicateNote(note.id)
+    duplicateNote(note.id)
     toast.success('Note duplicated')
   }
 
@@ -121,7 +124,7 @@ export function NotePreviewCard({
     onClose()
     const { confirmBeforeDelete } = useSettingsStore.getState().settings
     const doTrash = (): void => {
-      useNoteStore.getState().trashNotes([note.id])
+      trashNotes([note.id])
       toast.success('Note moved to trash')
     }
     if (!confirmBeforeDelete) return doTrash()

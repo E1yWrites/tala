@@ -1,103 +1,16 @@
 import { create } from 'zustand'
 import type { ModalIntent, ViewRef } from '@/types/models'
-import type { InkEraserMode, InkPreset, InkPointerMode } from '@/types/ink'
-import { PEN_SIZES } from '@/types/ink'
-
-const SIDEBAR_KEY = 'tala:sidebar-collapsed'
-const READING_LAYOUT_KEY = 'tala:reading-layout'
-const INK_PREFS_KEY = 'tala:ink-prefs'
 
 /** Fixed sidebar width when expanded (px). */
 export const SIDEBAR_WIDTH = 260
 
-function readSidebarCollapsed(): boolean {
-  try {
-    return localStorage.getItem(SIDEBAR_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-function readReadingLayout(): boolean {
-  try {
-    return localStorage.getItem(READING_LAYOUT_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-/* ------------------------------ Pen preferences --------------------------- */
-
-export interface InkPrefs {
-  /** Last active pen tool (what re-selects when entering pen mode). */
-  tool: Exclude<InkPointerMode, 'select'>
-  color: string
-  /** Index into the thickness presets (see PEN_SIZES / HIGHLIGHTER_SIZES) */
-  sizeIdx: number
-  eraserMode: InkEraserMode
-  /** Named preset — drives the toolbar label and default sizes. */
-  preset: InkPreset
-}
-
-const INK_TOOLS: InkPrefs['tool'][] = ['pen', 'pencil', 'highlighter', 'eraser']
-
-const VALID_PRESETS = new Set<string>([
-  'marker', 'pencil', 'brush-pen', 'fine-pencil', 'highlighter', 'ballpoint',
-])
-
-export const DEFAULT_INK_PREFS: InkPrefs = {
-  tool: 'pen',
-  color: '#2563eb',
-  sizeIdx: 3,
-  eraserMode: 'stroke',
-  preset: 'marker',
-}
-
-function readInkPrefs(): InkPrefs {
-  try {
-    const raw = localStorage.getItem(INK_PREFS_KEY)
-    if (!raw) return DEFAULT_INK_PREFS
-    const parsed = JSON.parse(raw) as Partial<InkPrefs>
-    return {
-      tool: INK_TOOLS.includes(parsed.tool as InkPrefs['tool'])
-        ? (parsed.tool as InkPrefs['tool'])
-        : DEFAULT_INK_PREFS.tool,
-      color:
-        typeof parsed.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(parsed.color)
-          ? parsed.color
-          : DEFAULT_INK_PREFS.color,
-      sizeIdx:
-        typeof parsed.sizeIdx === 'number' && Number.isFinite(parsed.sizeIdx)
-          ? // Clamp rather than reject: presets grew from 3 to 6 slots, and an
-            // old stored index must survive the upgrade (and any future change).
-            Math.min(Math.max(Math.round(parsed.sizeIdx), 0), PEN_SIZES.length - 1)
-          : DEFAULT_INK_PREFS.sizeIdx,
-      eraserMode:
-        parsed.eraserMode === 'pixel' || parsed.eraserMode === 'stroke'
-          ? parsed.eraserMode
-          : DEFAULT_INK_PREFS.eraserMode,
-      preset:
-        typeof parsed.preset === 'string' && VALID_PRESETS.has(parsed.preset)
-          ? (parsed.preset as InkPreset)
-          : DEFAULT_INK_PREFS.preset,
-    }
-  } catch {
-    return DEFAULT_INK_PREFS
-  }
-}
-
 interface UIState {
   activeView: ViewRef
   selectedNoteId: string | null
-  sidebarCollapsed: boolean
-  /** Structured "Reading layout" for the note editor (cards + collapsible sections). */
-  readingLayout: boolean
   /** Mobile/tablet slide-in sidebar */
   sidebarDrawerOpen: boolean
   /** Distraction-free mode: hides sidebar + list to focus on the editor */
   focusMode: boolean
-  /** Pen mode prefs — last tool/color/thickness, persisted to localStorage. */
-  inkPrefs: InkPrefs
   /** Stack so Esc always closes the topmost modal. Entries carry stable ids. */
   modalStack: { id: number; intent: ModalIntent }[]
   /**
@@ -117,11 +30,8 @@ interface UIState {
 
   setView: (view: ViewRef) => void
   selectNote: (id: string | null) => void
-  toggleSidebar: () => void
-  toggleReadingLayout: () => void
   setSidebarDrawer: (open: boolean) => void
   toggleFocusMode: () => void
-  setInkPrefs: (patch: Partial<InkPrefs>) => void
   openModal: (intent: ModalIntent) => void
   closeModal: () => void
   closeAllModals: () => void
@@ -145,11 +55,8 @@ let modalIdSeq = 0
 export const useUIStore = create<UIState>()((set, get) => ({
   activeView: { kind: 'home' },
   selectedNoteId: null,
-  sidebarCollapsed: readSidebarCollapsed(),
-  readingLayout: readReadingLayout(),
   sidebarDrawerOpen: false,
   focusMode: false,
-  inkPrefs: readInkPrefs(),
   modalStack: [],
   localOverlays: 0,
   searchQuery: '',
@@ -166,36 +73,12 @@ export const useUIStore = create<UIState>()((set, get) => ({
     set({ selectedNoteId: id })
   },
 
-  toggleSidebar() {
-    const next = !get().sidebarCollapsed
-    try {
-      localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0')
-    } catch { /* ignore */ }
-    set({ sidebarCollapsed: next })
-  },
-
-  toggleReadingLayout() {
-    const next = !get().readingLayout
-    try {
-      localStorage.setItem(READING_LAYOUT_KEY, next ? '1' : '0')
-    } catch { /* ignore */ }
-    set({ readingLayout: next })
-  },
-
   setSidebarDrawer(open) {
     set({ sidebarDrawerOpen: open })
   },
 
   toggleFocusMode() {
     set((s) => ({ focusMode: !s.focusMode, sidebarDrawerOpen: false }))
-  },
-
-  setInkPrefs(patch) {
-    const next = { ...get().inkPrefs, ...patch }
-    set({ inkPrefs: next })
-    try {
-      localStorage.setItem(INK_PREFS_KEY, JSON.stringify(next))
-    } catch { /* ignore */ }
   },
 
   openModal(intent) {
