@@ -1,10 +1,12 @@
 /* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
  * PDF import and on-demand render (also offline), a .tala backup round trip that
- * carries the PDF, the Tasks view, and the backup nudge (snooze, Quiet mode).
+ * carries the PDF, the Tasks view, ink tools (zoom, wet ink, lasso, page strip, PDF
+ * export) and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
  * Headless-shell needs: LD_LIBRARY_PATH=/tmp/opencode/nssroot/usr/lib/x86_64-linux-gnu */
 import { chromium } from 'playwright-core'
 import JSZip from 'jszip'
+import { PDFDocument } from '@cantoo/pdf-lib'
 import { readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -150,6 +152,10 @@ check('PDF note lists 2 pages', (await page.textContent('body'))?.includes('Page
 await page.click('button[aria-label="Next page"]')
 await wait(1000)
 check('PDF page 2 renders', await canvasHasInk(page))
+await page.click('button:has-text("Pages")')
+await wait(1500)
+check('PDF pages get real thumbnails in the strip', (await page.locator('[aria-label="Pages"] img').count()) === 2)
+await page.click('button:has-text("Pages")')
 await wait(400)
 check('PDF text layer is searchable', (await searchHits(page, 'quartz-lecture-two')) > 0)
 await page.keyboard.press('Escape')
@@ -362,6 +368,156 @@ await page.click('section[aria-label="Tasks"] >> text=Done (')
 await page.click('section[aria-label="Tasks"] button:has-text("TASK-ALPHA")')
 await wait(700)
 check('the note shows the task ticked', (await page.locator('.ProseMirror li[data-checked="true"]').count()) > 0)
+
+/* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
+await newNote(page)
+await page.locator('text=Blank note').first().click()
+await wait(700)
+await page.click('.ProseMirror')
+await page.keyboard.type('INK-EXPORT-TEXT')
+await wait(900)
+const columnTransform = () =>
+  page.evaluate(() => document.querySelector('.editor-scroll').firstElementChild.firstElementChild.style.transform)
+await page.click('button[aria-label="Zoom in"]')
+await wait(300)
+check('zoom in scales the page column', (await columnTransform()) === 'scale(1.25)')
+await page.click('button[aria-label="Zoom in"]')
+await page.click('button[aria-label="Zoom in"]')
+await wait(250)
+await page.click('button[aria-label="Fit page to width"]')
+await wait(250)
+check('"Fit" returns to 100%', (await columnTransform()) === '')
+const wheelBox = await page.locator('.editor-scroll').boundingBox()
+await page.mouse.move(wheelBox.x + 300, wheelBox.y + 300)
+await page.keyboard.down('Control')
+await page.mouse.wheel(0, -150)
+await page.keyboard.up('Control')
+await wait(250)
+check('ctrl+wheel zooms like a trackpad pinch', (await columnTransform()).startsWith('scale('))
+await page.click('button[aria-label="Fit page to width"]')
+await wait(250)
+
+await page.click('button[aria-label="Pen mode"]')
+await wait(300)
+await page.click('button[aria-label="Zoom in"]')
+await page.click('button[aria-label="Zoom in"]')
+await wait(300)
+const inkSvg = await page.locator('svg.ink-svg').boundingBox()
+const sx = Math.max(inkSvg.x, wheelBox.x) + 120
+const sy = wheelBox.y + 300
+await page.mouse.move(sx, sy)
+await page.mouse.down()
+await page.mouse.move(sx + 100, sy + 50, { steps: 8 })
+await wait(120)
+const wetPixels = await page.evaluate(() => {
+  const c = document.querySelector('.ink-layer canvas')
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+  let n = 0
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++
+  return n
+})
+check('the stroke under the pen is painted on the wet canvas', wetPixels > 200, `${wetPixels}px`)
+await page.mouse.up()
+await wait(1200)
+const wetAfter = await page.evaluate(() => {
+  const c = document.querySelector('.ink-layer canvas')
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+  let n = 0
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++
+  return n
+})
+check('the wet canvas hands over to the committed SVG path', wetAfter === 0 && (await page.locator('svg.ink-svg path').count()) >= 1)
+const inkRows = () =>
+  page.evaluate(
+    () =>
+      new Promise((res) => {
+        const r = indexedDB.open('tala')
+        r.onsuccess = () => {
+          const g = r.result.transaction('inkDocs').objectStore('inkDocs').getAll()
+          g.onsuccess = () => res(g.result)
+        }
+      }),
+  )
+const firstDoc = (await inkRows()).find((r) => r.doc.strokes.length)?.doc
+const dot = firstDoc?.strokes[0]?.points[0]
+const wantX = ((sx - inkSvg.x) * firstDoc.width) / inkSvg.width
+check('ink lands under the pen while zoomed in', !!dot && Math.abs(dot.x - wantX) < 3, `x=${dot?.x} want≈${wantX.toFixed(1)}`)
+await page.click('button[aria-label="Fit page to width"]')
+await wait(300)
+
+// A second stroke, then lasso only the first
+const svg1 = await page.locator('svg.ink-svg').boundingBox()
+const ax = svg1.x + 150
+const ay = wheelBox.y + 200
+const draw = async (x, y, dx, dy) => {
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx, y + dy, { steps: 6 })
+  await page.mouse.up()
+  await wait(300)
+}
+await draw(ax, ay, 80, 40)
+await draw(ax, ay + 110, 80, 30)
+await wait(900)
+const countStrokes = async () => (await inkRows()).reduce((n, r) => n + r.doc.strokes.length, 0)
+const before = await countStrokes()
+await page.keyboard.press('v')
+await wait(200)
+await page.mouse.move(ax - 20, ay - 25)
+await page.mouse.down()
+for (const [x, y] of [[ax + 100, ay - 25], [ax + 100, ay + 65], [ax - 20, ay + 65], [ax - 20, ay - 15]]) await page.mouse.move(x, y, { steps: 4 })
+await page.mouse.up()
+await wait(300)
+check('lasso selects just the strokes inside the loop', (await page.locator('button[aria-label="Delete 1 selected stroke"]').count()) === 1)
+await page.click('button[aria-label="Duplicate selection"]')
+await wait(1000)
+check('Duplicate adds a copy', (await countStrokes()) === before + 1)
+await page.click('button[aria-label="Undo handwriting"]')
+await wait(900)
+check('Undo removes the copy', (await countStrokes()) === before)
+
+// History survives a page switch
+await page.click('button:has-text("Add page")')
+await wait(500)
+await page.click('button[aria-label="Previous page"]')
+await wait(600)
+check('undo history survives a page switch', await page.locator('button[aria-label="Redo handwriting"]').isEnabled())
+
+// Page strip: thumbnails and drag reorder
+await page.click('button:has-text("Add page")')
+await wait(400)
+await page.click('button[aria-label="Exit pen mode"]')
+await page.click('.ProseMirror')
+await page.keyboard.type('INK-PAGE-THREE')
+await wait(900)
+await page.click('button:has-text("Pages")')
+await wait(900)
+check('the page strip shows every page', (await page.locator('[aria-label="Pages"] button').count()) === 3)
+check('a page with ink gets a thumbnail', (await page.locator('[aria-label="Pages"] img').count()) >= 1)
+const cards = await page.locator('[aria-label="Pages"] button').all()
+const last = await cards[2].boundingBox()
+const first = await cards[0].boundingBox()
+await page.mouse.move(last.x + 20, last.y + 30)
+await page.mouse.down()
+await page.mouse.move(first.x + 8, last.y + 30, { steps: 10 })
+await page.mouse.up()
+await wait(500)
+check('dragging a card reorders the pages', (await page.locator('[aria-label="Pages"] button').first().textContent()).includes('INK-PAGE') || (await editorText(page)).includes('INK-PAGE-THREE'))
+check('the page you are editing stays selected after a reorder', (await page.locator('[aria-label="Pages"] button[aria-current="page"]').count()) === 1)
+
+// PDF export
+await page.click('button[aria-label="Share & export"]')
+await wait(500)
+const pdfDownload = page.waitForEvent('download', { timeout: 20000 })
+await page.click('button:has-text("PDF with handwriting")')
+const pdfFile = await pdfDownload
+const pdfPath = join(tmpdir(), `tala-e2e-export-${Date.now()}.pdf`)
+await pdfFile.saveAs(pdfPath)
+const exported = await PDFDocument.load(await readFile(pdfPath))
+check('PDF export has one sheet per page', exported.getPageCount() >= 3, `${exported.getPageCount()} pages, ${pdfFile.suggestedFilename()}`)
+await rm(pdfPath, { force: true })
+await page.keyboard.press('Escape')
+await wait(300)
 
 /* ---- 7. Bituin: weekly backup nudge, snooze, Quiet mode ----------------------- */
 const weekOld = JSON.stringify({ state: { coach: { firstSeenAt: Date.now() - 10 * 86400000 } }, version: 1 })

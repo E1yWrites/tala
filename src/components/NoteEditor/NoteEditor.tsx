@@ -38,6 +38,7 @@ import {
   deletePage,
   duplicatePage,
   flush as flushLibrary,
+  movePage,
   patchNote,
   restoreNote,
   saveInk,
@@ -67,6 +68,9 @@ import { InkLayer } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
 import { PenBar } from './ink/PenBar'
 import { PageBackground } from './PageBackground'
+import { ZoomColumn } from '@/canvas/ZoomColumn'
+import { PageStrip } from '@/canvas/PageStrip'
+import type { ZoomHandle } from '@/canvas/ZoomColumn'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { PenPalette } from './ink/PenPalette'
@@ -171,6 +175,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const [selectionCount, setSelectionCount] = useState(0)
   const inkLayerRef = useRef<InkLayerHandle>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const zoomRef = useRef<ZoomHandle>(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [showStrip, setShowStrip] = useState(false)
   /** Stable id for cleanup effects that must not re-run per render. */
   const noteIdRef = useRef(noteId)
   noteIdRef.current = noteId
@@ -744,7 +751,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           >
             <ChevronLeft size={14} />
           </Button>
-          <div className="w-32 text-center text-xs tabular-nums text-faint">
+          <div className="text-center text-xs tabular-nums whitespace-nowrap text-faint md:w-32">
             Page {activePageIndex + 1} of {pages.length}
           </div>
           <Button
@@ -757,6 +764,47 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <ChevronRight size={14} />
           </Button>
           <div className="ml-auto flex items-center gap-1.5">
+            {zoomLevel > 1 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Reset zoom"
+                className="tabular-nums md:hidden"
+                onClick={() => zoomRef.current?.reset()}
+              >
+                Fit
+              </Button>
+            )}
+            <div className="hidden items-center md:flex" role="group" aria-label="Zoom">
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Zoom out"
+                disabled={zoomLevel <= 1}
+                onClick={() => zoomRef.current?.zoomBy(1 / 1.25)}
+              >
+                −
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Fit page to width"
+                className="w-12 tabular-nums"
+                disabled={zoomLevel <= 1}
+                onClick={() => zoomRef.current?.reset()}
+              >
+                {Math.round(zoomLevel * 100)}%
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Zoom in"
+                disabled={zoomLevel >= 4}
+                onClick={() => zoomRef.current?.zoomBy(1.25)}
+              >
+                +
+              </Button>
+            </div>
             <DropdownMenu
               align="end"
               items={[
@@ -773,6 +821,24 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   onSelect: () => {
                     addPage(note.id)
                     setActivePageIndex(pages.length)
+                  },
+                },
+                {
+                  id: 'move-page-earlier',
+                  label: 'Move page earlier',
+                  disabled: activePageIndex <= 0,
+                  onSelect: () => {
+                    movePage(note.id, activePage.id, activePageIndex - 1)
+                    setActivePageIndex(activePageIndex - 1)
+                  },
+                },
+                {
+                  id: 'move-page-later',
+                  label: 'Move page later',
+                  disabled: activePageIndex >= pages.length - 1,
+                  onSelect: () => {
+                    movePage(note.id, activePage.id, activePageIndex + 1)
+                    setActivePageIndex(activePageIndex + 1)
                   },
                 },
                 {
@@ -800,16 +866,33 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <Button
               size="sm"
               variant="ghost"
+              aria-pressed={showStrip}
+              onClick={() => setShowStrip((v) => !v)}
+            >
+              Pages
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 addPage(note.id)
                 setActivePageIndex(pages.length)
               }}
             >
               <Plus size={14} />
-              Add page
+              <span className="hidden sm:inline">Add page</span>
+              <span className="sr-only sm:hidden">Add page</span>
             </Button>
           </div>
         </div>
+      )}
+      {!note.isDeleted && showStrip && pages.length > 0 && (
+        <PageStrip
+          noteId={note.id}
+          pages={pages}
+          activeIndex={activePageIndex}
+          onSelect={setActivePageIndex}
+        />
       )}
 
       {/* Scrollable document */}
@@ -817,6 +900,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         ref={scrollRef}
         className="editor-scroll min-h-0 flex-1 overflow-y-auto"
         data-template={activePage?.template ?? 'blank'}
+        style={{ '--editor-template-rule': `${28 * zoomLevel}px` } as CSSProperties}
         onPaste={onPasteOrDrop}
         onDrop={onPasteOrDrop}
         onClick={(e) => {
@@ -835,7 +919,11 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           }
         }}
       >
-        <div
+        <ZoomColumn
+          ref={zoomRef}
+          scrollRef={scrollRef}
+          maxWidth={720}
+          onZoomChange={setZoomLevel}
           className={cn(
             'relative mx-auto w-full max-w-[720px] px-6 pb-24 md:px-10',
             !isBgPage && 'pt-6',
@@ -872,6 +960,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     onOpenPalette={(anchor) => setPenPalette({ open: true, anchor, mode: 'trigger' })}
                     selectionCount={selectionCount}
                     onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
+                    onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
+                    onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
                   />
                 </div>
               )}
@@ -971,6 +1061,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   }
                   selectionCount={selectionCount}
                   onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
+                  onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
+                  onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
                 />
               ) : (
                 <EditorToolbar editor={editor} />
@@ -996,8 +1088,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               key={activePageId}
               ref={inkLayerRef}
               ink={inkDocs[activePageId] ?? null}
+              historyKey={activePageId}
               onChange={handleInkChange}
-              scrollRef={scrollRef}
               active={penMode}
               prefs={inkLayerPrefs}
               onHistoryChange={handleInkHistory}
@@ -1006,7 +1098,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               onToolShortcut={handleToolShortcut}
             />
           )}
-        </div>
+        </ZoomColumn>
       </div>
 
       {/* Radial pen palette — hoisted once (portal) so right-click and

@@ -139,8 +139,7 @@ export function sanitizeFilename(title: string): string {
   return base || 'untitled-note'
 }
 
-export function downloadTextFile(filename: string, content: string, mime: string): void {
-  const blob = new Blob([content], { type: mime })
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -149,4 +148,8 @@ export function downloadTextFile(filename: string, content: string, mime: string
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function downloadTextFile(filename: string, content: string, mime: string): void {
+  downloadBlob(filename, new Blob([content], { type: mime }))
 }

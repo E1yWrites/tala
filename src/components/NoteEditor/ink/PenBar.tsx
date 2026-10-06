@@ -28,7 +28,7 @@ const TOOL_LABELS: Record<InkPointerMode, string> = {
   pencil: 'Pencil',
   highlighter: 'Highlighter',
   eraser: 'Eraser',
-  select: 'Select ink',
+  select: 'Lasso',
 }
 
 export interface PenBarProps {
@@ -45,6 +45,9 @@ export interface PenBarProps {
   /** Count of currently selected ink strokes — drives the contextual delete button. */
   selectionCount: number
   onDeleteSelection?: () => void
+  /** Paint the selection in the colour currently chosen in the palette. */
+  onRecolorSelection?: () => void
+  onDuplicateSelection?: () => void
 }
 
 export function PenBar({
@@ -59,6 +62,8 @@ export function PenBar({
   onOpenPalette,
   selectionCount,
   onDeleteSelection,
+  onRecolorSelection,
+  onDuplicateSelection,
 }: PenBarProps): ReactNode {
   const ToolIcon = TOOL_ICONS[tool]
   const leftHanded = usePrefsStore((st) => st.leftHanded)
@@ -126,7 +131,32 @@ export function PenBar({
         </button>
       </span>
 
-      {/* Contextual delete: appears when select tool has a selection */}
+      {/* Contextual lasso actions: appear when the select tool has a selection */}
+      {selectionCount > 0 && (
+        <span className="flex items-center gap-px rounded-full border border-lineSoft bg-canvas/60 p-px text-xs">
+          <button
+            type="button"
+            onClick={onRecolorSelection}
+            aria-label="Recolor selection to the current colour"
+            className="flex items-center gap-1 rounded-full px-2 py-1 text-muted transition-colors hover:bg-raise hover:text-ink"
+          >
+            <span
+              aria-hidden="true"
+              className="size-2 rounded-full border border-white/60 dark:border-black/30"
+              style={{ backgroundColor: color }}
+            />
+            Recolor
+          </button>
+          <button
+            type="button"
+            onClick={onDuplicateSelection}
+            aria-label="Duplicate selection"
+            className="rounded-full px-2 py-1 text-muted transition-colors hover:bg-raise hover:text-ink"
+          >
+            Duplicate
+          </button>
+        </span>
+      )}
       {selectionCount > 0 && (
         <Tooltip label={`Delete ${selectionCount} stroke${selectionCount === 1 ? '' : 's'}`}>
           <button

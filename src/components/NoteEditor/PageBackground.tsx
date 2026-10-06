@@ -4,6 +4,10 @@ import type { PageRecord } from '@/types/models'
 import { useBlobUrl } from '@/library/blobs'
 import { pageSize } from '@/library/pageSize'
 import { loadPdf } from '@/library/pdfImport'
+import { useZoom } from '@/canvas/ZoomColumn'
+
+/** iOS Safari refuses canvases much past 16M pixels; stay well under. */
+const MAX_CANVAS_PIXELS = 12_000_000
 
 const FRAME = 'w-full rounded-control border border-lineSoft bg-white shadow-rest'
 
@@ -38,6 +42,8 @@ function PdfCanvas({ noteId, page, label }: { noteId: string; page: PageRecord; 
   /** Shown width in 40px steps: re-render when the layout really changes, not on every pixel. */
   const [width, setWidth] = useState(0)
   const { w, h } = pageSize(page)
+  /** Zoom in half steps so a pinch re-renders a few times, not every frame. */
+  const zoomStep = Math.ceil(useZoom() * 2) / 2
 
   useEffect(() => {
     const el = wrapRef.current
@@ -58,9 +64,9 @@ function PdfCanvas({ noteId, page, label }: { noteId: string; page: PageRecord; 
         const pdf = await loadPdf(noteId)
         const pdfPage = await pdf.getPage(page.pdfPage!)
         if (stale) return
-        const viewport = pdfPage.getViewport({
-          scale: (wrap.clientWidth * Math.min(window.devicePixelRatio || 1, 2)) / w,
-        })
+        let scale = (wrap.clientWidth * Math.min(window.devicePixelRatio || 1, 2) * zoomStep) / w
+        scale = Math.min(scale, Math.sqrt(MAX_CANVAS_PIXELS / (w * h)))
+        const viewport = pdfPage.getViewport({ scale })
         canvas.width = Math.floor(viewport.width)
         canvas.height = Math.floor(viewport.height)
         task = pdfPage.render({ canvasContext: canvas.getContext('2d')!, viewport })
@@ -73,7 +79,7 @@ function PdfCanvas({ noteId, page, label }: { noteId: string; page: PageRecord; 
       stale = true
       task?.cancel()
     }
-  }, [noteId, page.pdfPage, w, width])
+  }, [noteId, page.pdfPage, w, h, width, zoomStep])
 
   return (
     <div ref={wrapRef} className={FRAME} style={{ aspectRatio: `${w} / ${h}` }}>

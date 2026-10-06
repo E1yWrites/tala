@@ -372,6 +372,6 @@ export async function restoreBackup(
   const { hydrateAll } = await import('@/library/boot')
   await hydrateAll()
   // Open editors may hold pre-import docs — let them resync (see NoteEditor)
-  window.dispatchEvent(new CustomEvent('tala:external-sync'))
+  window.dispatchEvent(new CustomEvent('tala:external-sync', { detail: 'restore' }))
   return { notes: backup.notes.length, folders: backup.folders.length, tags: backup.tags.length }
 }

@@ -66,7 +66,7 @@ const TOOLS: ToolSpec[] = [
   { id: 'pencil', icon: Pencil, label: 'Pencil', tone: 'text-[#6f665a] dark:text-[#a89f92]' },
   { id: 'highlighter', icon: Highlighter, label: 'Highlighter', tone: 'text-[#d69e04] dark:text-[#f0b429]' },
   { id: 'eraser', icon: Eraser, label: 'Eraser', tone: 'text-[#db4a8c] dark:text-[#ec4899]' },
-  { id: 'select', icon: MousePointer2, label: 'Select ink' },
+  { id: 'select', icon: MousePointer2, label: 'Lasso' },
 ]
 
 export interface PenPalettePrefs {

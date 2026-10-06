@@ -386,6 +386,8 @@
 .editor-scroll {
   container: editor / inline-size;
   overscroll-behavior: none;
+  /* one finger scrolls; two fingers are handled by ZoomColumn (pinch zoom) */
+  touch-action: pan-x pan-y;
 }
 
 /* Notebook page templates */
@@ -396,12 +398,15 @@
       rgb(var(--c-line) / 0.35) calc(var(--editor-template-rule, 28px) * 0.96),
       transparent calc(var(--editor-template-rule, 28px) * 0.96)
     );
+  /* paper moves with the content (and zoom), so ink stays put on the ruling */
+  background-attachment: local;
 }
 .editor-scroll[data-template='grid'] {
   background-image:
     linear-gradient(rgb(var(--c-line) / 0.25) 1px, transparent 1px),
     linear-gradient(90deg, rgb(var(--c-line) / 0.25) 1px, transparent 1px);
   background-size: var(--editor-template-rule, 28px) var(--editor-template-rule, 28px);
+  background-attachment: local;
 }
 
 /* Reading layout — smooth collapsible sections (grid-rows trick) */
