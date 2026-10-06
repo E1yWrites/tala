@@ -422,7 +422,14 @@ function NavItemButton({
       <span className={ICON_CONTAINER} aria-hidden="true">
         <item.icon size={ICON_SIZE} strokeWidth={active ? 2.5 : 2} />
       </span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
+      <span
+        className={cn(
+          'flex-1 truncate text-left',
+          active && 'underline decoration-wavy decoration-accent decoration-[1.5px] underline-offset-4',
+        )}
+      >
+        {item.label}
+      </span>
       {!!item.count && item.count > 0 && (
         <span
           className={cn(
