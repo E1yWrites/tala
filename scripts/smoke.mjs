@@ -45,7 +45,7 @@ async function createBlankNote(p) {
     await p.click('text=All Notes').catch(() => {})
     await waitFor(300)
   }
-  await p.click('button[aria-label="New note"]').catch(() => {})
+  await p.click('button[aria-label="New note"]:visible').catch(() => {})
   await waitFor(400)
   const modalOpen = await p.isVisible('text=Blank note')
   const card = p.locator('text=Blank note').first()
@@ -83,7 +83,7 @@ await page.keyboard.type('Notes on merge sort. SMOKE-TEST-EDIT')
 await waitFor(900) // debounce + save
 
 // ---- Second note via template modal ------------------------------------------
-await page.click('button[aria-label="New note"]').catch(() => {})
+await page.click('button[aria-label="New note"]:visible').catch(() => {})
 await waitFor(400)
 const modalOpen = await page.isVisible('text=Blank note')
 check('new-note modal opens again', modalOpen)
@@ -161,6 +161,20 @@ await waitFor(400)
 
 check('mobile: onboarding completes', await completeOnboarding(mpage))
 check('mobile: bottom nav visible', await mpage.isVisible('nav[aria-label="Primary"]'))
+const tabs = await mpage.locator('nav[aria-label="Primary"] button').allTextContents()
+check(
+  'mobile: tab bar has Notes, Tasks, Search and a New note button',
+  ['Notes', 'Tasks', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
+    (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="New note"]')),
+)
+await mpage.click('nav[aria-label="Primary"] >> text=Tasks')
+await waitFor(350)
+check('mobile: Tasks tab opens the tasks view', await mpage.isVisible('section[aria-label="Tasks"]'))
+await mpage.click('nav[aria-label="Primary"] button[aria-label*="settings and more"]')
+await waitFor(250)
+await mpage.click('[role="menu"] >> text=Settings')
+await waitFor(400)
+check('mobile: Settings opens from the profile menu', await mpage.isVisible('text=Quiet mode'))
 
 // Drawer opens from the list header hamburger
 await mpage.click('nav[aria-label="Primary"] >> text=Notes')

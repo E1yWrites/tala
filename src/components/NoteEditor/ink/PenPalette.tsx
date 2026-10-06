@@ -319,12 +319,12 @@ export function PenPalette({
   }
 
   const nodeBase =
-    'grid place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95'
+    'grid place-items-center rounded-full border transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95'
   const idle =
     'border-transparent bg-panel text-muted hover:bg-raise dark:hover:bg-raise'
   // Contract (matches EditorToolbar / PenBar): picked = postit fill +
   // accent ring; idle = muted → ink on hover. No per-tool special cases.
-  const picked = 'border-accent bg-postit text-postit-ink shadow-sketch-sm ring-2 ring-accent/40'
+  const picked = 'border-accent bg-selected text-selected-ink shadow-rest ring-2 ring-accent/40'
 
   /** Absolute wrapper carries the polar slot + stagger; Tooltip stays flow-safe inside. */
   const orbit = (
@@ -459,7 +459,7 @@ export function PenPalette({
         >
           <span
             aria-hidden="true"
-            className="size-7 rounded-full border-2 border-white/80 shadow-inner dark:border-black/50"
+            className="size-7 rounded-full border border-white/80 shadow-inner dark:border-black/50"
             style={{ backgroundColor: prefs.color }}
           />
         </button>,
@@ -483,7 +483,7 @@ export function PenPalette({
                   className={cn(
                     'rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-[background-color,border-color,color] duration-100',
                     prefs.preset === preset
-                      ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+                      ? 'bg-selected text-selected-ink ring-2 ring-accent/40'
                       : 'text-muted hover:text-ink',
                   )}
                 >
@@ -516,7 +516,7 @@ export function PenPalette({
                     className={cn(
                       'rounded-full px-2 py-0.5 text-[11px] font-medium transition-[background-color,border-color,color] duration-100',
                       prefs.eraserMode === m.id
-                        ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+                        ? 'bg-selected text-selected-ink ring-2 ring-accent/40'
                         : 'text-muted hover:text-ink',
                     )}
                   >
@@ -592,7 +592,7 @@ export function PenPalette({
         >
           <span
             aria-hidden="true"
-            className="size-8 rounded-full border-2 border-white/80 dark:border-black/50"
+            className="size-8 rounded-full border border-white/80 dark:border-black/50"
             style={{
               background:
                 'conic-gradient(#dc2626, #ea580c, #eab308, #16a34a, #2563eb, #7c3aed, #ec4899, #dc2626)',
@@ -680,7 +680,7 @@ export function PenPalette({
           className={cn(nodeBase, 'size-11 flex-col text-center leading-none')}
         >
           <span className="text-[9px] text-muted">Double-tap</span>
-          <span className="text-[10px] font-semibold text-postit-ink">
+          <span className="text-[10px] font-semibold text-selected-ink">
             {PENCIL_ACTION_LABELS[prefs.pencil.doubleTap]}
           </span>
         </button>,
@@ -699,7 +699,7 @@ export function PenPalette({
           className={cn(nodeBase, 'size-11 flex-col text-center leading-none')}
         >
           <span className="text-[9px] text-muted">Squeeze</span>
-          <span className="text-[10px] font-semibold text-postit-ink">
+          <span className="text-[10px] font-semibold text-selected-ink">
             {PENCIL_ACTION_LABELS[prefs.pencil.squeeze]}
           </span>
         </button>,
@@ -717,7 +717,7 @@ export function PenPalette({
             nodeBase,
             'size-11',
             prefs.pencil.hover
-              ? 'border-accent bg-postit text-postit-ink ring-2 ring-accent/40'
+              ? 'border-accent bg-selected text-selected-ink ring-2 ring-accent/40'
               : idle,
           )}
         >
@@ -748,7 +748,7 @@ export function PenPalette({
       role="dialog"
       aria-label="Pen tool palette"
       className={cn(
-        'fixed z-[80] select-none rounded-full border-2 border-line bg-panel/90 shadow-sketch-lg backdrop-blur-md dark:bg-panel/80',
+        'fixed z-[80] select-none rounded-full border border-lineSoft bg-panel/90 shadow-float backdrop-blur-md dark:bg-panel/80',
         pos && (closing ? 'animate-pen-pop-out' : 'animate-pen-pop-in'),
       )}
       style={{
@@ -763,7 +763,7 @@ export function PenPalette({
       {/* Faint guide ring keeps the wheel readable without heavy borders */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute rounded-full border border-dashed border-lineSoft"
+        className="pointer-events-none absolute rounded-full border border-lineSoft"
         style={{ inset: 24 }}
       />
       <div key={view} className="absolute inset-0 animate-pen-swap">

@@ -2,6 +2,10 @@ import type { AppSettings, BlobRecord, Folder, InkDocRecord, Note, PageRecord, P
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import { sanitizeDoc } from '@/utils/doc'
 import JSZip from 'jszip'
+import { toast } from 'sonner'
+import { BITUIN } from '@/coach/copy'
+import { detectEnv } from '@/coach/env'
+import { usePrefsStore } from '@/store/prefsStore'
 import { flush } from '@/library/notes'
 import { dump, restore, type Snapshot } from '@/library/snapshot'
 
@@ -64,18 +68,44 @@ function stamp(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/**
+ * Saves a backup: the share sheet on phones and tablets (Files, iCloud, a
+ * messaging app: downloads are unreliable in an installed iOS app), a normal
+ * download everywhere else. Records the time so the weekly nudge can rest.
+ */
 export async function downloadBackup(): Promise<void> {
   // Pending debounced handwriting must land before we snapshot IndexedDB
   await flush()
   const blob = await snapshotToZip(await dump())
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `tala-backup-${stamp()}.tala`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  const name = `tala-backup-${stamp()}.tala`
+
+  let shared = false
+  const { platform } = detectEnv()
+  if (platform === 'ios' || platform === 'android') {
+    const file = new File([blob], name, { type: 'application/octet-stream' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Tala backup' })
+        shared = true
+      } catch (err) {
+        // Closing the sheet is a choice, not a failure: nothing was saved
+        if ((err as Error).name === 'AbortError') return
+        // Anything else (e.g. the tap's permission lapsed while zipping): fall back to a download
+      }
+    }
+  }
+  if (!shared) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  usePrefsStore.getState().setCoach({ lastBackupAt: Date.now(), backupSnoozeUntil: 0 })
+  toast.success(shared ? BITUIN.reaction.backupShared : BITUIN.reaction.backupDone)
 }
 
 /**

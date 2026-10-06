@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Tala — Pagtatala, made simple. A fast, local-first note-taking app." />
-    <meta name="theme-color" content="#f7f5ef" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0c0c0d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101512" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
-    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="apple-touch-icon" href="/app-icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,73 +22,74 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 16px;
-        background-color: #f7f5ef;
-        background-image: radial-gradient(#ded9cd 1px, transparent 1px);
-        background-size: 24px 24px;
-        color: #2d2d2d;
+        gap: 14px;
+        background-color: #f3f6f2;
+        color: #17201a;
         transition: opacity 240ms ease;
         font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
       }
       #splash.dark {
-        background-color: #0c0c0d;
-        background-image: radial-gradient(#232325 1px, transparent 1px);
-        color: #f0ece4;
+        background-color: #101512;
+        color: #e9efe9;
       }
       .splash-mark {
-        position: relative;
-        width: 132px;
-        height: auto;
-        transform: rotate(-2deg);
-        animation: splash-pop 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        width: 120px;
+        height: 120px;
+        animation: splash-pop 480ms cubic-bezier(0.16, 1, 0.3, 1) both, splash-bob 3.2s 480ms ease-in-out infinite;
       }
-      .splash-mark img,
-      .splash-mark svg {
+      .splash-mark img {
         display: block;
         width: 100%;
-        height: auto;
+        height: 100%;
       }
       .splash-tagline {
-        font-size: 15px;
-        opacity: 0.6;
-        transform: rotate(-1deg);
+        font-size: 18px;
+        opacity: 0.7;
         animation: splash-fade 500ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
       }
       .splash-bar {
         width: 96px;
-        height: 5px;
-        margin-top: 8px;
+        height: 4px;
+        margin-top: 6px;
         overflow: hidden;
-        border-radius: 12px 4px 12px 4px;
-        background: #ded9cd;
+        border-radius: 4px;
+        background: #dfe5dd;
         animation: splash-fade 400ms 300ms both;
       }
       #splash.dark .splash-bar {
-        background: #232325;
+        background: #2a342d;
       }
       .splash-bar::after {
         content: '';
         display: block;
         height: 100%;
-        width: 40%;
-        border-radius: 10px 4px 10px 4px;
-        background: #e8b84a;
-        animation: splash-slide 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        width: 100%;
+        border-radius: 4px;
+        background: #2b7a3f;
+        transform-origin: left;
+        animation: splash-fill 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      #splash.dark .splash-bar::after {
+        background: #5cc277;
       }
       @keyframes splash-pop {
-        from { opacity: 0; transform: scale(0.82) rotate(-9deg); }
-        to { opacity: 1; transform: scale(1) rotate(-2deg); }
+        from { opacity: 0; transform: scale(0.85); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes splash-bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
       }
       @keyframes splash-fade {
-        from { opacity: 0; transform: translateY(5px) rotate(-1deg); }
-        to { opacity: 0.85; transform: translateY(0) rotate(-1deg); }
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 0.85; transform: translateY(0); }
       }
-      @keyframes splash-slide {
-        0% { transform: translateX(-110%); }
-        100% { transform: translateX(260%); }
+      @keyframes splash-fill {
+        from { transform: scaleX(0.08); }
+        to { transform: scaleX(1); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .splash-mark, .splash-tagline, .splash-bar { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+        .splash-mark, .splash-tagline, .splash-bar { animation: none !important; opacity: 1; }
         .splash-bar::after { animation: none !important; width: 100%; }
       }
     </style>
@@ -97,13 +98,7 @@
     <div id="root"></div>
     <div id="splash" role="status" aria-label="Tala is loading">
       <div class="splash-mark">
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" style="color: #e8b84a">
-          <path d="M31.2 13.1C42.2 11.9 50.3 19.6 50.4 30.2C50.5 40.3 42.7 48.3 32.1 48.4C21.6 48.5 13.5 40.5 13.4 30.3C13.3 20.6 20.8 14.2 31.2 13.1Z" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
-          <g stroke="currentColor" stroke-width="4.4" stroke-linecap="round">
-            <path d="M31.4 8.4L30.9 3.4"/><path d="M44.6 13.9L47.9 10.1"/><path d="M52.6 29.8L57.6 29.4"/><path d="M45.9 44.3L49.3 48"/><path d="M31.8 53.2L31.5 58.2"/><path d="M17.6 44.6L14.2 48.3"/><path d="M10.4 30L5.4 29.6"/><path d="M17.9 15.2L14.6 11.3"/>
-          </g>
-          <path d="M56.2 39.4C56.8 42.2 57.7 43.1 60.6 43.7C57.7 44.3 56.8 45.2 56.2 48C55.6 45.2 54.7 44.3 51.8 43.7C54.7 43.1 55.6 42.2 56.2 39.4Z" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-        </svg>
+        <img src="/bituin-192.png" width="120" height="120" alt="" />
       </div>
       <div class="splash-tagline">Pagtatala, made simple.</div>
       <div class="splash-bar"></div>
@@ -111,13 +106,13 @@
     <script>
       /* Applied before first paint to avoid a flash of the wrong theme.
          Runs at the end of <body> so the splash element already exists.
-         The logo stays the light artwork in both themes by design. */
+         Bituin's outline reads on both grounds, so one image serves both. */
       (function () {
         try {
           var t = localStorage.getItem('tala:theme');
           var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
-          document.documentElement.style.background = dark ? '#0c0c0d' : '#f7f5ef';
+          document.documentElement.style.background = dark ? '#101512' : '#f3f6f2';
           var s = document.getElementById('splash');
           if (s && dark) s.classList.add('dark');
         } catch (e) {}

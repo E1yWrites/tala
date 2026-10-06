@@ -11,6 +11,7 @@ import { upgradePages } from './migrate'
 import { markOnDisk } from './notes'
 import { repairRefs } from './references'
 import { keepSafetyCopy, settleSafetyCopy } from './safety'
+import { requestPersistence } from './storage'
 
 /**
  * Reads the light tables into the Zustand stores, repairing what an
@@ -108,6 +109,7 @@ export function bootApp(): Promise<void> {
     const copied = await keepSafetyCopy()
     await load()
     await settleSafetyCopy(copied)
+    void requestPersistence()
   })()
   return bootPromise
 }

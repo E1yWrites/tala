@@ -3,6 +3,7 @@ import { MousePointer2, Pencil, PenTool, Highlighter, Eraser, Undo2, Redo2, Tras
 import type { LucideIcon } from 'lucide-react'
 import type { InkPointerMode } from '@/types/ink'
 import { cn } from '@/utils/cn'
+import { usePrefsStore } from '@/store/prefsStore'
 import { Tooltip } from '../../UI/Tooltip'
 
 /* ---------------------------------------------------------------------------
@@ -60,9 +61,10 @@ export function PenBar({
   onDeleteSelection,
 }: PenBarProps): ReactNode {
   const ToolIcon = TOOL_ICONS[tool]
+  const leftHanded = usePrefsStore((st) => st.leftHanded)
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={cn('flex items-center gap-1.5', leftHanded && 'flex-row-reverse')}>
       {/* Primary pen/eraser control — opens the radial palette in trigger mode */}
       <Tooltip label={TOOL_LABELS[tool]}>
         <button
@@ -131,7 +133,7 @@ export function PenBar({
             type="button"
             onClick={onDeleteSelection}
             aria-label={`Delete ${selectionCount} selected stroke${selectionCount === 1 ? '' : 's'}`}
-            className="rounded-full bg-postit p-1.5 text-postit-ink shadow-sm transition-[background-color] hover:bg-accent/20 active:scale-95"
+            className="rounded-full bg-selected p-1.5 text-selected-ink shadow-sm transition-[background-color] hover:bg-accent/20 active:scale-95"
           >
             <Trash2 className="size-3.5" />
           </button>

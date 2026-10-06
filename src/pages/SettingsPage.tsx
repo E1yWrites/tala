@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Settings2,
   SlidersHorizontal,
+  Star,
   Sun,
   SunMoon,
   Trash2,
@@ -19,6 +20,10 @@ import { toast } from 'sonner'
 import type { SortKey, ThemeMode, ViewDensity } from '@/types/models'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useUIStore } from '@/store/uiStore'
+import { usePrefsStore } from '@/store/prefsStore'
+import { detectEnv } from '@/coach/env'
+import { isPersisted } from '@/library/storage'
+import { formatRelative } from '@/utils/dates'
 import { wipe } from '@/library/snapshot'
 import { downloadBackup, importBackupFile, restoreBackup, type BackupFile } from '@/utils/exportImport'
 import { Button } from '@/components/UI/Button'
@@ -39,9 +44,9 @@ function Section({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <section className="rounded-wobbly-md border-2 border-line bg-panel p-4 shadow-sketch-sm sm:p-5">
+    <section className="rounded-card border border-lineSoft bg-panel p-4 shadow-rest sm:p-5">
       <header className="mb-4 flex items-start gap-3">
-        <span className="mt-0.5 grid size-9 shrink-0 -rotate-3 place-items-center rounded-full border-2 border-dashed border-line bg-canvas text-accent">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-line bg-canvas text-accent">
           <Icon className="size-5" strokeWidth={2.5} />
         </span>
         <div>
@@ -69,8 +74,8 @@ function SettingRow({
       className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_var(--control-w,15rem)]"
     >
       <div className="min-w-0">
-        <p className="text-xs font-medium">{label}</p>
-        {hint && <p className="mt-0.5 text-[11px] leading-snug text-faint">{hint}</p>}
+        <p className="text-[13px] font-medium">{label}</p>
+        {hint && <p className="mt-0.5 text-xs leading-snug text-faint">{hint}</p>}
       </div>
       {/* Shared control column — every control in the card lands on the same
           right edge; sliders/inputs stretch to fill it. */}
@@ -93,7 +98,7 @@ function Segmented<T extends string>({
   ariaLabel: string
 }): React.ReactNode {
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className="inline-flex rounded-wobbly-sm border-2 border-line bg-canvas p-0.5">
+    <div role="radiogroup" aria-label={ariaLabel} className="inline-flex rounded-control border border-lineSoft bg-canvas p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -102,8 +107,8 @@ function Segmented<T extends string>({
           aria-checked={value === opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-[6px_3px_7px_3px] px-3 py-1.5 text-xs transition-colors',
-            value === opt.value ? 'bg-postit text-postit-ink' : 'text-muted hover:text-ink',
+            'inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs transition-colors',
+            value === opt.value ? 'bg-selected text-selected-ink' : 'text-muted hover:text-ink',
           )}
         >
           {opt.icon && <opt.icon className="size-4" strokeWidth={2.5} />}
@@ -131,14 +136,14 @@ function Switch({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-6 w-10 rounded-full border-2 border-line transition-colors',
-        checked ? 'bg-accent' : 'bg-canvas',
+        'relative h-7 w-12 rounded-full border border-line transition-colors',
+        checked ? 'border-accent bg-accent' : 'bg-canvas',
       )}
     >
       <span
         className={cn(
-          'absolute top-[3px] left-[3px] size-4 rounded-full border border-line bg-panel transition-transform',
-          checked && 'translate-x-4',
+          'absolute left-[3px] top-[3px] size-5 rounded-full bg-panel shadow-rest transition-transform',
+          checked && 'translate-x-5',
         )}
       />
     </button>
@@ -164,11 +169,19 @@ export function SettingsPage(): React.ReactNode {
   const setView = useUIStore((s) => s.setView)
 
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null)
+  const [persisted, setPersisted] = useState<boolean | null>(null)
+  const env = detectEnv()
+  const quietMode = usePrefsStore((s) => s.quietMode)
+  const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
+  const leftHanded = usePrefsStore((s) => s.leftHanded)
+  const setLeftHanded = usePrefsStore((s) => s.setLeftHanded)
+  const lastBackupAt = usePrefsStore((s) => s.coach.lastBackupAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingRef = useRef<BackupFile | null>(null)
   const [pendingName, setPendingName] = useState<string | null>(null)
 
   useEffect(() => {
+    void isPersisted().then(setPersisted)
     navigator.storage
       ?.estimate?.()
       .then((est) => setStorage({ usage: est.usage ?? 0, quota: est.quota ?? 0 }))
@@ -310,7 +323,7 @@ export function SettingsPage(): React.ReactNode {
               placeholder="Your name"
               aria-label="Profile name"
               maxLength={40}
-              className="h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-9 w-full rounded-card border border-lineSoft bg-canvas px-2.5 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             />
           </SettingRow>
           <SettingRow label="Role or tagline" hint="Optional — shown under your name in the sidebar">
@@ -321,7 +334,7 @@ export function SettingsPage(): React.ReactNode {
               placeholder="Student, Writer…"
               aria-label="Profile role"
               maxLength={40}
-              className="h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-9 w-full rounded-card border border-lineSoft bg-canvas px-2.5 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             />
           </SettingRow>
         </Section>
@@ -415,7 +428,7 @@ export function SettingsPage(): React.ReactNode {
               value={settings.sortKey}
               onChange={(e) => update({ sortKey: e.target.value as SortKey })}
               aria-label="Default sort order"
-              className="h-10 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2.5 font-body text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="h-10 w-full rounded-card border border-lineSoft bg-canvas px-2.5 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -423,6 +436,26 @@ export function SettingsPage(): React.ReactNode {
                 </option>
               ))}
             </select>
+          </SettingRow>
+        </Section>
+
+        {/* Bituin and writing */}
+        <Section
+          icon={Star}
+          title="Bituin and writing"
+          description="How the star coach behaves, and how the pen tools sit for your hand."
+        >
+          <SettingRow
+            label="Quiet mode"
+            hint="Bituin stops reacting and reminding you. Your notes and backups are unaffected."
+          >
+            <Switch checked={quietMode} onChange={toggleQuietMode} label="Quiet mode" />
+          </SettingRow>
+          <SettingRow
+            label="Left-handed layout"
+            hint="Mirrors the phone tab bar, the pen bar and Bituin's corner."
+          >
+            <Switch checked={leftHanded} onChange={setLeftHanded} label="Left-handed layout" />
           </SettingRow>
         </Section>
 
@@ -455,6 +488,30 @@ export function SettingsPage(): React.ReactNode {
             </Button>
           </SettingRow>
 
+          <SettingRow
+            label="Last backup"
+            hint="Counted on this device. Tala reminds you weekly unless Quiet mode is on."
+          >
+            <span className="text-sm text-muted">{lastBackupAt ? formatRelative(lastBackupAt) : 'Never'}</span>
+          </SettingRow>
+
+          <SettingRow
+            label="Storage protection"
+            hint={
+              persisted
+                ? 'Your browser keeps this data when space runs low.'
+                : 'Your browser may clear this data when space runs low. Back up regularly.'
+            }
+          >
+            {!env.standalone && (env.platform === 'ios' || env.platform === 'android') ? (
+              <Button variant="outline" size="sm" onClick={() => openModal({ kind: 'install-guide' })}>
+                Add to Home Screen
+              </Button>
+            ) : (
+              <span className="text-sm text-muted">{persisted ? 'Protected' : 'Not protected'}</span>
+            )}
+          </SettingRow>
+
           <SettingRow label="Import backup" hint="Merge into your library or replace everything">
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
               <Import className="size-4" />
@@ -470,7 +527,7 @@ export function SettingsPage(): React.ReactNode {
           </SettingRow>
 
           {pendingName && (
-            <div className="rounded-wobbly-md border-2 border-dashed border-accent/50 bg-accent-soft/50 p-3">
+            <div className="rounded-card border border-accent/50 bg-accent-soft/50 p-3">
               <p className="text-[13px] font-medium text-accent">
                   Ready to restore <span className="font-mono">{pendingName}</span>
               </p>
@@ -517,15 +574,15 @@ export function SettingsPage(): React.ReactNode {
         </Section>
 
         {/* About */}
-        <section className="relative -rotate-[0.5deg] rounded-wobbly-md border-2 border-line bg-postit p-5 text-center text-postit-ink shadow-sketch-sm sm:p-5">
+        <section className="relative -rotate-[0.5deg] rounded-card border border-lineSoft bg-selected p-5 text-center text-selected-ink shadow-rest sm:p-5">
           <span aria-hidden="true" className="tape absolute left-1/2 top-[-11px] h-[22px] w-24 -translate-x-1/2" />
           <p className="font-display text-xl">Tala</p>
-          <p className="mt-0.5 text-xs text-postit-ink/60">Version 1.0.1 · Offline-first notes</p>
-          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-postit-ink/70">
+          <p className="mt-0.5 text-xs text-selected-ink/60">Version 1.0.1 · Offline-first notes</p>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-selected-ink/70">
             Your notes are stored locally in your browser&rsquo;s IndexedDB. Nothing is uploaded,
             synced or shared — export a backup regularly to keep it safe.
           </p>
-          <p className="mt-2 text-xs italic text-postit-ink/50">Isulat mo. Itala mo.</p>
+          <p className="mt-2 text-xs italic text-selected-ink/50">Isulat mo. Itala mo.</p>
         </section>
       </div>
     </div>

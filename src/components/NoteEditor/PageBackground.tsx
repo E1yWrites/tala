@@ -5,7 +5,7 @@ import { useBlobUrl } from '@/library/blobs'
 import { pageSize } from '@/library/pageSize'
 import { loadPdf } from '@/library/pdfImport'
 
-const FRAME = 'w-full rounded-wobbly-sm border border-line-soft bg-white shadow-sketch-sm'
+const FRAME = 'w-full rounded-control border border-lineSoft bg-white shadow-rest'
 
 /**
  * The sheet behind a PDF-imported page: drawn from the original PDF at the

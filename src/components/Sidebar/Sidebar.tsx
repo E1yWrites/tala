@@ -1,7 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { TalaMark } from '@/components/Brand/TalaMark'
+import { Bituin } from '@/coach/Bituin'
+import { listTasks } from '@/library/tasks'
+import { usePageStore } from '@/store/pageStore'
 import {
   Archive,
+  CheckSquare,
   ChevronRight,
   Clock,
   Folder as FolderIcon,
@@ -50,6 +53,7 @@ export function Sidebar({
 }): ReactNode {
   useTick(60_000) // keep relative recency labels fresh
   const notes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const folders = useFolderStore((s) => s.folders)
   const tags = useTagStore((s) => s.tags)
   const activeView = useUIStore((s) => s.activeView)
@@ -89,11 +93,17 @@ export function Sidebar({
     }
   }, [notes])
 
+  const openTasks = useMemo(
+    () => listTasks(notes, pagesByNote).filter((t) => !t.checked).length,
+    [notes, pagesByNote],
+  )
+
   const libraryItems: NavItemSpec[] = [
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
     { id: 'favorites', label: 'Favorites', icon: Star, count: counts.favorites },
     { id: 'pinned', label: 'Pinned', icon: Pin, count: counts.pinned },
     { id: 'recent', label: 'Recent', icon: Clock, count: counts.recent },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
     { id: 'archive', label: 'Archive', icon: Archive, count: counts.archive },
     { id: 'trash', label: 'Trash', icon: Trash2, count: counts.trash },
   ]
@@ -115,7 +125,7 @@ export function Sidebar({
   return (
     <nav
       className={cn(
-        'flex h-full flex-col border-r-2 border-line bg-panel px-3 py-3',
+        'flex h-full flex-col border-r border-lineSoft bg-panel px-3 py-3',
         variant === 'drawer' ? 'w-60' : 'w-full',
       )}
     >
@@ -123,11 +133,11 @@ export function Sidebar({
       <div className="flex items-center gap-2.5 px-1">
         <button
           type="button"
-          className="grid size-9 shrink-0 -rotate-3 place-items-center rounded-wobbly-sm transition-transform duration-150 hover:rotate-0"
+          className="grid size-9 shrink-0 place-items-center rounded-control transition-transform duration-150 hover:scale-105"
           onClick={() => navigate({ kind: 'home' })}
           aria-label="Tala home"
         >
-          <TalaMark size={30} className="text-accent" />
+          <Bituin size={32} />
         </button>
         <div className="min-w-0">
           <p className="font-display text-lg leading-none">
@@ -142,7 +152,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => openModal({ kind: 'new-note' })}
-          className="flex h-10 w-full items-center gap-2 rounded-wobbly border-[3px] border-line bg-postit px-4 text-[15px] text-postit-ink shadow-sketch transition-all duration-100 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
+          className="btn-primary h-10 w-full justify-start rounded-card px-4 text-[15px] font-medium"
         >
           <span className={ICON_CONTAINER} aria-hidden="true">
             <Plus size={ICON_SIZE} strokeWidth={2.5} />
@@ -205,7 +215,7 @@ export function Sidebar({
                     onClick={() => navigate({ kind: 'tag', refId: tag.id })}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'inline-flex h-6 items-center gap-1 rounded-wobbly-sm border px-2 text-xs transition-colors',
+                      'inline-flex h-6 items-center gap-1 rounded-control border px-2 text-xs transition-colors',
                       active
                         ? 'border-ballpoint/60 bg-ballpoint-soft text-ballpoint'
                         : 'border-lineSoft bg-canvas text-muted hover:border-ballpoint/40 hover:text-ink',
@@ -237,7 +247,7 @@ export function Sidebar({
 
         {/* Profile — display only. Editing lives in Settings → Profile. */}
         <div className="mt-2">
-          <div className="flex items-center gap-2.5 rounded-wobbly-sm p-1.5">
+          <div className="flex items-center gap-2.5 rounded-control p-1.5">
             <Avatar
               src={settings.profile.avatar}
               name={settings.profile.name}
@@ -373,7 +383,7 @@ function FolderTree(props: {
                     {...triggerProps}
                     type="button"
                     aria-label={`Options for folder ${folder.name}`}
-                    className="absolute right-1 grid size-6 place-items-center rounded-wobbly-sm text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
+                    className="absolute right-1 grid size-6 place-items-center rounded-control text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
                   >
                     <MoreHorizontal size={13} />
                   </button>
@@ -405,8 +415,8 @@ function NavItemButton({
       onClick={onSelect}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-8 w-full items-center gap-2.5 rounded-wobbly-sm px-2 text-[15px] transition-colors duration-100',
-        active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'group flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-[15px] transition-colors duration-100',
+        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
       <span className={ICON_CONTAINER} aria-hidden="true">
@@ -416,8 +426,8 @@ function NavItemButton({
       {!!item.count && item.count > 0 && (
         <span
           className={cn(
-            'rounded-wobbly-sm px-1.5 text-[11px] tabular-nums',
-            active ? 'bg-panel/70 text-postit-ink' : 'bg-raise text-faint',
+            'rounded-control px-1.5 text-[11px] tabular-nums',
+            active ? 'bg-panel/70 text-selected-ink' : 'bg-raise text-faint',
           )}
         >
           {item.count > 99 ? '99+' : item.count}
@@ -446,8 +456,8 @@ function NavItemInline({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-wobbly-sm pl-1.5 pr-1.5 text-xs transition-colors',
-        active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-control pl-1.5 pr-1.5 text-xs transition-colors',
+        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
       <span className={cn(ICON_CONTAINER, active ? 'text-accent' : 'text-faint')}>{icon}</span>
@@ -477,7 +487,7 @@ function SectionHeader({
             type="button"
             onClick={onAction}
             aria-label={actionLabel}
-            className="grid size-5 place-items-center rounded-wobbly-sm text-faint transition-colors hover:bg-raise hover:text-ink"
+            className="grid size-5 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink"
           >
             <Plus size={12} strokeWidth={2.5} />
           </button>
@@ -493,7 +503,7 @@ function SettingsButton({ onClick }: { onClick: () => void }): ReactNode {
       type="button"
       onClick={onClick}
       aria-label="Settings"
-      className="grid size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+      className="grid size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink"
     >
       <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
         <SettingsIcon size={BOTTOM_ICON_SIZE} />
@@ -509,7 +519,7 @@ function CollapseButton({ onClick }: { onClick: () => void }): ReactNode {
         type="button"
         onClick={onClick}
         aria-label="Hide sidebar"
-        className="hidden size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
+        className="hidden size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
       >
         <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
           <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />

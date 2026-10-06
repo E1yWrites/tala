@@ -128,7 +128,7 @@ export function ProfilePictureModal({ onClose }: { onClose: () => void }): React
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           className={cn(
-            'relative mx-auto size-24 shrink-0 rounded-full border-4 border-dashed flex items-center justify-center overflow-hidden transition-colors cursor-pointer',
+            'relative mx-auto size-24 shrink-0 rounded-full border-4 flex items-center justify-center overflow-hidden transition-colors cursor-pointer',
             isDragging ? 'border-accent bg-accent-soft' : 'border-lineSoft hover:border-ballpoint/40',
           )}
         >
@@ -145,7 +145,7 @@ export function ProfilePictureModal({ onClose }: { onClose: () => void }): React
                 <Avatar src={null} name={settings.profile.name} size="xl" className="size-full border-0" />
               </div>
               <span
-                className="absolute bottom-0 right-0 z-10 grid size-7 translate-x-1 translate-y-1 place-items-center rounded-full border-2 border-line bg-panel text-faint shadow-sketch-sm"
+                className="absolute bottom-0 right-0 z-10 grid size-7 translate-x-1 translate-y-1 place-items-center rounded-full border border-lineSoft bg-panel text-faint shadow-rest"
                 aria-hidden="true"
               >
                 <Camera className="size-3.5" />

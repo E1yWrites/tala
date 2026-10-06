@@ -100,7 +100,7 @@ export function ShareModal({ noteId }: { noteId: string }): React.ReactNode {
         </Button>
       </div>
 
-      <pre className="mt-3 max-h-[40vh] overflow-auto rounded-wobbly-md border-2 border-line bg-canvas p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
+      <pre className="mt-3 max-h-[40vh] overflow-auto rounded-card border border-lineSoft bg-canvas p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
         {markdown || '(empty note)'}
       </pre>
     </Modal>

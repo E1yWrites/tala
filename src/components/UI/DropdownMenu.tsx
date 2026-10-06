@@ -145,7 +145,7 @@ export function DropdownMenu({
             ...(horizShift !== 0 ? { transform: `translateX(${horizShift}px)` } : undefined),
           } as CSSProperties | undefined}
           className={cn(
-            'absolute z-50 min-w-[180px] overflow-hidden rounded-wobbly-md border-2 border-line bg-overlay p-1.5 shadow-sketch animate-scale-in',
+            'absolute z-50 min-w-[180px] overflow-hidden rounded-card border border-lineSoft bg-overlay p-1.5 shadow-raise animate-scale-in',
             align === 'end' ? 'right-0' : 'left-0',
             side === 'top' || flipped
               ? 'bottom-[calc(100%+4px)]'
@@ -191,7 +191,7 @@ export function DropdownMenu({
             item.type === 'separator' ? (
               <div
                 key={item.id}
-                className="my-1.5 h-px border-t border-dashed border-line-soft"
+                className="my-1.5 h-px border-t border-lineSoft"
                 aria-hidden="true"
               />
             ) : (
@@ -205,14 +205,14 @@ export function DropdownMenu({
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => select(item)}
               className={cn(
-                'flex w-full items-center rounded-wobbly-sm px-2.5 py-1.5 text-left text-xs font-medium transition-colors duration-100',
+                'flex w-full items-center rounded-control px-2.5 py-1.5 text-left text-xs font-medium transition-colors duration-100',
                 item.danger
                   ? 'text-accent'
                   : 'text-muted',
                 index === activeIndex &&
                   (item.danger
                     ? 'bg-accent/10 text-accent'
-                    : 'bg-postit text-postit-ink'),
+                    : 'bg-selected text-selected-ink'),
                 item.disabled && 'opacity-40 pointer-events-none',
               )}
             >

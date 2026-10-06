@@ -7,6 +7,8 @@ export const SIDEBAR_WIDTH = 260
 interface UIState {
   activeView: ViewRef
   selectedNoteId: string | null
+  /** Page to show when the next note opens (set by Tasks); NoteEditor consumes it. */
+  pendingPageId: string | null
   /** Mobile/tablet slide-in sidebar */
   sidebarDrawerOpen: boolean
   /** Distraction-free mode: hides sidebar + list to focus on the editor */
@@ -29,7 +31,8 @@ interface UIState {
   selectedNoteIds: string[]
 
   setView: (view: ViewRef) => void
-  selectNote: (id: string | null) => void
+  selectNote: (id: string | null, pageId?: string) => void
+  clearPendingPage: () => void
   setSidebarDrawer: (open: boolean) => void
   toggleFocusMode: () => void
   openModal: (intent: ModalIntent) => void
@@ -55,6 +58,7 @@ let modalIdSeq = 0
 export const useUIStore = create<UIState>()((set, get) => ({
   activeView: { kind: 'home' },
   selectedNoteId: null,
+  pendingPageId: null,
   sidebarDrawerOpen: false,
   focusMode: false,
   modalStack: [],
@@ -69,8 +73,12 @@ export const useUIStore = create<UIState>()((set, get) => ({
     set({ activeView: view, selectedNoteId: null, searchQuery: '', filterTagIds: [], filterFavoritesOnly: false, multiSelectMode: false, selectedNoteIds: [] })
   },
 
-  selectNote(id) {
-    set({ selectedNoteId: id })
+  selectNote(id, pageId) {
+    set({ selectedNoteId: id, pendingPageId: pageId ?? null })
+  },
+
+  clearPendingPage() {
+    set({ pendingPageId: null })
   },
 
   setSidebarDrawer(open) {

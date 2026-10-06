@@ -87,7 +87,7 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
   return (
     <Modal title="Edit tags" subtitle={note.title || 'Untitled'} onClose={closeAllModals} size="sm">
       {/* Applied tags */}
-      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-wobbly-md border-2 border-line bg-canvas p-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-card border border-lineSoft bg-canvas p-2">
         {applied.length === 0 && (
           <span className="px-1 text-[11px] text-faint">No tags yet</span>
         )}

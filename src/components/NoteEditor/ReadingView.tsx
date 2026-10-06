@@ -289,7 +289,7 @@ function BodyPieces({ pieces, idPrefix }: { pieces: BodyPiece[]; idPrefix: strin
             {run.cards.map((card, i) => (
               <article
                 key={`${run.key}-${i}`}
-                className="rounded-wobbly-sm border border-lineSoft bg-panel px-4 py-3 transition-colors duration-150 hover:bg-raise/40"
+                className="rounded-control border border-lineSoft bg-panel px-4 py-3 transition-colors duration-150 hover:bg-raise/40"
               >
                 <h4 className="font-display text-base leading-snug">
                   {headingText(card.heading) || 'Untitled'}
@@ -322,7 +322,7 @@ function CollapsibleSection({
         type="button"
         onClick={onToggle}
         aria-expanded={!collapsed}
-        className="-ml-1 flex w-full items-center gap-2 rounded-wobbly-sm px-1 py-1 text-left transition-colors duration-150 hover:bg-raise/60"
+        className="-ml-1 flex w-full items-center gap-2 rounded-control px-1 py-1 text-left transition-colors duration-150 hover:bg-raise/60"
       >
         <ChevronRight
           size={18}

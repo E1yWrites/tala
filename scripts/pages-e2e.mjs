@@ -1,5 +1,6 @@
-/* Pages / PDF / backup end-to-end: per-page typed text, PDF import and on-demand
- * render (also offline), and a .tala backup round trip that carries the PDF.
+/* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
+ * PDF import and on-demand render (also offline), a .tala backup round trip that
+ * carries the PDF, the Tasks view, and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
  * Headless-shell needs: LD_LIBRARY_PATH=/tmp/opencode/nssroot/usr/lib/x86_64-linux-gnu */
 import { chromium } from 'playwright-core'
@@ -53,6 +54,12 @@ async function onboard(p) {
   const skip = p.locator('button:has-text("Skip")')
   if (await skip.count()) await skip.first().click()
   await wait(400)
+  // Phones and tablets in a browser tab get a Home Screen step before the end
+  if (await p.isVisible('h1:has-text("Add Tala to your Home Screen")')) {
+    onboard.sawSafetyStep = true
+    await p.click('button:has-text("Continue")')
+    await wait(300)
+  }
   await p.click('button:has-text("Start Using Tala")').catch(() => {})
   await wait(600)
 }
@@ -63,7 +70,7 @@ const ready = async (p) => {
 const newNote = async (p) => {
   await p.click('text=All Notes').catch(() => {})
   await wait(300)
-  await p.click('button[aria-label="New note"]')
+  await p.click('button[aria-label="New note"]:visible')
   await wait(400)
 }
 const editorText = async (p) => (await p.textContent('.ProseMirror')) ?? ''
@@ -335,6 +342,123 @@ const safety = await op.evaluate(
 )
 check('a pre-upgrade safety copy was kept', !!safety && safety.bytes > 100, JSON.stringify(safety))
 await old.close()
+
+/* ---- 6. Tasks view: tick a task from the list, see it ticked in the note ------ */
+await newNote(page)
+await page.locator('text=Blank note').first().click()
+await wait(600)
+await page.click('.ProseMirror')
+await page.keyboard.type('[ ] TASK-ALPHA')
+await page.keyboard.press('Enter')
+await page.keyboard.type('TASK-BETA')
+await wait(900)
+await page.click('nav >> text=Tasks')
+await wait(500)
+check('Tasks view lists checklist items from notes', (await page.locator('section[aria-label="Tasks"] >> text=TASK-ALPHA').count()) > 0)
+await page.click('section[aria-label="Tasks"] button[role="checkbox"][aria-label*="TASK-ALPHA"]')
+await wait(500)
+check('ticked task moves to Done', (await page.locator('section[aria-label="Tasks"] >> text=Done (').count()) > 0)
+await page.click('section[aria-label="Tasks"] >> text=Done (')
+await page.click('section[aria-label="Tasks"] button:has-text("TASK-ALPHA")')
+await wait(700)
+check('the note shows the task ticked', (await page.locator('.ProseMirror li[data-checked="true"]').count()) > 0)
+
+/* ---- 7. Bituin: weekly backup nudge, snooze, Quiet mode ----------------------- */
+const weekOld = JSON.stringify({ state: { coach: { firstSeenAt: Date.now() - 10 * 86400000 } }, version: 1 })
+async function nudgeSession(prefs) {
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
+  await c.addInitScript((v) => { if (!localStorage.getItem('tala:prefs')) localStorage.setItem('tala:prefs', v) }, prefs)
+  const pg = await c.newPage()
+  pg.on('pageerror', (err) => { failures++; console.log('FAIL  page error —', err.message) })
+  await pg.goto(BASE, { waitUntil: 'networkidle' })
+  await ready(pg)
+  await onboard(pg)
+  await newNote(pg)
+  await pg.locator('text=Blank note').first().click()
+  await wait(600)
+  await pg.click('.ProseMirror')
+  await pg.keyboard.type('Something worth backing up')
+  await wait(1000)
+  await pg.click('text=All Notes').catch(() => {})
+  await wait(500)
+  return { c, pg }
+}
+{
+  const { c, pg } = await nudgeSession(weekOld)
+  check('Bituin offers a backup after a week', await pg.isVisible('text=Back up your notes?'))
+  const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('button:has-text("Back up now")')])
+  check('"Back up now" saves a .tala file', /\.tala$/.test(dl.suggestedFilename()))
+  await wait(600)
+  check('the reminder rests once a backup is made', !(await pg.isVisible('text=Back up your notes?')))
+  await c.close()
+}
+{
+  const { c, pg } = await nudgeSession(weekOld)
+  await pg.click('button:has-text("Later")')
+  await pg.reload({ waitUntil: 'networkidle' })
+  await ready(pg)
+  await pg.click('text=All Notes').catch(() => {})
+  await wait(500)
+  check('"Later" snoozes the reminder across reloads', !(await pg.isVisible('text=Back up your notes?')))
+  await c.close()
+}
+{
+  const quiet = JSON.stringify({ state: { quietMode: true, coach: { firstSeenAt: Date.now() - 10 * 86400000 } }, version: 1 })
+  const { c, pg } = await nudgeSession(quiet)
+  check('Quiet mode silences Bituin', !(await pg.isVisible('text=Back up your notes?')))
+  await c.close()
+}
+
+/* ---- 8. Data safety on iPad Safari and the phone's corner chip ---------------- */
+{
+  const IPAD = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  const c = await browser.newContext({ viewport: { width: 1180, height: 820 }, userAgent: IPAD, hasTouch: true })
+  const pg = await c.newPage()
+  pg.on('pageerror', (err) => { failures++; console.log('FAIL  page error —', err.message) })
+  await pg.goto(BASE, { waitUntil: 'networkidle' })
+  await ready(pg)
+  await onboard(pg)
+  check('iPad tab: onboarding adds the Home Screen step', onboard.sawSafetyStep === true)
+  await newNote(pg)
+  await pg.locator('text=Blank note').first().click()
+  await wait(600)
+  await pg.click('.ProseMirror')
+  await pg.keyboard.type('iPad note')
+  await wait(1000)
+  await pg.click('text=All Notes').catch(() => {})
+  await wait(500)
+  check('iPad tab: Bituin asks to add Tala to the Home Screen', await pg.isVisible('text=Keep your notes safe'))
+  await pg.click('button:has-text("Show me how")')
+  await wait(400)
+  check('the install guide shows the Share steps', await pg.isVisible('text=Add to Home Screen'))
+  await pg.click('button:has-text("Got it")')
+  await pg.click('button:has-text("Not now")')
+  await wait(300)
+  check('"Not now" puts the install card away', !(await pg.isVisible('text=Keep your notes safe')))
+  await c.close()
+}
+{
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  await c.addInitScript((v) => { if (!localStorage.getItem('tala:prefs')) localStorage.setItem('tala:prefs', v) }, weekOld)
+  const pg = await c.newPage()
+  pg.on('pageerror', (err) => { failures++; console.log('FAIL  page error —', err.message) })
+  await pg.goto(BASE, { waitUntil: 'networkidle' })
+  await ready(pg)
+  await onboard(pg)
+  await pg.click('nav[aria-label="Primary"] button[aria-label="New note"]')
+  await wait(400)
+  await pg.locator('text=Blank note').first().click()
+  await wait(600)
+  await pg.click('.ProseMirror')
+  await pg.keyboard.type('Writing on the phone')
+  check('phone: Bituin stays out of the way while typing', !(await pg.isVisible('[role="status"] >> text=Back up your notes?')))
+  await wait(2800)
+  check('phone: Bituin\'s corner chip appears once writing rests', await pg.isVisible('[role="status"] >> text=Back up your notes?'))
+  await pg.keyboard.type('x')
+  await wait(200)
+  check('phone: the chip steps aside the moment writing resumes', !(await pg.isVisible('[role="status"] >> text=Back up your notes?')))
+  await c.close()
+}
 
 await rm(file, { force: true })
 await browser.close()

@@ -48,7 +48,7 @@ export function ThemeToggle(): React.ReactNode {
       onClick={cycleTheme}
       aria-label={`Theme: ${label}. Click to switch.`}
       className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink',
+        'grid size-9 shrink-0 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink',
       )}
     >
       <span className="grid size-full place-items-center overflow-visible" aria-hidden="true">

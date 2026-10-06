@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { CheckSquare, CheckCircle2, PinFilled, StarFilled } from 'lucide-react'
+import { CheckSquare, CheckCircle2, PinFilled } from 'lucide-react'
+import { FavoriteStar } from '../UI/FavoriteStar'
 import type { Note } from '@/types/models'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -30,7 +31,7 @@ export function Highlighted({
         seg.hit ? (
           <mark
             key={i}
-            className="rounded-[2px] bg-postit/90 px-0.5 text-postit-ink"
+            className="rounded-[2px] bg-selected/90 px-0.5 text-selected-ink"
           >
             {seg.text}
           </mark>
@@ -47,7 +48,7 @@ function TaskBadge({ total, done }: { total: number; done: number }): React.Reac
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-wobbly-sm px-1.5 py-px text-[11px] font-medium tabular-nums',
+        'inline-flex items-center gap-1 rounded-control px-1.5 py-px text-[11px] font-medium tabular-nums',
         complete ? 'bg-ballpoint-soft text-ballpoint' : 'bg-panel text-muted border border-lineSoft',
       )}
       title={`${done} of ${total} tasks completed`}
@@ -100,13 +101,13 @@ export function NoteRow({
         }
       }}
       className={cn(
-        'group relative w-full cursor-pointer rounded-wobbly-md border-2 px-3 transition-all duration-100 outline-none',
+        'group relative w-full cursor-pointer rounded-card border px-3 transition-all duration-100 outline-none',
         'focus-visible:ring-2 focus-visible:ring-ballpoint/60 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas focus-visible:border-transparent',
         density === 'compact' ? 'py-2' : 'py-2.5',
         multiSelected
           ? 'border-accent bg-accent/[0.08]'
           : selected
-            ? 'border-line bg-postit/50'
+            ? 'border-line bg-selected/50'
             : 'border-transparent hover:border-lineSoft hover:bg-panel',
       )}
     >
@@ -120,18 +121,11 @@ export function NoteRow({
       {!selected && !multiSelected && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-3 bottom-0 border-t-2 border-dashed border-lineSoft/70"
-        />
-      )}
-      {note.isPinned && surface === 'live' && (
-        <PinFilled
-          size={14}
-          aria-hidden="true"
-          className="pointer-events-none absolute right-1.5 top-1.5 drop-shadow-sm"
+          className="pointer-events-none absolute inset-x-3 bottom-0 border-t-2 border-lineSoft/70"
         />
       )}
 
-      <div className="flex items-baseline gap-1.5 pr-5">
+      <div className="flex items-baseline gap-1.5 pr-8">
         <h3
           className={cn(
             'min-w-0 flex-1 truncate',
@@ -141,7 +135,10 @@ export function NoteRow({
           <Highlighted text={title} query={searchQuery} />
         </h3>
         {note.isFavorite && (
-          <StarFilled size={13} aria-hidden="true" className="shrink-0 self-center drop-shadow-sm" />
+          <FavoriteStar size={14} className="shrink-0 self-center" />
+        )}
+        {note.isPinned && surface === 'live' && (
+          <PinFilled size={14} aria-hidden="true" className="shrink-0 self-center text-muted" />
         )}
       </div>
 
@@ -175,17 +172,14 @@ export function NoteRow({
 
 /* ------------------------------- Grid card -------------------------------- */
 
-/** Alternating tilts so the grid reads like a wall of stuck-on notes. */
-const TILTS = ['-rotate-[1.25deg]', 'rotate-[0.75deg]', '-rotate-[0.5deg]', 'rotate-[1deg]']
-
+/** Grid card: the same note as a clean tile. */
 export function NoteGridCard({
   note,
   surface,
   selected,
   multiSelected,
   onSelect,
-  index = 0,
-}: Omit<NoteRowProps, 'density'> & { index?: number }): React.ReactNode {
+}: Omit<NoteRowProps, 'density'>): React.ReactNode {
   const tags = useTagStore((s) => s.tags)
   const searchQuery = useUIStore((s) => s.searchQuery)
   const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
@@ -209,12 +203,11 @@ export function NoteGridCard({
         }
       }}
       className={cn(
-        'group relative flex cursor-pointer flex-col rounded-wobbly-md border-2 border-line bg-postit p-4 text-postit-ink shadow-sketch-sm outline-none transition-all duration-150',
-        TILTS[index % TILTS.length],
-        'hover:rotate-0 hover:-translate-y-1 hover:shadow-sketch',
+        'group relative flex cursor-pointer flex-col rounded-card border border-lineSoft bg-panel p-4 text-ink shadow-rest outline-none transition-[box-shadow,transform] duration-150',
+        'hover:-translate-y-0.5 hover:shadow-raise',
         'focus-visible:ring-2 focus-visible:ring-ballpoint/60',
-        multiSelected && 'border-accent border-[3px] bg-accent/[0.08]',
-        selected && !multiSelected && 'border-accent border-[3px] shadow-sketch',
+        multiSelected && 'border-accent border bg-accent/[0.08]',
+        selected && !multiSelected && 'border-accent border shadow-raise',
       )}
     >
       {/* Selection indicator */}
@@ -226,28 +219,20 @@ export function NoteGridCard({
         />
       )}
 
-      {/* Thumbtack for pinned notes */}
-      {note.isPinned && surface === 'live' && (
-        <PinFilled
-          size={18}
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 drop-shadow-sm"
-        />
-      )}
-
       <div className="mb-1.5 flex items-start gap-2">
         <h3 className="min-w-0 flex-1 truncate text-[15px]">
           <Highlighted text={title} query={searchQuery} />
         </h3>
-        <span className="flex shrink-0 items-center gap-1 pt-0.5">
-          {note.isFavorite && (
-            <StarFilled size={15} aria-hidden="true" className="drop-shadow-sm" />
+        <span className="flex shrink-0 items-center gap-1 pr-7 pt-0.5">
+          {note.isFavorite && <FavoriteStar size={16} />}
+          {note.isPinned && surface === 'live' && (
+            <PinFilled size={15} aria-hidden="true" className="text-muted" />
           )}
         </span>
       </div>
 
       {preview && (
-        <p className="line-clamp-4 min-h-[3rem] text-[13px] leading-relaxed text-postit-ink/70">
+        <p className="line-clamp-4 min-h-[3rem] text-[13px] leading-relaxed text-muted">
           <Highlighted text={preview} query={searchQuery} />
         </p>
       )}
@@ -258,7 +243,7 @@ export function NoteGridCard({
           <TagChip key={tag.id} tag={tag} />
         ))}
         <time
-          className="ml-auto text-xs tabular-nums text-postit-ink/50"
+          className="ml-auto text-xs tabular-nums text-faint"
           dateTime={new Date(note.updatedAt).toISOString()}
         >
           {formatRelative(note.updatedAt)}

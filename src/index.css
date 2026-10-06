@@ -3,36 +3,40 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Tala design tokens — Hand-Drawn theme ("sunlight & moonlight")
-   Light: morning notebook — warm ivory paper, soft black ink, solar gold.
-   Dark:  writing at 1 AM — layered charcoal under moonlight, chalk ink.
-   Colors are RGB channel triplets so Tailwind can apply alpha modifiers.
+   Tala design tokens: clean surfaces, doodle accents.
+   Light: a desk in daylight, cool paper neutrals with a faint green tint.
+   Dark:  the same desk at 1 AM, charcoal with a green cast.
+   Roles: green = actions, gold = Bituin + celebration, blue = ink + links,
+   red = destructive. Colors are RGB channel triplets so Tailwind can apply
+   alpha modifiers. Every text/control pair below clears WCAG AA (checked).
 --------------------------------------------------------------------------- */
 :root {
-  --c-canvas: 247 245 239;        /* #f7f5ef warm ivory       */
-  --c-panel: 255 253 248;         /* #fffdf8 note cards       */
-  --c-raise: 239 235 225;         /* hover wells, inputs      */
-  --c-overlay: 255 253 248;       /* modals / popovers        */
-  --c-line: 23 23 23;             /* #171717 pencil lead      */
-  --c-line-soft: 221 217 206;     /* #ddd9ce erased ruling    */
-  --c-ink: 23 23 23;              /* #171717 soft black       */
-  --c-muted: 115 113 107;         /* #73716b pressed pencil   */
-  --c-faint: 166 161 153;         /* ghost pencil             */
-  --c-accent: 232 184 74;         /* #e8b84a solar gold       */
-  --c-accent-strong: 205 158 44;
-  --c-accent-soft: 250 240 210;   /* sunbeam wash             */
-  --c-accent-fg: 42 34 14;        /* dark ink on gold         */
-  --c-postit: 255 249 196;        /* #fff9c4 post-it yellow   */
-  --c-postit-ink: 45 45 45;       /* text on post-its         */
-  --c-ballpoint: 45 93 161;       /* #2d5da1 blue pen         */
+  --c-canvas: 243 246 242;        /* #f3f6f2 desk                         */
+  --c-panel: 255 255 255;         /* #ffffff cards, lists, sheets          */
+  --c-raise: 233 238 231;         /* #e9eee7 hover wells, inputs           */
+  --c-overlay: 255 255 255;       /* modals / popovers                     */
+  --c-line: 134 145 138;          /* #86918a control borders (3:1)         */
+  --c-line-soft: 223 229 221;     /* #dfe5dd dividers                      */
+  --c-ink: 23 32 26;              /* #17201a                               */
+  --c-muted: 86 98 89;            /* #566259 secondary text                */
+  --c-faint: 93 104 95;           /* #5d685f placeholders, meta (AA)       */
+  --c-accent: 43 122 63;          /* #2b7a3f TALA-cap green, actions       */
+  --c-accent-strong: 31 106 51;   /* #1f6a33 hover / pressed               */
+  --c-accent-soft: 227 243 230;   /* #e3f3e6 tint                          */
+  --c-accent-fg: 255 255 255;     /* text on green                         */
+  --c-gold: 250 204 21;           /* #facc15 star gold                     */
+  --c-gold-soft: 255 241 191;     /* #fff1bf                               */
+  --c-gold-ink: 92 67 0;          /* #5c4300 text on gold                  */
+  --c-danger: 179 38 30;          /* #b3261e                               */
+  --c-danger-soft: 252 232 230;
+  --c-selected: 220 239 223;      /* #dcefdf selected rows / toggles       */
+  --c-selected-ink: 23 32 26;
+  --c-ballpoint: 45 93 161;       /* #2d5da1 blue pen: ink + links         */
   --c-ballpoint-soft: 228 237 250;
 
-  --paper-dot: 222 217 205;       /* notebook dot grid        */
-
-  /* Hard offset shadows — solid pencil in light mode */
-  --sketch-shadow-sm: 2px 2px 0 0 rgb(23 23 23);
-  --sketch-shadow: 4px 4px 0 0 rgb(23 23 23);
-  --sketch-shadow-lg: 8px 8px 0 0 rgb(23 23 23);
+  --shadow-rest: 0 1px 2px rgb(23 32 26 / 0.08);
+  --shadow-raise: 0 1px 2px rgb(23 32 26 / 0.08), 0 4px 12px rgb(23 32 26 / 0.10);
+  --shadow-float: 0 2px 4px rgb(23 32 26 / 0.08), 0 16px 40px rgb(23 32 26 / 0.18);
 
   --editor-font-size: 15px;
   --editor-line-height: 1.7;
@@ -41,30 +45,32 @@
 }
 
 .dark {
-  --c-canvas: 12 12 13;           /* #0c0c0d night desk       */
-  --c-panel: 21 21 22;            /* #151516 moonlit paper    */
-  --c-raise: 29 29 31;            /* #1d1d1f elevated wells   */
-  --c-overlay: 25 25 27;
-  --c-line: 232 228 216;          /* chalk lines              */
-  --c-line-soft: 43 43 45;        /* #2b2b2d                  */
-  --c-ink: 244 241 232;           /* #f4f1e8 chalk white ink  */
-  --c-muted: 168 166 160;         /* #a8a6a0                  */
-  --c-faint: 118 115 108;
-  --c-accent: 217 184 90;         /* #d9b85a moonlit gold     */
-  --c-accent-strong: 232 204 122;
-  --c-accent-soft: 56 47 21;      /* gold wash on charcoal    */
-  --c-accent-fg: 32 26 12;        /* dark ink on gold         */
-  --c-postit: 212 196 118;        /* lamp-lit mustard         */
-  --c-postit-ink: 32 30 26;
-  --c-ballpoint: 134 168 216;
-  --c-ballpoint-soft: 44 58 84;
+  --c-canvas: 16 21 18;           /* #101512 night desk                    */
+  --c-panel: 23 29 25;            /* #171d19                               */
+  --c-raise: 31 39 34;            /* #1f2722                               */
+  --c-overlay: 27 34 30;
+  --c-line: 109 121 111;          /* #6d796f control borders (3:1)         */
+  --c-line-soft: 42 52 45;        /* #2a342d                               */
+  --c-ink: 233 239 233;           /* #e9efe9                               */
+  --c-muted: 167 178 169;         /* #a7b2a9                               */
+  --c-faint: 139 150 141;         /* #8b968d                               */
+  --c-accent: 92 194 119;         /* #5cc277                               */
+  --c-accent-strong: 124 214 146; /* #7cd692                               */
+  --c-accent-soft: 31 58 42;      /* #1f3a2a                               */
+  --c-accent-fg: 11 32 19;        /* #0b2013 text on green                 */
+  --c-gold: 244 194 58;           /* #f4c23a                               */
+  --c-gold-soft: 58 48 21;        /* #3a3015                               */
+  --c-gold-ink: 244 215 122;      /* #f4d77a                               */
+  --c-danger: 255 138 128;        /* #ff8a80                               */
+  --c-danger-soft: 70 30 28;
+  --c-selected: 31 58 42;
+  --c-selected-ink: 233 239 233;
+  --c-ballpoint: 143 180 240;     /* #8fb4f0                               */
+  --c-ballpoint-soft: 40 54 80;
 
-  --paper-dot: 35 35 37;
-
-  /* Moonlight lifts instead of solid offsets */
-  --sketch-shadow-sm: 2px 2px 0 0 rgb(245 240 230 / 0.10);
-  --sketch-shadow: 4px 4px 0 0 rgb(245 240 230 / 0.14);
-  --sketch-shadow-lg: 8px 8px 0 0 rgb(245 240 230 / 0.18);
+  --shadow-rest: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.35);
+  --shadow-float: 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 40px rgb(0 0 0 / 0.6);
 
   color-scheme: dark;
 }
@@ -78,9 +84,7 @@
   }
 
   body {
-    @apply bg-canvas font-sans text-ink;
-    background-image: radial-gradient(rgb(var(--paper-dot)) 1px, transparent 1px);
-    background-size: 24px 24px;
+    @apply bg-canvas font-sans text-ink antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
@@ -101,11 +105,10 @@
     @apply bg-transparent placeholder:text-faint focus:outline-none;
   }
 
-  /* Ballpoint-blue focus visibility for keyboard users */
+  /* Blue focus ring: visible on green controls and on every surface */
   :focus-visible {
-    outline: 2px solid rgb(var(--c-ballpoint) / 0.8);
+    outline: 2px solid rgb(var(--c-ballpoint));
     outline-offset: 2px;
-    border-radius: 8px 4px 9px 5px / 5px 9px 4px 8px;
   }
 
   /* Slim scrollbars */
@@ -119,7 +122,7 @@
   }
   ::-webkit-scrollbar-thumb {
     background: rgb(var(--c-line-soft));
-    border-radius: 8px 4px 8px 4px;
+    border-radius: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -132,14 +135,15 @@
   *::after {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
 }
 
 /* ---------------------------------------------------------------------------
-   Editor typography (Tiptap) — hybrid:
-   note bodies stay in Inter for long-form readability, but headings become
-   Kalam marker strokes and quotes read like ballpoint margin notes.
+   Editor typography (Tiptap): note bodies stay in Inter for long-form
+   readability; headings are Kalam marker strokes and quotes read like
+   ballpoint margin notes (doodle accents inside the content).
 --------------------------------------------------------------------------- */
 .tiptap {
   outline: none;
@@ -232,31 +236,32 @@
   appearance: none;
   width: 1.05em;
   height: 1.05em;
-  border: 2px solid rgb(var(--c-line));
-  border-radius: 5px 3px 6px 3px / 3px 6px 3px 5px;
+  border: 1.5px solid rgb(var(--c-line));
+  border-radius: 6px;
   background: rgb(var(--c-panel));
   cursor: pointer;
-  transition: all 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease;
   position: relative;
   vertical-align: middle;
 }
 .tiptap ul[data-type='taskList'] input[type='checkbox']:hover {
   border-color: rgb(var(--c-accent));
-  transform: rotate(-3deg);
 }
 .tiptap ul[data-type='taskList'] input[type='checkbox']:checked {
   background: rgb(var(--c-accent));
   border-color: rgb(var(--c-accent));
-  transform: rotate(2deg);
 }
 .tiptap ul[data-type='taskList'] input[type='checkbox']:checked::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-7' stroke='%232A220E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-7' stroke='%23FFFFFF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-size: 78%;
   background-position: center;
   background-repeat: no-repeat;
+}
+.dark .tiptap ul[data-type='taskList'] input[type='checkbox']:checked::after {
+  filter: invert(1) brightness(0.15);
 }
 .tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
   color: rgb(var(--c-faint));
@@ -270,13 +275,13 @@
   font-size: 0.88em;
   background: rgb(var(--c-raise));
   border: 1px solid rgb(var(--c-line-soft));
-  border-radius: 7px 3px 8px 4px / 4px 8px 3px 7px;
+  border-radius: 6px;
   padding: 0.12em 0.36em;
 }
 .tiptap pre {
   background: rgb(var(--c-raise));
-  border: 2px solid rgb(var(--c-line));
-  border-radius: 20px 8px 26px 10px / 10px 26px 8px 20px;
+  border: 1px solid rgb(var(--c-line-soft));
+  border-radius: 12px;
   padding: 12px 16px;
   margin: 0 0 16px;
   overflow-x: auto;
@@ -292,7 +297,7 @@
 
 /* Blockquote — a ballpoint margin note */
 .tiptap blockquote {
-  border-left: 3px dashed rgb(var(--c-ballpoint) / 0.65);
+  border-left: 2px solid rgb(var(--c-line-soft));
   padding: 0 0 0 16px;
   margin: 0 0 16px;
   color: rgb(var(--c-ballpoint));
@@ -312,23 +317,23 @@
   word-break: break-word;
 }
 
-/* Images — taped-in snapshots */
+/* Images */
 .tiptap img {
   max-width: 100%;
   height: auto;
   margin: 0 0 16px;
-  border: 2px solid rgb(var(--c-line));
-  border-radius: 18px 6px 22px 8px / 8px 22px 6px 18px;
+  border: 1px solid rgb(var(--c-line-soft));
+  border-radius: 12px;
 }
 .tiptap img.ProseMirror-selectednode {
   outline: 3px solid rgb(var(--c-accent) / 0.8);
   outline-offset: 2px;
 }
 
-/* Horizontal rule — scribbled divider */
+/* Horizontal rule */
 .tiptap hr {
   border: none;
-  border-top: 2px dashed rgb(var(--c-faint) / 0.75);
+  border-top: 1px solid rgb(var(--c-line-soft));
   margin: 24px 0;
 }
 .tiptap hr.ProseMirror-selectednode {
@@ -354,17 +359,17 @@
   justify-content: center;
   min-width: 20px;
   padding: 1px 6px;
-  border-radius: 8px 4px 9px 4px / 4px 9px 4px 8px;
-  border: 1px solid rgb(var(--c-line));
+  border-radius: 6px;
+  border: 1px solid rgb(var(--c-line-soft));
   background: rgb(var(--c-panel));
-  box-shadow: 1.5px 1.5px 0 0 rgb(var(--c-line));
+  box-shadow: 0 1px 0 rgb(var(--c-line-soft));
   font-family: inherit;
   font-size: 11px;
   color: rgb(var(--c-muted));
 }
 
 .skeleton {
-  border-radius: 35px 8px 45px 8px / 8px 45px 8px 35px;
+  border-radius: 8px;
   background: rgb(var(--c-raise));
   animation: pulse-soft 1.6s ease-in-out infinite;
 }
@@ -532,4 +537,77 @@
 
 .ink-live-tip {
   opacity: 0.35;
+}
+
+/* ---------------------------------------------------------------------------
+   Shared component classes
+--------------------------------------------------------------------------- */
+@layer components {
+  /* The one solid-green action control. Layout, size and radius come from the caller. */
+  .btn-primary {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap bg-accent text-accent-fg shadow-rest transition-[background-color,box-shadow,transform] duration-150 hover:bg-accent-strong hover:shadow-raise active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Bituin (the mascot). The art is two stacked images: eyes open, eyes shut.
+   Motion is CSS only. Writing comes first, so nothing about Bituin moves while
+   pen mode is on (the editor sets data-pen on <html>).
+--------------------------------------------------------------------------- */
+.bituin {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.bituin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.bituin-eyes-shut {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.bituin[data-blink] .bituin-eyes-shut {
+  animation: bituin-blink 6s ease-in-out infinite;
+}
+.bituin[data-motion='bob'] .bituin-body {
+  animation: bituin-bob 3.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.bituin[data-motion='wave'] .bituin-body {
+  animation: bituin-wave 1.3s ease-in-out 1;
+  transform-origin: 50% 92%;
+}
+.bituin[data-motion='cheer'] .bituin-body {
+  animation: bituin-cheer 650ms cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+:root[data-pen] .bituin .bituin-body,
+:root[data-pen] .bituin .bituin-eyes-shut {
+  animation: none !important;
+}
+@keyframes bituin-blink {
+  0%, 93%, 100% { opacity: 0; }
+  95%, 97% { opacity: 1; }
+}
+@keyframes bituin-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4%); }
+}
+@keyframes bituin-wave {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(-9deg); }
+  45% { transform: rotate(7deg); }
+  70% { transform: rotate(-4deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes bituin-cheer {
+  0% { transform: scale(0.8) rotate(-8deg); }
+  55% { transform: scale(1.12) rotate(6deg); }
+  100% { transform: scale(1) rotate(0); }
 }

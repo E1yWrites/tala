@@ -38,8 +38,8 @@ export const TAG_COLORS: Record<
   },
   amber: {
     label: 'Post-it yellow',
-    chip: 'bg-postit/60 text-[#8a7500] border-postit dark:text-postit-ink',
-    dot: 'bg-postit',
+    chip: 'bg-selected/60 text-[#8a7500] border-selected dark:text-selected-ink',
+    dot: 'bg-selected',
   },
   rose: {
     label: 'Crayon orange',

@@ -132,6 +132,7 @@ export type ViewKind =
   | 'trash'
   | 'folder'
   | 'tag'
+  | 'tasks'
   | 'settings'
 
 export interface ViewRef {
@@ -154,6 +155,7 @@ export type ModalIntent =
   | { kind: 'move-note'; noteId: string }
   | { kind: 'tag-editor'; noteId: string }
   | { kind: 'profile-picture' }
+  | { kind: 'install-guide' }
   | {
       kind: 'confirm'
       title: string

@@ -171,6 +171,8 @@ export const Plus = forwardRef<SVGSVGElement, DoodleProps>(function Plus(props, 
       <CrossIcon
         ref={ref}
         {...rest}
+        // doodle-slot neutralises the pack's shared clip0 clipPath (see index.css)
+        className="doodle-slot"
         style={{ overflow: 'visible', ...(style as CSSProperties | undefined) }}
       />
     </span>

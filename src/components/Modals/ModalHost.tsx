@@ -9,6 +9,7 @@ import { FolderEditorModal } from './FolderEditorModal'
 import { MoveNoteModal } from './MoveNoteModal'
 import { TagEditorModal } from './TagEditorModal'
 import { ProfilePictureModal } from './ProfilePictureModal'
+import { InstallGuideModal } from './InstallGuideModal'
 
 function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
   switch (intent.kind) {
@@ -43,6 +44,8 @@ function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
       return <TagEditorModal noteId={intent.noteId} />
     case 'profile-picture':
       return <ProfilePictureModal onClose={() => useUIStore.getState().closeModal()} />
+    case 'install-guide':
+      return <InstallGuideModal />
     default:
       return null
   }

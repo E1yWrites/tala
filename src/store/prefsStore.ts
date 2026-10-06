@@ -104,14 +104,54 @@ function isObj(v: unknown): boolean {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
+/** Device-local facts the coach needs. Nothing here belongs in a backup. */
+export interface CoachPrefs {
+  /** First launch on this device; the weekly backup clock starts here. */
+  firstSeenAt: number | null
+  /** Last time a backup was exported from this device. */
+  lastBackupAt: number | null
+  backupSnoozeUntil: number
+  installSnoozeUntil: number
+  installDismissals: number
+}
+
+export const DEFAULT_COACH_PREFS: CoachPrefs = {
+  firstSeenAt: null,
+  lastBackupAt: null,
+  backupSnoozeUntil: 0,
+  installSnoozeUntil: 0,
+  installDismissals: 0,
+}
+
+function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
+  const r = isObj(raw) ? (raw as Record<string, unknown>) : {}
+  const time = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null)
+  const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0)
+  return {
+    firstSeenAt: time(r.firstSeenAt),
+    lastBackupAt: time(r.lastBackupAt),
+    backupSnoozeUntil: time(r.backupSnoozeUntil) ?? 0,
+    installSnoozeUntil: time(r.installSnoozeUntil) ?? 0,
+    installDismissals: count(r.installDismissals),
+  }
+}
+
 interface PrefsState {
   sidebarCollapsed: boolean
   /** Structured "Reading layout" for the note editor (cards + collapsible sections). */
   readingLayout: boolean
   /** Pen mode prefs: last tool/color/thickness. */
   inkPrefs: InkPrefs
+  /** Silences Bituin's reactions and reminders everywhere. */
+  quietMode: boolean
+  /** Mirrors the pen bar, the phone tab bar and Bituin's corner for left-handed writers. */
+  leftHanded: boolean
+  coach: CoachPrefs
   toggleSidebar: () => void
   toggleReadingLayout: () => void
+  toggleQuietMode: () => void
+  setLeftHanded: (on: boolean) => void
+  setCoach: (patch: Partial<CoachPrefs>) => void
   setInkPrefs: (patch: Partial<InkPrefs>) => void
 }
 
@@ -159,15 +199,28 @@ export const usePrefsStore = create<PrefsState>()(
       sidebarCollapsed: false,
       readingLayout: false,
       inkPrefs: DEFAULT_INK_PREFS,
+      quietMode: false,
+      leftHanded: false,
+      coach: DEFAULT_COACH_PREFS,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleReadingLayout: () => set((s) => ({ readingLayout: !s.readingLayout })),
+      toggleQuietMode: () => set((s) => ({ quietMode: !s.quietMode })),
+      setLeftHanded: (on) => set({ leftHanded: on }),
+      setCoach: (patch) => set((s) => ({ coach: { ...s.coach, ...patch } })),
       setInkPrefs: (patch) => set((s) => ({ inkPrefs: { ...s.inkPrefs, ...patch } })),
     }),
     {
       name: 'tala:prefs',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
-      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs }) => ({ sidebarCollapsed, readingLayout, inkPrefs }),
+      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, coach }) => ({
+        sidebarCollapsed,
+        readingLayout,
+        inkPrefs,
+        quietMode,
+        leftHanded,
+        coach,
+      }),
       // Validate on the way in: a hand-edited or older value must never crash the editor
       merge: (persisted, current) => {
         const p = (persisted ?? readLegacyPrefs()) as Partial<PrefsState>
@@ -176,6 +229,9 @@ export const usePrefsStore = create<PrefsState>()(
           sidebarCollapsed: p.sidebarCollapsed === true,
           readingLayout: p.readingLayout === true,
           inkPrefs: sanitizeInkPrefs(p.inkPrefs),
+          quietMode: p.quietMode === true,
+          leftHanded: p.leftHanded === true,
+          coach: sanitizeCoachPrefs(p.coach),
         }
       },
     },

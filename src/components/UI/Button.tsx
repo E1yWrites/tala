@@ -10,45 +10,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
 }
 
-/** Hard-shadow buttons "press flat": shadow shrinks on hover, vanishes on press. */
-const PRESS =
-  'hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-sketch-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none'
-
 const variantClasses: Record<Variant, string> = {
-  // Post-it yellow at rest, fills with red marker ink on hover.
-  primary: cn(
-    'border-[3px] border-line bg-postit text-postit-ink shadow-sketch',
-    PRESS,
-    'hover:bg-accent hover:text-accent-fg',
-  ),
-  // Muted paper that takes ballpoint blue on hover.
-  subtle: cn(
-    'border-2 border-line bg-panel text-ink shadow-sketch-sm',
-    PRESS,
-    'hover:bg-ballpoint hover:text-canvas',
-  ),
-  outline: cn(
-    'border-2 border-dashed border-line bg-transparent text-ink',
-    PRESS,
-    'hover:border-solid hover:bg-raise',
-  ),
-  ghost:
-    'text-muted hover:bg-raise hover:text-ink active:scale-[0.97]',
-  danger: cn(
-    'border-[3px] border-line bg-accent text-accent-fg shadow-sketch',
-    PRESS,
-    'hover:bg-accent-strong',
-  ),
-  'danger-outline': cn(
-    'border-2 border-dashed border-accent/70 bg-transparent text-accent',
-    PRESS,
-    'hover:bg-accent/10',
-  ),
+  primary: 'btn-primary',
+  subtle: 'border border-lineSoft bg-panel text-ink shadow-rest hover:bg-raise',
+  outline: 'border border-line bg-transparent text-ink hover:bg-raise',
+  ghost: 'text-muted hover:bg-raise hover:text-ink active:scale-[0.97]',
+  danger: 'bg-danger text-panel shadow-rest hover:opacity-90',
+  'danger-outline': 'border border-danger/60 bg-transparent text-danger hover:bg-danger-soft',
 }
 
+// Coarse pointers (fingers, stylus on a tablet) get 44px-class hit areas
 const sizeClasses: Record<Size, string> = {
-  sm: 'h-7 gap-1.5 rounded-wobbly-sm px-3 text-[13px]',
-  md: 'h-9 gap-2 rounded-wobbly px-4 text-[15px]',
+  sm: 'h-8 gap-1.5 rounded-control px-3 text-[13px] font-medium [@media(pointer:coarse)]:min-h-10',
+  md: 'h-10 gap-2 rounded-card px-4 text-[14px] font-medium [@media(pointer:coarse)]:min-h-11',
 }
 
 /** Standard labeled button. */
@@ -64,7 +38,7 @@ export function Button({
     <button
       type={typeProp ?? 'button'}
       className={cn(
-        'inline-flex select-none items-center justify-center whitespace-nowrap transition-all duration-100 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex select-none items-center justify-center whitespace-nowrap transition-[background-color,border-color,color,opacity,transform] duration-150 disabled:pointer-events-none disabled:opacity-50',
         variantClasses[variant],
         sizeClasses[size],
         className,

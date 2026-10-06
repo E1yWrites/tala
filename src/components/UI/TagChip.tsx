@@ -24,7 +24,7 @@ export function TagChip({
   return (
     <span
       className={cn(
-        'inline-flex max-w-[140px] items-center gap-1 rounded-wobbly-sm border border-dashed font-medium transition-colors',
+        'inline-flex max-w-[140px] items-center gap-1 rounded-control border font-medium transition-colors',
         palette.chip,
         size === 'xs' ? 'h-5 px-1.5 text-[11px]' : 'h-6 px-2 text-xs',
         onClick && 'cursor-pointer hover:brightness-95',

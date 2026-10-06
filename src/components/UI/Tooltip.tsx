@@ -150,8 +150,8 @@ export function Tooltip({
       id={tooltipId}
       role="tooltip"
       className={cn(
-        'pointer-events-none fixed z-[90] whitespace-nowrap rounded-wobbly-sm px-2 py-0.5 text-xs',
-        'bg-ink text-canvas shadow-sketch-sm',
+        'pointer-events-none fixed z-[90] whitespace-nowrap rounded-control px-2 py-0.5 text-xs',
+        'bg-ink text-canvas shadow-rest',
         'animate-fade-in',
       )}
       style={

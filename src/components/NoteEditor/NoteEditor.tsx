@@ -26,7 +26,6 @@ import {
   RotateCcw,
   Share2,
   Star,
-  StarFilled,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -57,6 +56,7 @@ import { INK_PRESETS } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { formatFull, formatRelative } from '@/utils/dates'
 import { processImageFile } from '@/utils/image'
+import { FavoriteStar } from '../UI/FavoriteStar'
 import { TagChip } from '../UI/TagChip'
 import { Tooltip } from '../UI/Tooltip'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
@@ -67,6 +67,8 @@ import { InkLayer } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
 import { PenBar } from './ink/PenBar'
 import { PageBackground } from './PageBackground'
+import { BituinNudge } from '@/coach/BituinNudge'
+import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { PenPalette } from './ink/PenPalette'
 import type { PenPaletteState } from './ink/PenPalette'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
@@ -135,10 +137,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   /** PDF-imported page: its sheet is the page, no typed content. */
   const isBgPage = !!(activePage?.pdfPage || activePage?.backgroundBlobId)
 
-  // Reset to first page when note changes
+  // Open on page 1, or on the page Tasks pointed at
   useEffect(() => {
-    setActivePageIndex(0)
-  }, [noteId])
+    const ui = useUIStore.getState()
+    const target = ui.pendingPageId ? pages.findIndex((p) => p.id === ui.pendingPageId) : -1
+    setActivePageIndex(Math.max(0, target))
+    if (ui.pendingPageId) ui.clearPendingPage()
+  }, [noteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const onDuplicatePage = useCallback(() => {
     if (!activePage || !note) return
@@ -151,6 +156,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const inkPrefs = usePrefsStore((s) => s.inkPrefs)
   const setInkPrefs = usePrefsStore((s) => s.setInkPrefs)
   const [penMode, setPenMode] = useState(false)
+  // Bituin's corner chip only when no list pane sits beside the editor
+  const isPhone = useMediaQuery(BREAKPOINTS.mobile)
+  // Writing comes first: while pen mode is on, the stylesheet freezes every Bituin animation
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-pen', penMode)
+    return () => document.documentElement.removeAttribute('data-pen')
+  }, [penMode])
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
   const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
   /** Radial palette state — null = closed; cursor mode when opened by right-click. */
@@ -566,14 +578,15 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
+      {(isPhone || focusMode) && !note.isDeleted && <BituinNudge placement="corner" />}
       {/* Toolbar row */}
-      <header className="flex items-center gap-1 border-b-2 border-line px-3 py-2">
+      <header className="flex items-center gap-1 border-b border-lineSoft px-3 py-2">
         <Tooltip label="Back" side="bottom">
           <button
             type="button"
             onClick={() => selectNote(null)}
             aria-label="Back to list"
-            className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+            className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
           >
             <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
@@ -601,12 +614,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <HeaderToggle
               label={note.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               active={note.isFavorite}
+              tone="gold"
               onClick={() =>
                 patchNote(note.id, { isFavorite: !note.isFavorite })
               }
             >
               {note.isFavorite ? (
-                <StarFilled size={HEADER_ICON_SIZE + 1} className="drop-shadow-sm" />
+                <FavoriteStar size={HEADER_ICON_SIZE} />
               ) : (
                 <Star size={HEADER_ICON_SIZE} />
               )}
@@ -667,7 +681,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 {...props}
                 type="button"
                 aria-label="More options"
-                className="grid size-8 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+                className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink"
               >
                 <ChevronDown size={18} strokeWidth={2.5} />
               </button>
@@ -678,7 +692,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
       {/* Banners */}
       {note.isDeleted && (
-        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-wobbly-md border-2 border-dashed border-accent/50 bg-accent/[0.06] px-3.5 py-2.5">
+        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-accent/50 bg-accent/[0.06] px-3.5 py-2.5">
           <Trash2 size={14} className="text-accent" aria-hidden="true" />
           <p className="text-xs text-accent">
             This note is in the trash and is read-only.
@@ -874,7 +888,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               Edited {formatRelative(note.updatedAt)}
             </time>
             {note.isArchived && !note.isDeleted && (
-              <span className="rounded-wobbly-sm border border-lineSoft bg-raise px-1.5 py-px text-[11px] text-muted">
+              <span className="rounded-control border border-lineSoft bg-raise px-1.5 py-px text-[11px] text-muted">
                 Archived
               </span>
             )}
@@ -887,7 +901,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   <button
                     {...props}
                     type="button"
-                    className="inline-flex h-6 items-center gap-1 rounded-wobbly-sm border border-transparent px-1.5 text-xs text-faint transition-colors hover:border-ballpoint/40 hover:bg-ballpoint-soft/50 hover:text-ballpoint"
+                    className="inline-flex h-6 items-center gap-1 rounded-control border border-transparent px-1.5 text-xs text-faint transition-colors hover:border-ballpoint/40 hover:bg-ballpoint-soft/50 hover:text-ballpoint"
                   >
                     <FolderIcon size={11} aria-hidden="true" />
                     {currentFolder ? currentFolder.name : 'Set folder'}
@@ -911,7 +925,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     type="button"
                     onClick={() => openModal({ kind: 'tag-editor', noteId: note.id })}
                     aria-label="Edit tags"
-                    className="grid size-[19px] place-items-center rounded-[5px_3px_6px_3px] border border-dashed border-lineSoft text-faint transition-colors hover:border-accent hover:text-accent"
+                    className="grid size-[19px] place-items-center rounded-control border border-lineSoft text-faint transition-colors hover:border-accent hover:text-accent"
                   >
                     <Plus size={11} />
                   </button>
@@ -1066,11 +1080,13 @@ function HeaderToggle({
   active,
   onClick,
   children,
+  tone = 'accent',
 }: {
   label: string
   active: boolean
   onClick: () => void
   children: React.ReactNode
+  tone?: 'accent' | 'gold'
 }): React.ReactNode {
   return (
     <Tooltip label={label} side="bottom">
@@ -1080,9 +1096,11 @@ function HeaderToggle({
         aria-pressed={active}
         aria-label={label}
         className={cn(
-          'grid size-10 place-items-center rounded-wobbly-sm transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
+          'grid size-10 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 active:scale-95 [@media(pointer:coarse)]:size-11',
           active
-            ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+            ? tone === 'gold'
+              ? 'bg-gold-soft text-gold-ink'
+              : 'bg-selected text-selected-ink'
             : 'text-muted hover:bg-raise hover:text-ink',
         )}
       >

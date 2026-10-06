@@ -42,8 +42,8 @@ interface ModalProps {
 }
 
 /**
- * Portal modal with washi-tape decoration, wobbly pencil border,
- * hard offset shadow, focus trap and click-outside dismissal.
+ * Portal modal with a soft floating surface, focus trap and
+ * click-outside dismissal.
  * Esc is handled globally via the modal stack.
  */
 export function Modal({
@@ -162,9 +162,7 @@ export function Modal({
           className,
         )}
       >
-        {/* Washi tape straddling the top edge */}
-        <span className="tape" aria-hidden="true" />
-        <div className="overflow-hidden rounded-wobbly-md border-2 border-line bg-overlay shadow-sketch-lg">
+        <div className="overflow-hidden rounded-surface border border-lineSoft bg-overlay shadow-float">
           {title != null && (
             <header className="flex items-start justify-between gap-3 px-5 pt-4">
               <div className="min-w-0">
@@ -179,7 +177,7 @@ export function Modal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close dialog"
-                className="-mr-1 grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-faint transition-all duration-150 hover:rotate-90 hover:bg-raise hover:text-ink"
+                className="-mr-1 grid size-8 shrink-0 place-items-center rounded-control text-faint transition-all duration-150 hover:bg-raise hover:text-ink"
               >
                 <X className="size-4" strokeWidth={2.5} />
               </button>

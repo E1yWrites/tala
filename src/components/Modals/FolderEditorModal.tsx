@@ -168,7 +168,7 @@ export function FolderEditorModal({
           placeholder="Folder name"
           aria-label="Folder name"
           maxLength={40}
-          className="h-10 w-full rounded-wobbly-md border-2 border-line bg-canvas px-3 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+          className="h-10 w-full rounded-card border border-lineSoft bg-canvas px-3 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
         />
 
         {!existing && (
@@ -178,7 +178,7 @@ export function FolderEditorModal({
               value={selectedParent ?? ''}
               onChange={(e) => setSelectedParent(e.target.value === '' ? null : e.target.value)}
               aria-label="Parent folder"
-              className="mt-1 h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="mt-1 h-9 w-full rounded-card border border-lineSoft bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             >
               <option value="">Root (no parent)</option>
               {validParents.map((f) => (
@@ -197,7 +197,7 @@ export function FolderEditorModal({
               value={selectedParent ?? ''}
               onChange={(e) => setSelectedParent(e.target.value === '' ? null : e.target.value)}
               aria-label="Parent folder"
-              className="mt-1 h-9 w-full rounded-wobbly-md border-2 border-line bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="mt-1 h-9 w-full rounded-card border border-lineSoft bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
             >
               <option value="">Root (no parent)</option>
               {validParents.map((f) => (

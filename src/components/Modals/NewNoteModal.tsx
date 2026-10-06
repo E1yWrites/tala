@@ -119,11 +119,11 @@ export function NewNoteModal(): React.ReactNode {
           type="button"
           onClick={() => void createFrom(undefined)}
           className={cn(
-            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-line bg-panel p-4 text-left',
+            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-lineSoft bg-panel p-4 text-left',
             'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
           )}
         >
-          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm bg-postit text-postit-ink border border-line shadow-sketch-sm">
+          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control bg-selected text-selected-ink border border-line shadow-rest">
             <FileText className="size-5" aria-hidden="true" />
           </span>
           <span className="text-[13px]">Blank note</span>
@@ -136,11 +136,11 @@ export function NewNoteModal(): React.ReactNode {
             type="button"
             onClick={() => void createFrom(tpl)}
             className={cn(
-              'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-line bg-panel p-4 text-left',
+              'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-lineSoft bg-panel p-4 text-left',
               'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
             )}
           >
-            <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm border border-dashed border-line bg-canvas text-accent">
+            <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control border border-line bg-canvas text-accent">
               <Icon className="size-5" aria-hidden="true" />
             </span>
             <span className="text-[13px]">{tpl.name}</span>
@@ -152,12 +152,12 @@ export function NewNoteModal(): React.ReactNode {
           onClick={() => fileRef.current?.click()}
           disabled={importing}
           className={cn(
-            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-wobbly-sm border-2 border-dashed border-line bg-canvas p-4 text-left text-accent',
+            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-line bg-canvas p-4 text-left text-accent',
             'transition hover:border-ballpoint/40 hover:bg-ballpoint-soft/50 hover:text-ballpoint focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
             importing && 'pointer-events-none opacity-60',
           )}
         >
-          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-wobbly-sm border border-dashed border-line bg-canvas text-accent">
+          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control border border-line bg-canvas text-accent">
             <FileUp className="size-5" aria-hidden="true" />
           </span>
           <span className="text-[13px]">Import PDF</span>

@@ -147,7 +147,7 @@ export function NotePreviewCard({
       role="dialog"
       aria-label={`Preview: ${displayTitle(note)}`}
       className={cn(
-        'fixed z-[80] w-[320px] max-w-[90vw] rounded-wobbly-md border-2 border-line bg-panel/95 shadow-sketch-lg backdrop-blur-md',
+        'fixed z-[80] w-[320px] max-w-[90vw] rounded-card border border-lineSoft bg-panel/95 shadow-float backdrop-blur-md',
         pos ? 'animate-scale-in' : 'invisible',
       )}
       style={{
@@ -163,7 +163,7 @@ export function NotePreviewCard({
         <button
           type="button"
           onClick={handleOpen}
-          className="shrink-0 rounded-wobbly-sm px-1.5 py-0.5 text-[11px] font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
+          className="shrink-0 rounded-control px-1.5 py-0.5 text-[11px] font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
           aria-label="Open note"
         >
           <Pencil size={13} />
@@ -200,7 +200,7 @@ export function NotePreviewCard({
             tag ? (
               <span
                 key={tag.id}
-                className="inline-flex items-center gap-0.5 rounded-wobbly-sm border border-lineSoft bg-canvas px-1.5 py-px text-[10px] text-faint"
+                className="inline-flex items-center gap-0.5 rounded-control border border-lineSoft bg-canvas px-1.5 py-px text-[10px] text-faint"
               >
                 <Hash size={8} />
                 {tag.name}
@@ -248,7 +248,7 @@ function ActionBtn({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        'flex flex-1 items-center justify-center gap-1 rounded-wobbly-sm py-1 text-[11px] font-medium transition-colors',
+        'flex flex-1 items-center justify-center gap-1 rounded-control py-1 text-[11px] font-medium transition-colors',
         danger
           ? 'text-accent hover:bg-accent/10'
           : 'text-muted hover:bg-raise hover:text-ink',

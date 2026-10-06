@@ -104,7 +104,7 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="flex flex-wrap items-center gap-0.5 rounded-wobbly-md border-2 border-line bg-panel px-1.5 py-1 shadow-sketch-sm"
+      className="flex flex-wrap items-center gap-0.5 rounded-card border border-lineSoft bg-panel px-1.5 py-1 shadow-rest"
     >
       {buttons.map((btn, i) =>
         btn === 'sep' ? (
@@ -121,9 +121,9 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
               aria-pressed={btn.active}
               aria-label={btn.label}
               className={cn(
-                'grid size-7 shrink-0 place-items-center rounded-wobbly-sm transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
+                'grid size-7 shrink-0 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
                 btn.active
-                  ? 'bg-postit text-postit-ink ring-2 ring-accent/40'
+                  ? 'bg-selected text-selected-ink ring-2 ring-accent/40'
                   : 'text-muted hover:bg-raise hover:text-ink',
                 btn.disabled && 'pointer-events-none opacity-35',
               )}
@@ -184,7 +184,7 @@ function LinkDialog({
           placeholder="https://…"
           autoFocus
           aria-label="Link URL"
-          className="mt-3 h-10 w-full rounded-wobbly-md border-2 border-line bg-canvas px-3 font-body text-sm focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+          className="mt-3 h-10 w-full rounded-card border border-lineSoft bg-canvas px-3 text-sm focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
         />
         <p className="mt-1.5 text-xs text-faint">Tip: select text first, then add a link to it.</p>
         <div className="mt-4 flex justify-between">
