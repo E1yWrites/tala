@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tala.lorenzmalabanan.com/sitemap.xml

@@ -2,7 +2,7 @@
   "name": "Tala",
   "short_name": "Tala",
   "id": "tala",
-  "description": "Pagtatala, made simple. A fast, local-first note-taking app.",
+  "description": "Free, local-first notes with handwriting and PDF markup. No account, no server, works offline.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f3f6f2",
@@ -26,5 +26,10 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "lang": "en",
+  "categories": [
+    "productivity",
+    "education"
   ]
 }

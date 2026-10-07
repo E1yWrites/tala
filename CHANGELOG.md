@@ -2,7 +2,56 @@
 
 All notable changes to Tala are documented here.
 
-## [2.0.0] - 2026-08-26
+## [2.0.0] - 2026-10-07
+
+Tala is rebuilt as a stylus-first, local-first notebook that installs as a web app (iPad Safari, Android Chrome) and still ships as a Windows desktop app. It continues from 1.0.0, not from 1.1.0: the 1.1.0 line was not carried forward (see "Not carried over" below).
+
+### Added
+- **Pages**: a note is an ordered list of pages; each page owns its typed text and its handwriting.
+- **PDF import and markup**: the original PDF is kept and pages render on demand, also offline. **Export annotated PDF** draws ink as vectors over the original pages.
+- **Pinch zoom and pan**, an opaque pen that paints wet ink with no lag, a **free-form lasso** (recolour, duplicate), and a **page strip** with thumbnails and drag reordering. Undo survives page switches.
+- **Snap to shape**: rest the pen at the end of a stroke and a line, circle/ellipse, rectangle or triangle replaces it.
+- **Lecture audio**: record while you write. Audio is saved in 5-second chunks so a crash loses almost nothing, a Wake Lock keeps the screen on, and tapping a stroke made while recording plays the audio from just before it.
+- **Bituin**, the star mascot and rule-based study coach: a corner chip after the pen rests, a weekly goal that never resets progress, session wrap-ups, resurfacing of old notes, and a Quiet mode.
+- **Tasks view**: tick tasks across the whole library.
+- **Phone layout**: Notes / Tasks / New / Search / profile tab bar, 44 px touch targets, left-handed mirroring.
+- **Data safety**: persistent-storage request, Add-to-Home-Screen guide, weekly backup nudge, share-sheet backup on phones and tablets, and a copy of a pre-upgrade library kept in a separate database.
+- **`.tala` backups** (zip with `manifest.json`, `backup.json` and blobs). Legacy `.json` backups from versions 1–3 still import. Backups carry lecture rows and study days but not audio; each lecture has its own "Save audio".
+- Experimental, off by default: handwriting search using the browser's built-in recogniser (ChromeOS and some Android; not iPad Safari).
+- New app icon (star with pencil) for web, iOS, Android and desktop.
+- Search-engine and social-sharing metadata, `robots.txt`, `sitemap.xml` and a share image for tala.lorenzmalabanan.com.
+
+### Changed
+- Clean visual system: Inter for UI text, green for actions, blue for ink, gold only for Bituin and favourites; doodle accents instead of hand-drawn borders.
+- Database schema v5 (additive; upgrades from v2 and v3 are tested). One library module is now the only writer of note data, with optimistic updates and rollback on a failed write.
+- The service worker now precaches the pdf.js worker, so PDF import works offline.
+- Release workflow checks that the tag matches the app version, runs tests, and publishes the changelog section as the release notes.
+
+### Fixed
+- Opening a note autosaved it (bumping its modified time and wiping a PDF page's text layer).
+- Ink on page 2 or later was mistaken for orphaned ink and created ghost notes.
+- A note with ink only on a later page looked empty and was never saved; emptying a saved note was not saved.
+- Edits are flushed when the tab is hidden or closed.
+- PDF import failures now show a message.
+
+### Not carried over from 1.1.0
+DOCX/PPTX/DOC/PPT import, the `.zip` package format (replaced by `.tala` backups, which can still read old backups but not 1.1.0 packages), editable shape handles, and the Draw popover. Pencil double-tap and squeeze are not available in a browser.
+
+## [1.1.0] - 2026-09-13
+
+### Added
+- Document import (PDF, DOCX, PPTX, DOC, PPT); annotate PDFs and export them with ink.
+- Handwriting gestures (hold to straighten or perfect a shape, scribble to erase) and editable vector shapes.
+- Tala package (`.zip`) export and import with SHA-256 validation.
+- Floating pen tray for touch and iPad, free-form lasso, ink copy/cut/paste/rotate/recolour, Apple Pencil tilt, hover ring and palm rejection.
+- Text font family, size and alignment.
+
+### Fixed
+- Bullet and numbered lists render real markers.
+
+## [Rebrand] - 2026-08-26
+
+Shipped in 1.0.0. (An earlier draft of this file numbered it 2.0.0; no such release was ever tagged.)
 
 ### Changed
 - Complete rebrand from Notely to Tala

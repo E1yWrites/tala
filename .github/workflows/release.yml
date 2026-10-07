@@ -22,6 +22,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Check tag, app version and changelog agree
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: node scripts/release.mjs --check "$GITHUB_REF_NAME"
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -33,6 +38,20 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Typecheck and test
+        run: npm run typecheck && npm test
+
+      - name: Read release notes from CHANGELOG.md
+        id: notes
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          {
+            echo 'body<<NOTES_EOF'
+            node scripts/release.mjs --notes "$GITHUB_REF_NAME"
+            echo 'NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -40,7 +59,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Tala ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install Tala."
+          releaseBody: ${{ steps.notes.outputs.body || 'See the assets below to download and install Tala.' }}
           releaseDraft: false
           prerelease: false
           includeUpstream: true
