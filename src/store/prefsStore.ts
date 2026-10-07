@@ -157,6 +157,8 @@ interface PrefsState {
   /** EXPERIMENT: read handwriting in the background so searches can find it. Off unless chosen. */
   handwritingSearch: boolean
   coach: CoachPrefs
+  /** Note id -> the page last in view, so a note reopens where you left it. */
+  lastPages: Record<string, string>
   toggleSidebar: () => void
   toggleReadingLayout: () => void
   toggleQuietMode: () => void
@@ -164,6 +166,18 @@ interface PrefsState {
   setHandwritingSearch: (on: boolean) => void
   setCoach: (patch: Partial<CoachPrefs>) => void
   setInkPrefs: (patch: Partial<InkPrefs>) => void
+  setLastPage: (noteId: string, pageId: string) => void
+}
+
+/** Notes whose last page is remembered; the least recently viewed are forgotten. */
+const LAST_PAGES_KEPT = 100
+
+function sanitizeLastPages(raw: unknown): Record<string, string> {
+  if (!isObj(raw)) return {}
+  const entries = Object.entries(raw as Record<string, unknown>).filter(
+    (e): e is [string, string] => typeof e[1] === 'string',
+  )
+  return Object.fromEntries(entries.slice(-LAST_PAGES_KEPT))
 }
 
 /** Builds before this store kept each pref under its own key; carry them over once. */
@@ -214,6 +228,7 @@ export const usePrefsStore = create<PrefsState>()(
       leftHanded: false,
       handwritingSearch: false,
       coach: DEFAULT_COACH_PREFS,
+      lastPages: {},
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleReadingLayout: () => set((s) => ({ readingLayout: !s.readingLayout })),
       toggleQuietMode: () => set((s) => ({ quietMode: !s.quietMode })),
@@ -221,12 +236,19 @@ export const usePrefsStore = create<PrefsState>()(
       setHandwritingSearch: (on) => set({ handwritingSearch: on }),
       setCoach: (patch) => set((s) => ({ coach: { ...s.coach, ...patch } })),
       setInkPrefs: (patch) => set((s) => ({ inkPrefs: { ...s.inkPrefs, ...patch } })),
+      setLastPage: (noteId, pageId) =>
+        set((s) => {
+          if (s.lastPages[noteId] === pageId) return s
+          // re-insert so key order is viewing order, oldest first
+          const { [noteId]: _, ...rest } = s.lastPages
+          return { lastPages: sanitizeLastPages({ ...rest, [noteId]: pageId }) }
+        }),
     }),
     {
       name: 'tala:prefs',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
-      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, handwritingSearch, coach }) => ({
+      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, handwritingSearch, coach, lastPages }) => ({
         sidebarCollapsed,
         readingLayout,
         inkPrefs,
@@ -234,6 +256,7 @@ export const usePrefsStore = create<PrefsState>()(
         leftHanded,
         handwritingSearch,
         coach,
+        lastPages,
       }),
       // Validate on the way in: a hand-edited or older value must never crash the editor
       merge: (persisted, current) => {
@@ -247,6 +270,7 @@ export const usePrefsStore = create<PrefsState>()(
           leftHanded: p.leftHanded === true,
           handwritingSearch: p.handwritingSearch === true,
           coach: sanitizeCoachPrefs(p.coach),
+          lastPages: sanitizeLastPages(p.lastPages),
         }
       },
     },
