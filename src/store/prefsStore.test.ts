@@ -58,6 +58,21 @@ describe('prefsStore', () => {
     expect(s.inkPrefs.pencil.doubleTap).toBe('eraser')
   })
 
+  it('clamps pane widths and treats junk as the default', async () => {
+    stubStorage({
+      'tala:prefs': JSON.stringify({ version: 1, state: { sidebarWidth: 9999, listWidth: 'wide' } }),
+    })
+    const store = await freshStore()
+    expect(store.getState().sidebarWidth).toBe(360)
+    expect(store.getState().listWidth).toBeNull()
+    store.getState().setSidebarWidth(10)
+    store.getState().setListWidth(300.4)
+    expect(store.getState().sidebarWidth).toBe(180)
+    expect(store.getState().listWidth).toBe(300)
+    store.getState().setListWidth(null)
+    expect(store.getState().listWidth).toBeNull()
+  })
+
   it('works without localStorage (private mode)', async () => {
     vi.stubGlobal('localStorage', {
       getItem: () => {

@@ -7,6 +7,7 @@ import { listTasks, toggleTask, type TaskRef } from '@/library/tasks'
 import { displayTitle } from '@/utils/noteFilters'
 import { cn } from '@/utils/cn'
 import { EmptyState } from '@/components/UI/EmptyState'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 
 /** Every checklist item in the Library, grouped by note. Tick here or open the page it lives on. */
 export function TasksPage(): React.ReactNode {
@@ -30,11 +31,14 @@ export function TasksPage(): React.ReactNode {
 
   return (
     <section aria-label="Tasks" className="flex h-full min-h-0 flex-col bg-canvas">
-      <header className="px-4 pb-2 pt-4">
-        <h1 className="font-bold tracking-[-0.02em] text-xl leading-snug">Tasks</h1>
-        <p className="text-xs text-faint">
-          {tasks.length === 0 ? 'Checklists from all your notes' : `${open.length} open · ${done.length} done`}
-        </p>
+      <header className="flex items-center gap-2 px-4 pb-2 pt-4">
+        <SidebarToggle className="-ml-1" />
+        <div className="min-w-0">
+          <h1 className="font-bold tracking-[-0.02em] text-xl leading-snug">Tasks</h1>
+          <p className="text-xs text-faint">
+            {tasks.length === 0 ? 'Checklists from all your notes' : `${open.length} open · ${done.length} done`}
+          </p>
+        </div>
       </header>
 
       {tasks.length === 0 ? (
