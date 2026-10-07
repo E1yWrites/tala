@@ -15,7 +15,7 @@ export function EditorPlaceholder(): React.ReactNode {
           <button
             type="button"
             onClick={() => openModal({ kind: 'new-note' })}
-            className="text-sm text-ballpoint underline decoration-ballpoint/40 decoration-wavy underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
+            className="[@media(pointer:coarse)]:min-h-11 text-sm text-ballpoint underline decoration-ballpoint/40 decoration-wavy underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
           >
             Create a new note
           </button>

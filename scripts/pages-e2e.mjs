@@ -576,7 +576,9 @@ await page.click('button[aria-label="Pause"]')
 await page.click('button[aria-label="Pen mode"]')
 await page.keyboard.press('v')
 await wait(200)
-await page.mouse.move(ax2 + 45, ay2 + 15)
+// the panel grows once the lecture is listed, which moves the page under the pen
+const shiftY = (await page.locator('svg.ink-svg').boundingBox()).y - audioSvg.y
+await page.mouse.move(ax2 + 45, ay2 + 15 + shiftY)
 await page.mouse.down()
 await page.mouse.up()
 await wait(1500)

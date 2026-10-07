@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Bold,
   Braces,
@@ -100,39 +100,50 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
     },
   ]
 
+  const groups = buttons.reduce<ToolbarButtonSpec[][]>(
+    (acc, btn) => (btn === 'sep' ? [...acc, []] : (acc[acc.length - 1]!.push(btn), acc)),
+    [[]],
+  )
+
   return (
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="flex flex-wrap items-center gap-0.5 rounded-card border border-lineSoft bg-panel px-1.5 py-1 shadow-rest"
+      className="no-scrollbar flex flex-wrap items-center gap-0.5 rounded-card border border-lineSoft bg-panel px-1.5 py-1 shadow-rest [@media(pointer:coarse)]:flex-nowrap [@media(pointer:coarse)]:overflow-x-auto"
     >
-      {buttons.map((btn, i) =>
-        btn === 'sep' ? (
-          <span key={`sep-${i}`} aria-hidden="true" className="mx-0.5 grid min-w-1 flex-1 place-items-center">
-            {/* Grows with the bar so groups spread evenly; the rule stays a hairline */}
-            <span className="h-5 w-px bg-lineSoft" />
+      {groups.map((group, g) => (
+        <Fragment key={g}>
+          {g > 0 && (
+            <span aria-hidden="true" className="mx-0.5 grid min-w-1 flex-1 place-items-center [@media(pointer:coarse)]:shrink-0">
+              {/* Grows with the bar so groups spread evenly; the rule stays a hairline */}
+              <span className="h-5 w-px bg-lineSoft" />
+            </span>
+          )}
+          {/* A group wraps as a unit, so a lone button never strands on its own row */}
+          <span role="group" className="flex shrink-0 items-center gap-0.5">
+            {group.map((btn) => (
+              <Tooltip key={btn.label} label={btn.label}>
+                <button
+                  type="button"
+                  onClick={btn.onRun}
+                  disabled={btn.disabled}
+                  aria-pressed={btn.active}
+                  aria-label={btn.label}
+                  className={cn(
+                    'grid size-7 shrink-0 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95 [@media(pointer:coarse)]:size-10',
+                    btn.active
+                      ? 'bg-selected text-selected-ink ring-2 ring-accent/40'
+                      : 'text-muted hover:bg-raise hover:text-ink',
+                    btn.disabled && 'pointer-events-none opacity-35',
+                  )}
+                >
+                  <btn.icon size={16} strokeWidth={btn.active ? 2.75 : 2} />
+                </button>
+              </Tooltip>
+            ))}
           </span>
-        ) : (
-          <Tooltip key={btn.label} label={btn.label}>
-            <button
-              type="button"
-              onClick={btn.onRun}
-              disabled={btn.disabled}
-              aria-pressed={btn.active}
-              aria-label={btn.label}
-              className={cn(
-                'grid size-7 shrink-0 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 hover:scale-105 active:scale-95',
-                btn.active
-                  ? 'bg-selected text-selected-ink ring-2 ring-accent/40'
-                  : 'text-muted hover:bg-raise hover:text-ink',
-                btn.disabled && 'pointer-events-none opacity-35',
-              )}
-            >
-              <btn.icon size={16} strokeWidth={btn.active ? 2.75 : 2} />
-            </button>
-          </Tooltip>
-        ),
-      )}
+        </Fragment>
+      ))}
 
       {/* Link dialog */}
       {linkDialogOpen && (

@@ -255,7 +255,7 @@ export function NoteListPanel({
               title="No notes yet"
               description="Create your first note and start capturing your ideas."
               action={
-                <Button variant="primary" size="sm" onClick={() => openModal({ kind: 'new-note' })}>
+                <Button variant="primary" size="md" onClick={() => openModal({ kind: 'new-note' })}>
                   <Plus size={15} />
                   Create note
                 </Button>
@@ -346,7 +346,7 @@ export function NoteListPanel({
               aria-pressed={view.kind === opt.kind}
               onClick={() => setView({ kind: opt.kind })}
               className={cn(
-                'min-h-9 flex-1 rounded-control text-[13px] font-medium transition-colors',
+                'min-h-9 [@media(pointer:coarse)]:min-h-11 flex-1 rounded-control text-[13px] font-medium transition-colors',
                 view.kind === opt.kind ? 'bg-selected text-selected-ink' : 'text-muted hover:text-ink',
               )}
             >
@@ -373,7 +373,7 @@ export function NoteListPanel({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search in view…"
             aria-label={`Search ${meta.title}`}
-            className="h-10 w-full rounded-card border border-lineSoft bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            className="h-10 [@media(pointer:coarse)]:h-11 w-full rounded-card border border-lineSoft bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
           />
           {searchQuery && (
             <button
@@ -416,7 +416,7 @@ export function NoteListPanel({
                       type="button"
                       onClick={enterMultiSelectMode}
                       aria-label="Select notes"
-                      className="grid size-7 place-items-center rounded-control text-faint hover:text-ink transition-colors"
+                      className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint hover:text-ink transition-colors"
                     >
                       <CheckSquare size={16} strokeWidth={2.5} />
                     </button>
@@ -431,7 +431,7 @@ export function NoteListPanel({
                         aria-pressed={viewDensity === value}
                         aria-label={label}
                         className={cn(
-                          'grid size-7 place-items-center rounded-control transition-colors',
+                          'grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control transition-colors',
                           viewDensity === value
                             ? 'bg-selected text-selected-ink'
                             : 'text-faint hover:text-ink',
@@ -449,7 +449,7 @@ export function NoteListPanel({
               <button
                 type="button"
                 onClick={exitMultiSelectMode}
-                className="grid size-7 shrink-0 place-items-center rounded-control text-muted hover:text-ink transition-colors"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 shrink-0 place-items-center rounded-control text-muted hover:text-ink transition-colors"
                 aria-label="Cancel selection"
               >
                 <X size={16} strokeWidth={2.5} />
@@ -630,7 +630,7 @@ function ToolbarButton({
       {...rest}
       aria-label={label}
       className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-control border border-transparent px-2 text-xs transition-colors',
+        'inline-flex h-7 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-control border border-transparent px-2 text-xs transition-colors',
         active
           ? 'border-ballpoint/50 bg-ballpoint-soft text-ballpoint'
           : 'text-muted hover:border-lineSoft hover:bg-panel hover:text-ink',
@@ -662,7 +662,7 @@ function NoteRowWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>
@@ -717,7 +717,7 @@ function NoteGridCardWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>

@@ -62,7 +62,7 @@ export function MobileNav(): React.ReactNode {
 
       <NavTab label="Search" icon={Search} active={false} onClick={() => openModal({ kind: 'search' })} />
 
-      <div className="flex flex-1 items-stretch">
+      <div className="flex flex-1 items-stretch [&>div]:flex-1">
         <DropdownMenu
           side="top"
           align={leftHanded ? 'start' : 'end'}
@@ -83,7 +83,7 @@ export function MobileNav(): React.ReactNode {
               type="button"
               aria-label={`${profile.name || 'Profile'}: settings and more`}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
+                'flex w-full flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
                 activeView.kind === 'settings' ? 'text-accent' : 'text-faint hover:text-muted',
               )}
             >

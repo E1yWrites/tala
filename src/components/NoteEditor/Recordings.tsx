@@ -228,6 +228,7 @@ export const RecordingsPanel = forwardRef<RecordingsHandle, { noteId: string; op
         <ul className="mt-2 flex flex-col gap-2">
           {recordings.map((rec) => {
             const live = rec.status === 'recording'
+            if (live && recordingHere) return null
             const noAudio = missing.has(rec.id)
             const current = player.recId === rec.id
             const durationS = rec.durationMs / 1000
@@ -291,7 +292,7 @@ export const RecordingsPanel = forwardRef<RecordingsHandle, { noteId: string; op
           })}
         </ul>
 
-        {recordings.length > 0 && (
+        {recordings.length > 0 && !recordingHere && (
           <p className="mt-2 text-xs text-faint">
             Tip: pick the lasso and tap handwriting you wrote during a lecture to hear what was said at that moment.
           </p>

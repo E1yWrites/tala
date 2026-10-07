@@ -771,7 +771,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
       {/* Page navigation */}
       {!note.isDeleted && pages.length > 0 && (
-        <div className="mx-6 mt-3 flex items-center gap-1.5">
+        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <Button
             size="sm"
             variant="ghost"
@@ -793,7 +793,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           >
             <ChevronRight size={14} />
           </Button>
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1">
             {zoomLevel > 1 && (
               <Button
                 size="sm"
