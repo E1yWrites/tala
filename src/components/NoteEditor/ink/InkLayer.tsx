@@ -3,6 +3,10 @@ import { forwardRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createId } from '@/utils/id'
 import { useUIStore } from '@/store/uiStore'
+import { useZoom } from '@/canvas/ZoomColumn'
+import { paintWetSegments, wetCanvasSize } from '@/canvas/wetInk'
+import { lassoPath, strokesInLasso } from '@/canvas/lasso'
+import { classifyShape, shapeToPoints } from '@/canvas/snapShape'
 
 /** True while the user is typing in a text field. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -37,6 +41,11 @@ import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, sizesForTool } from '@/type
 // Thickness presets live in types/ink.ts (next to the data model they feed);
 // re-exported here for the tool UI which has always imported them from here.
 export { PEN_SIZES, HIGHLIGHTER_SIZES, ERASER_SIZES }
+
+/** Resting the pen this long at the end of a stroke snaps it to a clean shape. */
+const SNAP_HOLD_MS = 550
+/** Pen movement (screen px) that still counts as holding still. */
+const SNAP_JITTER_PX = 4
 
 /** Extra room kept below the lowest stroke. */
 const HEIGHT_SLACK = 96
@@ -74,6 +83,8 @@ export interface InkPrefsSnapshot {
   color: string
   sizeIdx: number
   eraserMode: InkEraserMode
+  /** Whether a hovering Apple Pencil shows a preview tip ring (Pencil Pref). */
+  pencilHover: boolean
 }
 
 export interface InkLayerHandle {
@@ -81,13 +92,15 @@ export interface InkLayerHandle {
   redo: () => void
   clearAll: () => void
   deleteSelection: () => void
+  recolorSelection: (color: string) => void
+  duplicateSelection: () => void
 }
 
 interface InkLayerProps {
   ink: InkDoc | null
+  /** Page id: keys the undo history. */
+  historyKey: string
   onChange: (ink: InkDoc) => void
-  /** Editor scroll container — used for two-finger panning on touch. */
-  scrollRef: React.RefObject<HTMLDivElement | null>
   active: boolean
   prefs: InkPrefsSnapshot
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void
@@ -97,6 +110,14 @@ interface InkLayerProps {
    * solely while pen mode is active — so the rest of the app keeps its menus.
    */
   onPaletteRequest?: (clientX: number, clientY: number) => void
+  /** Called when the ink selection size changes (contextual selection actions). */
+  onSelectionChange?: (count: number) => void
+  /** E / V shortcuts — desktop keyboard tool switching (mirrors the palette). */
+  onToolShortcut?: (tool: InkPointerMode) => void
+  /** A lecture is being recorded for this note: new strokes get a timestamp. */
+  recording?: boolean
+  /** Select-tool tap on a timestamped stroke: jump the lecture audio to when it was written. */
+  onStrokeTap?: (ts: number) => void
 }
 
 interface InkOp {
@@ -104,17 +125,33 @@ interface InkOp {
   after: InkStroke[]
 }
 
+/** Undo/redo per page lives outside the component so a page switch (which remounts
+ *  the layer) no longer throws the history away. */
+const histories = new Map<string, { undo: InkOp[]; redo: InkOp[] }>()
+// An import/restore replaced the data: old ops would resurrect stale strokes
+if (typeof window !== 'undefined')
+  window.addEventListener('tala:external-sync', (e) => {
+    if ((e as CustomEvent).detail !== 'restore') return
+    for (const h of histories.values()) h.undo.length = h.redo.length = 0
+  })
+
+function historyFor(pageId: string): { undo: InkOp[]; redo: InkOp[] } {
+  let h = histories.get(pageId)
+  if (!h) histories.set(pageId, (h = { undo: [], redo: [] }))
+  return h
+}
+
 type Gesture =
-  | { kind: 'draw'; stroke: InkStroke; pts: InkPoint[] }
+  | { kind: 'draw'; stroke: InkStroke; pts: InkPoint[]; anchor?: InkPoint; snapped?: boolean }
   | { kind: 'erase'; base: InkStroke[]; working: InkStroke[]; changed: boolean }
-  | { kind: 'pan'; lastY: number }
-  | { kind: 'select-move'; dx: number; dy: number; last: InkPoint }
+  | { kind: 'pinch' }
+  | { kind: 'select-move'; dx: number; dy: number; last: InkPoint; hit: InkStroke }
   | {
       kind: 'select-scale'
       anchor: InkPoint
       origin: { x0: number; y0: number; x1: number; y1: number }
     }
-  | { kind: 'marquee'; x0: number; y0: number; x1: number; y1: number }
+  | { kind: 'lasso'; pts: InkPoint[] }
 
 /** Minimal pointer shape so native coalesced events need no casting. */
 interface Pt {
@@ -123,6 +160,8 @@ interface Pt {
   pointerType: string
   pressure: number
   pointerId: number
+  tiltX?: number
+  tiltY?: number
   getCoalescedEvents?(): Pt[]
   getPredictedEvents?(): Pt[]
 }
@@ -130,13 +169,31 @@ interface Pt {
 const EMPTY_STROKES: InkStroke[] = []
 
 export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLayer(
-  { ink, onChange, scrollRef, active, prefs, onHistoryChange, onPaletteRequest },
+  {
+    ink,
+    historyKey,
+    onChange,
+    active,
+    prefs,
+    onHistoryChange,
+    onPaletteRequest,
+    onSelectionChange,
+    onToolShortcut,
+    recording,
+    onStrokeTap,
+  },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const livePathRef = useRef<SVGPathElement | null>(null)
   const liveTipRef = useRef<SVGCircleElement | null>(null)
+  /** Wet-ink canvas for the opaque pen: segments painted so far for the current stroke. */
+  const wetRef = useRef<HTMLCanvasElement | null>(null)
+  const wetDrawn = useRef(0)
+  const holdTimer = useRef<number | null>(null)
+  /** Set when `localStorage['tala:inkdebug']` is on: pointerdown time awaiting its first wet paint. */
+  const latencyT0 = useRef(0)
 
   /** Cached getBoundingClientRect — refreshed once per event batch, never per
    *  coalesced sample (layout reads were the hottest no-op in the loop). */
@@ -147,8 +204,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   /** Live-rebuild throttle bookkeeping (see renderLive). */
   const liveBuiltLenRef = useRef(0)
   const liveBuiltAtRef = useRef(-1e9)
-  const undoStack = useRef<InkOp[]>([])
-  const redoStack = useRef<InkOp[]>([])
+  const undoStack = useRef(historyFor(historyKey).undo)
+  const redoStack = useRef(historyFor(historyKey).redo)
   const touchIds = useRef<number[]>([])
   const lastNativeRef = useRef<Pt | null>(null)
   /** Active Apple Pencil pointer id — while set, touch contacts are treated as
@@ -166,12 +223,21 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   inkRef.current = effDoc
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
-    null,
-  )
+
+  // Surface selection size so the editor can show contextual actions.
+  const selCount = selected.size
+  useEffect(() => {
+    onSelectionChange?.(selCount)
+  }, [selCount, onSelectionChange])
+  const [lasso, setLasso] = useState<InkPoint[] | null>(null)
   const [movePreview, setMovePreview] = useState<{ dx: number; dy: number } | null>(null)
   const [erasingStrokes, setErasingStrokes] = useState<InkStroke[] | null>(null)
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+  const [cursorPos, setCursorPos] = useState<{
+    x: number
+    y: number
+    pen?: boolean
+    mouse?: boolean
+  } | null>(null)
 
   /**
    * Transient gesture visuals (eraser ring, erase preview, marquee, move
@@ -179,9 +245,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
    * pointermove fires far more often than paint.
    */
   interface UiPending {
-    cursor?: { x: number; y: number } | null
+    /** Pointer position while idle (eraser ring / brush preview ring). `pen`
+     *  marks a hover-feeding Apple Pencil, `mouse` a desktop mouse — both show
+     *  a brush-size preview ring so the tool feels ready before any stylus. */
+    cursor?: { x: number; y: number; pen?: boolean; mouse?: boolean } | null
     erasing?: InkStroke[] | null
-    marquee?: { x0: number; y0: number; x1: number; y1: number } | null
+    lasso?: InkPoint[] | null
     move?: { dx: number; dy: number } | null
   }
   const uiFrameRef = useRef<number | null>(null)
@@ -193,7 +262,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     uiPendingRef.current = {}
     if ('cursor' in p) setCursorPos(p.cursor ?? null)
     if ('erasing' in p) setErasingStrokes(p.erasing ?? null)
-    if ('marquee' in p) setMarquee(p.marquee ?? null)
+    if ('lasso' in p) setLasso(p.lasso ?? null)
     if ('move' in p) setMovePreview(p.move ?? null)
   }, [])
 
@@ -217,6 +286,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   useEffect(
     () => () => {
       activePenId.current = null
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
@@ -245,8 +315,23 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const dispViewH =
     displayDoc && box.w > 0 ? Math.max(displayDoc.height, box.h / dispScale) : 0
 
-  const scale = dispScale
+  const zoom = useZoom()
+  /** Screen px per capture unit: radii and handles stay a constant on-screen size when zoomed. */
+  const scale = dispScale * zoom
   const strokes = erasingStrokes ?? effDoc?.strokes ?? EMPTY_STROKES
+
+  // Size the wet canvas to the SVG's CSS box (crisp at the settled zoom); never mid-stroke.
+  const wetCssW = box.w
+  const wetCssH = Math.round(dispViewH * dispScale)
+  useEffect(() => {
+    const c = wetRef.current
+    if (!c || wetCssW === 0 || wetCssH === 0 || gestureRef.current?.kind === 'draw') return
+    const { w, h } = wetCanvasSize(wetCssW, wetCssH, window.devicePixelRatio || 1, zoom)
+    if (c.width !== w || c.height !== h) {
+      c.width = w
+      c.height = h
+    }
+  }, [wetCssW, wetCssH, zoom])
 
   /* ------------------------------ History ops ------------------------------ */
 
@@ -255,6 +340,15 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   }, [onHistoryChange])
 
   useEffect(notifyHistory, [notifyHistory])
+
+  // The module-level history was cleared by a restore; refresh the undo/redo buttons
+  useEffect(() => {
+    const onSync = (e: Event): void => {
+      if ((e as CustomEvent).detail === 'restore') notifyHistory()
+    }
+    window.addEventListener('tala:external-sync', onSync)
+    return () => window.removeEventListener('tala:external-sync', onSync)
+  }, [notifyHistory])
 
   const commit = useCallback(
     (nextStrokes: InkStroke[], before: InkStroke[], growToY1?: number) => {
@@ -273,7 +367,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       )
       undoStack.current.push({ before, after: nextStrokes })
       if (undoStack.current.length > 100) undoStack.current.shift()
-      redoStack.current = []
+      redoStack.current.length = 0
       onChange({ ...doc, height, strokes: nextStrokes })
       notifyHistory()
     },
@@ -321,12 +415,40 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     setSelected(new Set())
   }, [commit, selected])
 
-  useImperativeHandle(ref, () => ({ undo, redo, clearAll, deleteSelection }), [
-    undo,
-    redo,
-    clearAll,
-    deleteSelection,
-  ])
+  const recolorSelection = useCallback(
+    (color: string) => {
+      const doc = inkRef.current
+      if (!doc || selected.size === 0) return
+      commit(
+        doc.strokes.map((s) => (selected.has(s.id) ? { ...s, color } : s)),
+        doc.strokes,
+      )
+    },
+    [commit, selected],
+  )
+
+  /** Copy the selection a little down-right of the original and select the copy. */
+  const duplicateSelection = useCallback(() => {
+    const doc = inkRef.current
+    if (!doc || selected.size === 0) return
+    const OFFSET = 16
+    const copies = doc.strokes
+      .filter((s) => selected.has(s.id))
+      .map((s) => ({ ...translateStroke(s, OFFSET, OFFSET), id: createId() }))
+    if (copies.length === 0) return
+    commit(
+      [...doc.strokes, ...copies],
+      doc.strokes,
+      Math.max(...copies.map((c) => strokeBBox(c).y1)),
+    )
+    setSelected(new Set(copies.map((c) => c.id)))
+  }, [commit, selected])
+
+  useImperativeHandle(
+    ref,
+    () => ({ undo, redo, clearAll, deleteSelection, recolorSelection, duplicateSelection }),
+    [undo, redo, clearAll, deleteSelection, recolorSelection, duplicateSelection],
+  )
 
   /* --------------------------- Coordinate mapping -------------------------- */
 
@@ -341,14 +463,49 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       rect && rect.width > 0 && inkRef.current ? inkRef.current.width / rect.width : 1
     const pressure =
       e.pointerType === 'pen' && e.pressure > 0 ? Math.round(e.pressure * 100) / 100 : undefined
+    // Pens report tiltX/tiltY projections even for mouse (0). Only fold the
+    // combined declination in for actual pen pointers so keyboard/mouse
+    // drawings stay at the preset width.
+    const tilt =
+      e.pointerType === 'pen' &&
+      typeof e.tiltX === 'number' &&
+      typeof e.tiltY === 'number'
+        ? Math.round(Math.hypot(e.tiltX, e.tiltY))
+        : undefined
     return {
       x: r01((e.clientX - (rect?.left ?? 0)) * s),
       y: r01((e.clientY - (rect?.top ?? 0)) * s),
       ...(pressure !== undefined ? { p: pressure } : {}),
+      ...(tilt !== undefined && tilt > 0 ? { t: tilt } : {}),
     }
   }, [])
 
   /* ------------------------------ Draw pipeline ---------------------------- */
+
+  const clearWet = useCallback((): void => {
+    const c = wetRef.current
+    if (c) c.getContext('2d')?.clearRect(0, 0, c.width, c.height)
+    wetDrawn.current = 0
+  }, [])
+
+  /** Clear once the committed SVG path has painted, so the stroke never blinks. */
+  const clearWetSoon = useCallback((): void => {
+    requestAnimationFrame(() => requestAnimationFrame(clearWet))
+  }, [clearWet])
+
+  /** Paint what was added since the last frame. Returns false when the canvas is unavailable. */
+  const paintWet = useCallback((g: Extract<Gesture, { kind: 'draw' }>): boolean => {
+    const c = wetRef.current
+    const ctx = c?.getContext('2d', { desynchronized: true })
+    const doc = inkRef.current
+    if (!c || !ctx || !doc || c.width === 0) return false
+    // shift-constrained lines replace their points instead of appending: redraw from scratch
+    if (g.pts.length < wetDrawn.current) clearWet()
+    ctx.setTransform(c.width / doc.width, 0, 0, c.width / doc.width, 0, 0)
+    paintWetSegments(ctx, g.pts, wetDrawn.current > 0 ? wetDrawn.current - 1 : 0, g.stroke.size, g.stroke.color)
+    wetDrawn.current = g.pts.length
+    return true
+  }, [clearWet])
 
   const renderLive = useCallback(() => {
     rafRef.current = null
@@ -356,20 +513,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     const pathEl = livePathRef.current
     if (!g || g.kind !== 'draw' || !pathEl) return
 
-    const n = g.stroke.points.length
-    // Rebuilding the outline allocates; skip frames that only added a point or
-    // two. The final stroke always gets a full rebuild on pointerup.
-    const now = performance.now()
-    if (
-      n >= 8 &&
-      n - liveBuiltLenRef.current < 3 &&
-      now - liveBuiltAtRef.current < 32
-    )
-      return
-    liveBuiltLenRef.current = n
-    liveBuiltAtRef.current = now
+    // Opaque pen: paint incrementally on the wet canvas, leave the SVG path empty
+    const wet = g.stroke.tool === 'pen' && paintWet(g)
+    if (wet && latencyT0.current) {
+      console.log(`[tala:ink] pointerdown -> first wet paint: ${(performance.now() - latencyT0.current).toFixed(1)} ms`)
+      latencyT0.current = 0
+    }
 
-    pathEl.setAttribute('d', strokeOutlineD(g.stroke))
+    if (!wet) {
+      const n = g.stroke.points.length
+      // Rebuilding the outline allocates; skip frames that only added a point or
+      // two. The final stroke always gets a full rebuild on pointerup.
+      const now = performance.now()
+      if (n >= 8 && n - liveBuiltLenRef.current < 3 && now - liveBuiltAtRef.current < 32) return
+      liveBuiltLenRef.current = n
+      liveBuiltAtRef.current = now
+
+      pathEl.setAttribute('d', strokeOutlineD(g.stroke))
+    }
 
     // Predicted-events ghost tip: shows where the OS expects the pen next,
     // hiding input latency without polluting recorded geometry.
@@ -390,29 +551,65 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       }
       if (!shown) tipEl.setAttribute('r', '0')
     }
-  }, [prefs.tool, toLocal])
+  }, [paintWet, prefs.tool, toLocal])
 
   const scheduleRenderLive = useCallback(() => {
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
   }, [renderLive])
 
+  const clearHold = useCallback((): void => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }, [])
+
+  /** The pen has rested: if the stroke so far is a recognisable shape, replace it with the clean one. */
+  const trySnap = useCallback((): void => {
+    holdTimer.current = null
+    const g = gestureRef.current
+    if (!g || g.kind !== 'draw' || g.snapped) return
+    const shape = classifyShape(g.pts)
+    if (!shape) return
+    const pressures = g.pts.filter((p) => p.p !== undefined).map((p) => p.p!)
+    const p = pressures.length > 0 ? Math.round((pressures.reduce((a, b) => a + b, 0) / pressures.length) * 100) / 100 : undefined
+    g.pts = shapeToPoints(shape).map((pt) => ({ x: r01(pt.x), y: r01(pt.y), ...(p !== undefined ? { p } : {}) }))
+    g.stroke.points = g.pts
+    g.snapped = true
+    clearWet()
+    liveBuiltLenRef.current = 0
+    liveBuiltAtRef.current = -1e9
+    liveTipRef.current?.setAttribute('r', '0')
+    navigator.vibrate?.(8)
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(renderLive)
+  }, [clearWet, renderLive])
+
+  const armHold = useCallback((): void => {
+    clearHold()
+    holdTimer.current = window.setTimeout(trySnap, SNAP_HOLD_MS)
+  }, [clearHold, trySnap])
+
   const cancelCurrentDraw = useCallback(() => {
+    clearHold()
     const g = gestureRef.current
     if (g && g.kind === 'draw') {
       gestureRef.current = null
       if (livePathRef.current) livePathRef.current.setAttribute('d', '')
+      clearWet()
     }
-  }, [])
+  }, [clearHold, clearWet])
 
   const finishDraw = useCallback((g: Extract<Gesture, { kind: 'draw' }>): void => {
     if (livePathRef.current) livePathRef.current.setAttribute('d', '')
     if (liveTipRef.current) liveTipRef.current.setAttribute('r', '0')
     const pts = simplifyPoints(smoothPressure(g.pts))
-    if (pts.length === 0) return
+    if (pts.length === 0) {
+      clearWet()
+      return
+    }
     const finished: InkStroke = { ...g.stroke, points: pts }
     const doc = inkRef.current!
     commit([...doc.strokes, finished], doc.strokes, strokeBBox(finished).y1)
-  }, [commit])
+    clearWetSoon()
+  }, [clearWet, clearWetSoon, commit])
 
   /* ------------------------------ Erase pipeline --------------------------- */
 
@@ -420,6 +617,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const eraserRadiusCapture = useCallback(
     (): number => (sizesForTool('eraser')[prefs.sizeIdx] ?? 24) / 2 / (scale || 1),
     [prefs.sizeIdx, scale],
+  )
+
+  /** Brush preview ring radius for the active draw tool — mouse/pen hover. */
+  const drawRadiusCapture = useCallback(
+    (): number => (sizesForTool(prefs.tool)[prefs.sizeIdx] ?? PEN_SIZES[1]!) / 2 / (scale || 1),
+    [prefs.tool, prefs.sizeIdx, scale],
   )
 
   const eraseAt = useCallback(
@@ -487,7 +690,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       flushUi()
       setMovePreview(null)
       uiPendingRef.current.move = null
-      if (g.dx === 0 && g.dy === 0) return
+      if (g.dx === 0 && g.dy === 0) {
+        // a plain tap on handwriting written during a lecture plays the audio from that moment
+        if (g.hit.ts !== undefined) onStrokeTap?.(g.hit.ts)
+        return
+      }
       const doc = inkRef.current!
       const next = doc.strokes.map((s) =>
         selected.has(s.id) ? translateStroke(s, g.dx, g.dy) : s,
@@ -495,7 +702,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       // Moved selection may have grown downward
       commit(next, doc.strokes, (selectionBBox?.y1 ?? 0) + g.dy)
     },
-    [commit, flushUi, selectionBBox, selected],
+    [commit, flushUi, onStrokeTap, selectionBBox, selected],
   )
 
   const finishSelectScale = useCallback(
@@ -529,7 +736,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     touchIds.current = [...touchIds.current, p.pointerId]
     if (touchIds.current.length >= 2) {
       cancelCurrentDraw()
-      gestureRef.current = { kind: 'pan', lastY: toLocal(p).y }
+      // the two fingers belong to ZoomColumn (pinch / pan); ink just steps aside
+      gestureRef.current = { kind: 'pinch' }
       return true
     }
     return false
@@ -569,7 +777,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     refreshSvgRect()
     const p = toLocal(e.nativeEvent)
 
-    if (prefs.tool === 'eraser') {
+    // Alt = temporary eraser for the duration of this stroke, on any draw tool.
+    if (prefs.tool === 'eraser' || (e.altKey && prefs.tool !== 'select')) {
       gestureRef.current = {
         kind: 'erase',
         base: inkRef.current.strokes,
@@ -603,11 +812,11 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           next.add(hit.id)
           return next
         })
-        gestureRef.current = { kind: 'select-move', dx: 0, dy: 0, last: p }
+        gestureRef.current = { kind: 'select-move', dx: 0, dy: 0, last: p, hit }
       } else {
         setSelected(new Set())
-        gestureRef.current = { kind: 'marquee', x0: p.x, y0: p.y, x1: p.x, y1: p.y }
-        uiPendingRef.current.marquee = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+        gestureRef.current = { kind: 'lasso', pts: [p] }
+        uiPendingRef.current.lasso = [p]
         scheduleUi()
       }
       return
@@ -618,10 +827,23 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       sizesForTool(prefs.tool)[prefs.sizeIdx] ?? PEN_SIZES[1]!
     liveBuiltLenRef.current = 0
     liveBuiltAtRef.current = -1e9
+    wetDrawn.current = 0
+    try {
+      latencyT0.current = localStorage.getItem('tala:inkdebug') ? e.nativeEvent.timeStamp : 0
+    } catch {
+      latencyT0.current = 0
+    }
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
-      stroke: { id: createId(), tool: prefs.tool, color: prefs.color, size, points: [] },
+      stroke: {
+        id: createId(),
+        tool: prefs.tool,
+        color: prefs.color,
+        size,
+        points: [],
+        ...(recording ? { ts: Date.now() } : {}),
+      },
     }
     scheduleRenderLive()
   }
@@ -638,9 +860,19 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     // One rect read per event batch — coalesced samples reuse the cache.
     refreshSvgRect()
 
-    // Eraser ring follows the pointer even before pressing
-    if (!g && prefs.tool === 'eraser') {
-      uiPendingRef.current.cursor = toLocal(native)
+    // Eraser ring (any pointer) and pen hover preview both follow the pointer
+    // while idle — the canvas stays dominant and the instrument "sits" on it.
+    if (
+      !g &&
+      (prefs.tool === 'eraser' ||
+        (e.pointerType === 'pen' && prefs.pencilHover) ||
+        (e.pointerType === 'mouse' && prefs.tool !== 'select'))
+    ) {
+      uiPendingRef.current.cursor = {
+        ...toLocal(native),
+        pen: e.pointerType === 'pen',
+        mouse: e.pointerType === 'mouse',
+      }
       scheduleUi()
       return
     }
@@ -655,6 +887,22 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (events.length === 0) events.push(native)
 
     if (g.kind === 'draw') {
+      if (g.snapped) return // the shape is set; lifting the pen keeps it
+      // Shift = straight-line constraint: snap to the nearest 0/45/90° from
+      // the stroke's start instead of accumulating free-form points.
+      if (e.shiftKey && g.pts.length > 0) {
+        const start = g.pts[0]!
+        const last = toLocal(events[events.length - 1]!)
+        const dx = last.x - start.x
+        const dy = last.y - start.y
+        const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4)
+        const dist = Math.hypot(dx, dy)
+        const snapped = { ...last, x: r01(start.x + Math.cos(angle) * dist), y: r01(start.y + Math.sin(angle) * dist) }
+        g.pts = [start, snapped]
+        g.stroke.points = g.pts
+        scheduleRenderLive()
+        return
+      }
       for (const ev of events) {
         const p = toLocal(ev)
         const prev = g.pts[g.pts.length - 1]
@@ -667,6 +915,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       }
       g.stroke.points = g.pts
       scheduleRenderLive()
+      // Resting the pen (barely moving) for a moment snaps a recognisable shape
+      const tip = g.pts[g.pts.length - 1]!
+      if (!g.anchor || Math.hypot(tip.x - g.anchor.x, tip.y - g.anchor.y) > SNAP_JITTER_PX / (scale || 1)) {
+        g.anchor = tip
+        armHold()
+      }
       return
     }
 
@@ -678,12 +932,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         eraseAt(p.x, p.y)
         scheduleUi()
         break
-      case 'pan': {
-        const scroller = scrollRef.current
-        if (scroller) scroller.scrollTop -= (p.y - g.lastY) / (scale || 1)
-        g.lastY = p.y
+      case 'pinch':
         break
-      }
       case 'select-move':
         g.dx += p.x - g.last.x
         g.dy += p.y - g.last.y
@@ -693,12 +943,16 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         break
       case 'select-scale':
         break
-      case 'marquee':
-        g.x1 = p.x
-        g.y1 = p.y
-        uiPendingRef.current.marquee = { x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 }
-        scheduleUi()
+      case 'lasso': {
+        const last = g.pts[g.pts.length - 1]!
+        // coarse enough to stay light, fine enough to follow a looping hand
+        if (Math.hypot(p.x - last.x, p.y - last.y) > 3 / (scale || 1)) {
+          g.pts.push(p)
+          uiPendingRef.current.lasso = [...g.pts]
+          scheduleUi()
+        }
         break
+      }
     }
   }
 
@@ -715,11 +969,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     e.preventDefault()
     e.stopPropagation()
 
-    if (g.kind === 'pan') {
+    if (g.kind === 'pinch') {
       if (touchIds.current.length < 2) gestureRef.current = null
       return
     }
     gestureRef.current = null
+    clearHold()
 
     switch (g.kind) {
       case 'draw':
@@ -734,21 +989,10 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
       case 'select-scale':
         finishSelectScale(g)
         break
-      case 'marquee': {
-        const x0 = Math.min(g.x0, g.x1)
-        const x1 = Math.max(g.x0, g.x1)
-        const y0 = Math.min(g.y0, g.y1)
-        const y1 = Math.max(g.y0, g.y1)
-        const picked = new Set<string>()
-        if (x1 - x0 > 4 || y1 - y0 > 4) {
-          for (const s of inkRef.current?.strokes ?? []) {
-            const b = strokeBBox(s)
-            if (b.x0 < x1 && b.x1 > x0 && b.y0 < y1 && b.y1 > y0) picked.add(s.id)
-          }
-        }
-        setSelected(picked)
-        uiPendingRef.current.marquee = null
-        setMarquee(null)
+      case 'lasso': {
+        setSelected(new Set(strokesInLasso(inkRef.current?.strokes ?? [], g.pts)))
+        uiPendingRef.current.lasso = null
+        setLasso(null)
         break
       }
     }
@@ -790,11 +1034,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         deleteSelection()
         return
       }
-      if (e.key === 'Escape') setSelected(new Set())
+      if (e.key === 'Escape') {
+        setSelected(new Set())
+        return
+      }
+      if (mod) return
+      // Desktop tool shortcuts — mirror the palette so mouse users never need
+      // to reach for it mid-stroke.
+      if (e.key.toLowerCase() === 'e' && onToolShortcut) {
+        e.preventDefault()
+        onToolShortcut('eraser')
+      } else if (e.key.toLowerCase() === 'v' && onToolShortcut) {
+        e.preventDefault()
+        onToolShortcut('select')
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [active, deleteSelection, redo, selected.size, undo])
+  }, [active, deleteSelection, onToolShortcut, redo, selected.size, undo])
 
   /* Drop stale selection ids when strokes change externally (undo etc.) */
   useEffect(() => {
@@ -834,12 +1091,17 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           className={`ink-svg ink-tool-${prefs.tool}`}
           width="100%"
           height={dispViewH * dispScale}
-          viewBox={`0 0 ${displayDoc.width} ${Math.max(displayDoc.height, box.h / (scale || 1))}`}
+          viewBox={`0 0 ${displayDoc.width} ${Math.max(displayDoc.height, box.h / (dispScale || 1))}`}
           role="application"
           aria-label="Handwriting canvas"          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={() => {
+            if (gestureRef.current) return
+            uiPendingRef.current.cursor = null
+            scheduleUi()
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
             onPaletteRequest?.(e.clientX, e.clientY)
@@ -865,16 +1127,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           {/* Predicted-input ghost tip (pen only) — visual latency compensation */}
           <circle ref={liveTipRef} r={0} className="ink-live-tip" fill={prefs.color} />
 
-          {marquee && (
-            <rect
-              x={Math.min(marquee.x0, marquee.x1)}
-              y={Math.min(marquee.y0, marquee.y1)}
-              width={Math.abs(marquee.x1 - marquee.x0)}
-              height={Math.abs(marquee.y1 - marquee.y0)}
-              className="ink-marquee"
-              vectorEffect="non-scaling-stroke"
-            />
-          )}
+          {lasso && <path d={lassoPath(lasso)} className="ink-marquee" vectorEffect="non-scaling-stroke" />}
 
           {selectionBBox && (
             <>
@@ -896,17 +1149,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
             </>
           )}
 
-          {active && cursorPos && prefs.tool === 'eraser' && (
+          {active && cursorPos && (prefs.tool === 'eraser' || cursorPos.pen || cursorPos.mouse) && (
             <circle
               cx={cursorPos.x}
               cy={cursorPos.y}
-              r={eraserRadiusCapture()}
+              r={prefs.tool === 'eraser' ? eraserRadiusCapture() : drawRadiusCapture()}
               className="ink-cursor-ring"
               vectorEffect="non-scaling-stroke"
             />
           )}
         </svg>
       )}
+      {/* Wet ink: the opaque pen paints here while the stroke is under the nib */}
+      <canvas
+        ref={wetRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 top-0 z-[1]"
+        style={{ width: wetCssW, height: wetCssH }}
+      />
     </div>
   )
 })

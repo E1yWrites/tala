@@ -22,6 +22,9 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
+import { usePageStore } from '@/store/pageStore'
+import { trashNotes } from '@/library/notes'
+import { BituinNudge } from '@/coach/BituinNudge'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
@@ -58,6 +61,7 @@ export function NoteListPanel({
   onOpenSidebar,
 }: NoteListPanelProps): React.ReactNode {
   const allNotes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const hydrated = useNoteStore((s) => s.hydrated)
   const folders = useFolderStore((s) => s.folders)
   const tags = useTagStore((s) => s.tags)
@@ -102,14 +106,14 @@ export function NoteListPanel({
     let list = notesForView(allNotes, view)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      list = list.filter((n) => searchableText(n).toLowerCase().includes(q))
+      list = list.filter((n) => searchableText(n, pagesByNote[n.id] ?? []).toLowerCase().includes(q))
     }
     if (filterFavoritesOnly) list = list.filter((n) => n.isFavorite)
     if (filterTagIds.length > 0) {
       list = list.filter((n) => filterTagIds.every((t) => n.tagIds.includes(t)))
     }
     return sortNotes(list, sortKey, surface === 'live')
-  }, [allNotes, view, searchQuery, filterFavoritesOnly, filterTagIds, sortKey, surface])
+  }, [allNotes, pagesByNote, view, searchQuery, filterFavoritesOnly, filterTagIds, sortKey, surface])
 
   // Prune stale selectedNoteIds when the visible list changes (search/filter)
   useEffect(() => {
@@ -251,7 +255,7 @@ export function NoteListPanel({
               title="No notes yet"
               description="Create your first note and start capturing your ideas."
               action={
-                <Button variant="primary" size="sm" onClick={() => openModal({ kind: 'new-note' })}>
+                <Button variant="primary" size="md" onClick={() => openModal({ kind: 'new-note' })}>
                   <Plus size={15} />
                   Create note
                 </Button>
@@ -291,7 +295,7 @@ export function NoteListPanel({
   return (
     <section
       aria-label={`${meta.title} — note list`}
-      className="flex h-full min-h-0 flex-col bg-canvas lg:border-r-2 lg:border-line"
+      className="flex h-full min-h-0 flex-col bg-canvas lg:border-r lg:border-lineSoft"
     >
       {/* Header */}
       <header className="flex items-center gap-2 px-4 pb-2 pt-4">
@@ -300,7 +304,7 @@ export function NoteListPanel({
             type="button"
             onClick={onOpenSidebar}
             aria-label="Open navigation"
-            className="grid size-8 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:bg-raise hover:text-ink"
+            className="grid size-8 shrink-0 place-items-center rounded-control text-muted hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
           >
             <Menu size={18} strokeWidth={2.5} />
           </button>
@@ -320,12 +324,39 @@ export function NoteListPanel({
               openModal({ kind: 'new-note' })
             }
             aria-label="New note"
-            className="grid size-9 shrink-0 place-items-center rounded-wobbly-sm border-[3px] border-line bg-postit text-postit-ink shadow-sketch-sm transition-all duration-100 hover:bg-accent hover:text-accent-fg active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+            className="btn-primary hidden size-9 shrink-0 rounded-card md:inline-flex"
           >
             <Plus size={20} strokeWidth={2.5} />
           </button>
         </Tooltip>
       </header>
+
+      {/* Phone: Starred lives inside Notes as a second view of the same list */}
+      {(view.kind === 'all' || view.kind === 'favorites') && (
+        <div className="mx-4 mb-1 flex gap-1 rounded-card border border-lineSoft bg-panel p-0.5 md:hidden" role="group" aria-label="Which notes">
+          {(
+            [
+              { kind: 'all', label: 'All' },
+              { kind: 'favorites', label: 'Starred' },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.kind}
+              type="button"
+              aria-pressed={view.kind === opt.kind}
+              onClick={() => setView({ kind: opt.kind })}
+              className={cn(
+                'min-h-9 [@media(pointer:coarse)]:min-h-11 flex-1 rounded-control text-[13px] font-medium transition-colors',
+                view.kind === opt.kind ? 'bg-selected text-selected-ink' : 'text-muted hover:text-ink',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {view.kind === 'all' && <BituinNudge placement="card" />}
 
       {/* Search + toolbar */}
       <div className="flex flex-col gap-2 px-4 pb-2 pt-1">
@@ -342,14 +373,14 @@ export function NoteListPanel({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search in view…"
             aria-label={`Search ${meta.title}`}
-            className="h-10 w-full rounded-wobbly-md border-2 border-line bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            className="h-10 [@media(pointer:coarse)]:h-11 w-full rounded-card border border-lineSoft bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
               aria-label="Clear search"
-              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-wobbly-sm text-faint transition-colors hover:bg-raise hover:text-ink"
+              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink"
             >
               <X size={14} strokeWidth={2.5} />
             </button>
@@ -385,13 +416,13 @@ export function NoteListPanel({
                       type="button"
                       onClick={enterMultiSelectMode}
                       aria-label="Select notes"
-                      className="grid size-7 place-items-center rounded-[6px_3px_7px_3px] text-faint hover:text-ink transition-colors"
+                      className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint hover:text-ink transition-colors"
                     >
                       <CheckSquare size={16} strokeWidth={2.5} />
                     </button>
                   </Tooltip>
                 )}
-                <div className="flex items-center rounded-wobbly-sm border-2 border-line bg-panel p-0.5">
+                <div className="flex items-center rounded-control border border-lineSoft bg-panel p-0.5">
                   {densities.map(({ value, icon: Icon, label }) => (
                     <Tooltip key={value} label={label}>
                       <button
@@ -400,9 +431,9 @@ export function NoteListPanel({
                         aria-pressed={viewDensity === value}
                         aria-label={label}
                         className={cn(
-                          'grid size-7 place-items-center rounded-[6px_3px_7px_3px] transition-colors',
+                          'grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control transition-colors',
                           viewDensity === value
-                            ? 'bg-postit text-postit-ink'
+                            ? 'bg-selected text-selected-ink'
                             : 'text-faint hover:text-ink',
                         )}
                       >
@@ -418,7 +449,7 @@ export function NoteListPanel({
               <button
                 type="button"
                 onClick={exitMultiSelectMode}
-                className="grid size-7 shrink-0 place-items-center rounded-wobbly-sm text-muted hover:text-ink transition-colors"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 shrink-0 place-items-center rounded-control text-muted hover:text-ink transition-colors"
                 aria-label="Cancel selection"
               >
                 <X size={16} strokeWidth={2.5} />
@@ -437,7 +468,7 @@ export function NoteListPanel({
                       selectAllNotes(visibleNotes.map((n) => n.id))
                     }
                   }}
-                  className="rounded-wobbly-sm px-2 py-1 text-xs font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
+                  className="rounded-control px-2 py-1 text-xs font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
                 >
                   {visibleNotes.length > 0 && visibleNotes.every((n) => selectedNoteIds.includes(n.id)) ? 'Deselect all' : 'Select all'}
                 </button>
@@ -468,7 +499,6 @@ export function NoteListPanel({
                           message: `${count} ${label} will be moved to the trash. You can restore them later.`,
                           confirmLabel: 'Move to trash',
                           onConfirm: () => {
-                            const { trashNotes } = useNoteStore.getState()
                             trashNotes(selectedNoteIds)
                             toast.success(`${count} ${label} moved to trash`)
                             exitMultiSelectMode()
@@ -489,7 +519,7 @@ export function NoteListPanel({
 
       {/* Trash banner */}
       {view.kind === 'trash' && visibleNotes.length > 0 && (
-        <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-wobbly-md border-2 border-dashed border-accent/50 bg-accent/[0.06] px-3 py-2">
+        <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-card border border-accent/50 bg-accent/[0.06] px-3 py-2">
           <p className="text-xs leading-snug text-muted">
             Deleted notes stay here until removed permanently.
           </p>
@@ -522,7 +552,7 @@ export function NoteListPanel({
         {!hydrated ? (
           <div className="flex flex-col gap-2.5 px-3 pb-6 pt-1">
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="rounded-wobbly-md border-2 border-dashed border-lineSoft p-3">
+              <div key={i} className="rounded-card border border-lineSoft p-3">
                 <Skeleton className="h-3.5 w-1/2" />
                 <Skeleton className="mt-2 h-2.5 w-full" />
                 <Skeleton className="mt-1.5 h-2 w-1/3" />
@@ -533,12 +563,11 @@ export function NoteListPanel({
           renderEmptyState()
         ) : viewDensity === 'grid' ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-4 p-4 pt-3 xl:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
-            {visibleNotes.map((note, i) => (
+            {visibleNotes.map((note) => (
               <LongPressWrapper key={note.id} note={note} onPreview={showPreview}>
                 <NoteGridCardWithMenu
                   note={note}
                   surface={surface}
-                  index={i}
                   selected={selectedNoteId === note.id}
                   multiSelected={multiSelectMode && selectedNoteIds.includes(note.id)}
                   onSelect={() =>
@@ -601,7 +630,7 @@ function ToolbarButton({
       {...rest}
       aria-label={label}
       className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-wobbly-sm border border-transparent px-2 text-xs transition-colors',
+        'inline-flex h-7 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-control border border-transparent px-2 text-xs transition-colors',
         active
           ? 'border-ballpoint/50 bg-ballpoint-soft text-ballpoint'
           : 'text-muted hover:border-lineSoft hover:bg-panel hover:text-ink',
@@ -633,7 +662,7 @@ function NoteRowWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>
@@ -672,7 +701,6 @@ function LongPressWrapper({
 function NoteGridCardWithMenu(props: {
   note: Note
   surface: 'live' | 'archive' | 'trash'
-  index: number
   selected: boolean
   multiSelected?: boolean
   onSelect: () => void
@@ -689,7 +717,7 @@ function NoteGridCardWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 place-items-center rounded-wobbly-sm border-2 border-line bg-overlay text-faint shadow-sketch-sm transition-colors hover:text-ink"
+                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>

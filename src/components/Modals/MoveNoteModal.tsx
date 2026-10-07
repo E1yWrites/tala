@@ -2,6 +2,7 @@ import { FolderInput } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFolderStore } from '@/store/folderStore'
 import { useNoteStore } from '@/store/noteStore'
+import { patchNote } from '@/library/notes'
 import { useUIStore } from '@/store/uiStore'
 import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
@@ -10,7 +11,6 @@ import { cn } from '@/utils/cn'
 export function MoveNoteModal({ noteId }: { noteId: string }): React.ReactNode {
   const folders = useFolderStore((s) => s.folders)
   const note = useNoteStore((s) => s.notes.find((n) => n.id === noteId))
-  const patchNote = useNoteStore((s) => s.patchNote)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
 
   if (!note) {
@@ -68,8 +68,8 @@ function MoveRow({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-wobbly-sm px-3 py-2 text-left transition',
-        active ? 'bg-postit text-postit-ink' : 'hover:bg-canvas',
+        'flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-left transition',
+        active ? 'bg-selected text-selected-ink' : 'hover:bg-canvas',
       )}
     >
       <FolderInput className="size-3.5 shrink-0" aria-hidden="true" />

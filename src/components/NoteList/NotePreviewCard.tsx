@@ -15,7 +15,9 @@ import { useUIStore } from '@/store/uiStore'
 import { useTagStore } from '@/store/tagStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { displayTitle } from '@/utils/noteFilters'
-import { docPreview, countTasks } from '@/utils/doc'
+import { pagesTasks, pagesText, textPreview } from '@/utils/doc'
+import { useNotePages } from '@/store/pageStore'
+import { duplicateNote, trashNotes } from '@/library/notes'
 import { formatRelative, formatFull } from '@/utils/dates'
 import { cn } from '@/utils/cn'
 import { confirmAction } from './noteActions'
@@ -68,9 +70,10 @@ export function NotePreviewCard({
 
   const tagMap = new Map(tags.map((t) => [t.id, t]))
   const noteTags = note.tagIds.map((id) => tagMap.get(id)).filter(Boolean)
-  const tasks = countTasks(note.content)
-  const hasInk = Boolean(inkDocs[note.id]?.strokes?.length)
-  const preview = docPreview(note.content, 300)
+  const pages = useNotePages(note.id)
+  const tasks = pagesTasks(pages)
+  const hasInk = pages.some((p) => Boolean(inkDocs[p.id]?.strokes?.length))
+  const preview = textPreview(pagesText(pages), 300)
 
   const measure = useCallback(() => {
     const el = shellRef.current
@@ -113,7 +116,7 @@ export function NotePreviewCard({
 
   const handleDuplicate = () => {
     onClose()
-    useNoteStore.getState().duplicateNote(note.id)
+    duplicateNote(note.id)
     toast.success('Note duplicated')
   }
 
@@ -121,7 +124,7 @@ export function NotePreviewCard({
     onClose()
     const { confirmBeforeDelete } = useSettingsStore.getState().settings
     const doTrash = (): void => {
-      useNoteStore.getState().trashNotes([note.id])
+      trashNotes([note.id])
       toast.success('Note moved to trash')
     }
     if (!confirmBeforeDelete) return doTrash()
@@ -144,7 +147,7 @@ export function NotePreviewCard({
       role="dialog"
       aria-label={`Preview: ${displayTitle(note)}`}
       className={cn(
-        'fixed z-[80] w-[320px] max-w-[90vw] rounded-wobbly-md border-2 border-line bg-panel/95 shadow-sketch-lg backdrop-blur-md',
+        'fixed z-[80] w-[320px] max-w-[90vw] rounded-card border border-lineSoft bg-panel/95 shadow-float backdrop-blur-md',
         pos ? 'animate-scale-in' : 'invisible',
       )}
       style={{
@@ -160,7 +163,7 @@ export function NotePreviewCard({
         <button
           type="button"
           onClick={handleOpen}
-          className="shrink-0 rounded-wobbly-sm px-1.5 py-0.5 text-[11px] font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
+          className="shrink-0 rounded-control px-1.5 py-0.5 text-[11px] font-medium text-muted hover:bg-raise hover:text-ink transition-colors"
           aria-label="Open note"
         >
           <Pencil size={13} />
@@ -197,7 +200,7 @@ export function NotePreviewCard({
             tag ? (
               <span
                 key={tag.id}
-                className="inline-flex items-center gap-0.5 rounded-wobbly-sm border border-lineSoft bg-canvas px-1.5 py-px text-[10px] text-faint"
+                className="inline-flex items-center gap-0.5 rounded-control border border-lineSoft bg-canvas px-1.5 py-px text-[10px] text-faint"
               >
                 <Hash size={8} />
                 {tag.name}
@@ -245,7 +248,7 @@ function ActionBtn({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        'flex flex-1 items-center justify-center gap-1 rounded-wobbly-sm py-1 text-[11px] font-medium transition-colors',
+        'flex flex-1 items-center justify-center gap-1 rounded-control py-1 text-[11px] font-medium transition-colors',
         danger
           ? 'text-accent hover:bg-accent/10'
           : 'text-muted hover:bg-raise hover:text-ink',

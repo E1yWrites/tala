@@ -60,6 +60,12 @@ export interface InkPoint {
   y: number
   /** Device pressure 0..1 when reported; absent = uniform width */
   p?: number
+  /**
+   * Pen declination from the surface normal in degrees (0 = upright),
+   * derived from PointerEvent tiltX/tiltY. Modulates stroke width so a
+   * tilted Apple Pencil draws calligraphic strokes. Absent for older data.
+   */
+  t?: number
 }
 
 export interface InkStroke {
@@ -69,6 +75,8 @@ export interface InkStroke {
   /** Stroke width in capture-space px (before note scaling) */
   size: number
   points: InkPoint[]
+  /** Epoch ms when the stroke began, only while a lecture recording was running: `ts - startedAt` is the audio position. */
+  ts?: number
 }
 
 export interface InkDoc {

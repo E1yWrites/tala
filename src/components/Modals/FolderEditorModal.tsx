@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { Folder } from '@/types/models'
 import { useFolderStore } from '@/store/folderStore'
@@ -8,8 +8,14 @@ import { Button } from '@/components/UI/Button'
 import { ConfirmDialog } from '@/components/UI/ConfirmDialog'
 import { useNoteStore } from '@/store/noteStore'
 
-/** Create a new folder, or rename/delete an existing one when folderId is given. */
-export function FolderEditorModal({ folderId }: { folderId: string | null }): React.ReactNode {
+/** Create a new folder (optionally inside `parentId`), or rename/delete an existing one. */
+export function FolderEditorModal({
+  folderId,
+  parentId,
+}: {
+  folderId: string | null
+  parentId?: string | null
+}): React.ReactNode {
   const folders = useFolderStore((s) => s.folders)
   const createFolder = useFolderStore((s) => s.createFolder)
   const renameFolder = useFolderStore((s) => s.renameFolder)
@@ -18,16 +24,38 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
 
   const existing: Folder | undefined = folders.find((f) => f.id === folderId)
   const [name, setName] = useState(existing?.name ?? '')
+  const [selectedParent, setSelectedParent] = useState<string | null>(parentId ?? existing?.parentId ?? null)
   const inputRef = useRef<HTMLInputElement>(null)
   // SubmitEvent carries no isComposing — track IME state on the input itself
   const composingRef = useRef(false)
+
+  /** Folders that can act as a parent: not self, not a descendant (no cycles). */
+  const validParents = useMemo(() => {
+    if (existing) {
+      const id = existing.id
+      const bad = new Set<string>([id])
+      // Collect all descendants of `existing`
+      const collect = (pid: string): void => {
+        for (const f of folders) {
+          if (f.parentId === pid && !bad.has(f.id)) {
+            bad.add(f.id)
+            collect(f.id)
+          }
+        }
+      }
+      collect(id)
+      return folders.filter((f) => !bad.has(f.id))
+    }
+    return folders
+  }, [folders, existing])
 
   useEffect(() => {
     if (existing) return
     // Pre-fill with a sensible unique name for quick creation
     let candidate = 'New Folder'
     let n = 2
-    while (folders.some((f) => f.name.toLowerCase() === candidate.toLowerCase())) {
+    const siblings = folders.filter((f) => f.parentId === selectedParent)
+    while (siblings.some((f) => f.name.toLowerCase() === candidate.toLowerCase())) {
       candidate = `New Folder ${n++}`
     }
     setName(candidate)
@@ -50,13 +78,19 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
         if (!ok) return // duplicate name — toast already shown by the store
         toast.success('Folder renamed')
       }
+      if (selectedParent !== existing.parentId) {
+        const ok = await useFolderStore.getState().moveFolder(existing.id, selectedParent)
+        if (!ok) return
+      }
     } else {
-      const duplicate = folders.some((f) => f.name.toLowerCase() === trimmed.toLowerCase())
+      const duplicate = folders.some(
+        (f) => f.parentId === selectedParent && f.name.toLowerCase() === trimmed.toLowerCase(),
+      )
       if (duplicate) {
         toast.info(`Folder “${trimmed}” already exists`)
         return
       }
-      const created = await createFolder(trimmed)
+      const created = await createFolder(trimmed, selectedParent)
       if (!created) return
       toast.success(`Folder “${trimmed}” created`)
     }
@@ -64,6 +98,8 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
   }
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const pendingCountRef = useRef(0)
 
   async function remove(): Promise<void> {
     if (!existing) return
@@ -73,8 +109,6 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
     setConfirmDelete(true)
     pendingCountRef.current = liveCount
   }
-
-  const pendingCountRef = useRef(0)
 
   async function performRemove(): Promise<void> {
     if (!existing) return
@@ -98,7 +132,7 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
         title={`Delete “${existing.name}”?`}
         message={
           count > 0
-            ? `Its ${count} note${count === 1 ? '' : 's'} will stay in All Notes. This can't be undone.`
+            ? `Its ${count} note${count === 1 ? '' : 's'} will stay in All Notes. Subfolders are deleted too. This can't be undone.`
             : "This folder is empty. This can't be undone."
         }
         confirmLabel="Delete folder"
@@ -134,8 +168,47 @@ export function FolderEditorModal({ folderId }: { folderId: string | null }): Re
           placeholder="Folder name"
           aria-label="Folder name"
           maxLength={40}
-          className="h-10 w-full rounded-wobbly-md border-2 border-line bg-canvas px-3 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+          className="h-10 w-full rounded-card border border-lineSoft bg-canvas px-3 text-sm outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
         />
+
+        {!existing && (
+          <label className="mt-3 block">
+            <span className="text-xs text-faint">Parent folder</span>
+            <select
+              value={selectedParent ?? ''}
+              onChange={(e) => setSelectedParent(e.target.value === '' ? null : e.target.value)}
+              aria-label="Parent folder"
+              className="mt-1 h-9 w-full rounded-card border border-lineSoft bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            >
+              <option value="">Root (no parent)</option>
+              {validParents.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {existing && validParents.length > 0 && (
+          <label className="mt-3 block">
+            <span className="text-xs text-faint">Move to parent</span>
+            <select
+              value={selectedParent ?? ''}
+              onChange={(e) => setSelectedParent(e.target.value === '' ? null : e.target.value)}
+              aria-label="Parent folder"
+              className="mt-1 h-9 w-full rounded-card border border-lineSoft bg-canvas px-2 text-sm outline-none focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            >
+              <option value="">Root (no parent)</option>
+              {validParents.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <p className="mt-1.5 text-[11px] text-faint">
           {existing ? '' : `${folders.length} folder${folders.length === 1 ? '' : 's'} so far`}
         </p>

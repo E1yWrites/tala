@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T19:03:43.197359Z",
+  "title": "Design System: Tala",
+  "extensions": {
+    "colorMeta": {
+      "cap-green": {
+        "role": "primary",
+        "displayName": "Cap Green",
+        "canonical": "#2b7a3f",
+        "tonalRamp": [
+          "#0d2513",
+          "#163d20",
+          "#1e552c",
+          "#256836",
+          "#2b7a3f",
+          "#6ba279",
+          "#a0c3a9",
+          "#d5e4d9"
+        ]
+      },
+      "star-gold": {
+        "role": "secondary",
+        "displayName": "Star Gold",
+        "canonical": "#facc15",
+        "tonalRamp": [
+          "#4b3d06",
+          "#7d660a",
+          "#af8f0f",
+          "#d4ad12",
+          "#facc15",
+          "#fcdb5b",
+          "#fde896",
+          "#fef5d0"
+        ]
+      },
+      "ballpoint-blue": {
+        "role": "secondary",
+        "displayName": "Ballpoint Blue",
+        "canonical": "#2d5da1",
+        "tonalRamp": [
+          "#0e1c30",
+          "#162e50",
+          "#204171",
+          "#264f89",
+          "#2d5da1",
+          "#6c8ebd",
+          "#a0b6d5",
+          "#d5dfec"
+        ]
+      },
+      "marker-red": {
+        "role": "secondary",
+        "displayName": "Marker Red",
+        "canonical": "#b3261e",
+        "tonalRamp": [
+          "#360b09",
+          "#5a130f",
+          "#7d1b15",
+          "#98201a",
+          "#b3261e",
+          "#ca6762",
+          "#dd9d9a",
+          "#f0d4d2"
+        ]
+      },
+      "desk": {
+        "role": "neutral",
+        "displayName": "Desk",
+        "canonical": "#f3f6f2",
+        "tonalRamp": [
+          "#494a49",
+          "#7a7b79",
+          "#aaaca9",
+          "#cfd1ce",
+          "#f3f6f2",
+          "#f7f9f6",
+          "#fafbf9",
+          "#fdfdfc"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17201a",
+        "tonalRamp": [
+          "#070a08",
+          "#0c100d",
+          "#101612",
+          "#141b16",
+          "#17201a",
+          "#5d635f",
+          "#979b98",
+          "#d1d2d1"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel, page and note titles."
+      },
+      "voice": {
+        "displayName": "Voice",
+        "purpose": "Bituin's lines."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Notes and descriptions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, tabs, row labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "rest",
+        "value": "0 1px 2px rgb(23 32 26 / 0.08)",
+        "purpose": "Buttons and cards at rest."
+      },
+      {
+        "name": "raise",
+        "value": "0 1px 2px rgb(23 32 26 / 0.08), 0 4px 12px rgb(23 32 26 / 0.10)",
+        "purpose": "Hovered cards, the New note FAB."
+      },
+      {
+        "name": "float",
+        "value": "0 2px 4px rgb(23 32 26 / 0.08), 0 16px 40px rgb(23 32 26 / 0.18)",
+        "purpose": "Modals, menus, drawers."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrances and pops; never overshoot."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "desktop",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one solid-green action per view.",
+      "html": "<button class=\"ds-btn-primary\">New note</button>",
+      "css": ".ds-btn-primary{background:#2b7a3f;color:#fff;height:40px;padding:0 16px;border:0;border-radius:12px;font:500 14px Inter,system-ui,sans-serif;box-shadow:0 1px 2px rgb(23 32 26/.08);transition:background-color .15s,box-shadow .15s}.ds-btn-primary:hover{background:#1f6a33;box-shadow:0 1px 2px rgb(23 32 26/.08),0 4px 12px rgb(23 32 26/.1)}.ds-btn-primary:focus-visible{outline:2px solid #2d5da1;outline-offset:2px}.ds-btn-primary:active{transform:scale(.98)}"
+    },
+    {
+      "name": "Subtle Button",
+      "kind": "button",
+      "refersTo": "button-subtle",
+      "description": "Secondary action on paper.",
+      "html": "<button class=\"ds-btn-subtle\">Search</button>",
+      "css": ".ds-btn-subtle{background:#fff;color:#17201a;height:40px;padding:0 16px;border:1px solid #dfe5dd;border-radius:12px;font:500 14px Inter,system-ui,sans-serif;box-shadow:0 1px 2px rgb(23 32 26/.08)}.ds-btn-subtle:hover{background:#e9eee7}.ds-btn-subtle:focus-visible{outline:2px solid #2d5da1;outline-offset:2px}"
+    },
+    {
+      "name": "Note Row",
+      "kind": "card",
+      "refersTo": "card-note",
+      "description": "A note in the list; selected is the green wash.",
+      "html": "<div class=\"ds-note\"><p class=\"ds-note-t\">Organic Chemistry: Week 6</p><p class=\"ds-note-p\">Nucleophilic substitution SN2 reactions go through a single step.</p></div>",
+      "css": ".ds-note{background:#dcefdf;border:1px solid #2b7a3f;border-radius:12px;padding:12px;font-family:Inter,system-ui,sans-serif}.ds-note-t{margin:0;font-size:15px;color:#17201a}.ds-note-p{margin:2px 0 0;font-size:13px;line-height:1.5;color:#566259}"
+    },
+    {
+      "name": "Bituin Nudge",
+      "kind": "custom",
+      "refersTo": "nudge-bituin",
+      "description": "Bituin's one suggestion: gold wash, one green action, a quiet later.",
+      "html": "<div class=\"ds-nudge\"><p class=\"ds-nudge-t\">Back up your notes?</p><p class=\"ds-nudge-b\">A quick copy keeps your notes safe.</p><button class=\"ds-nudge-a\">Back up now</button></div>",
+      "css": ".ds-nudge{background:#fff1bf;color:#5c4300;border:1px solid rgb(250 204 21/.4);border-radius:12px;padding:12px;font-family:Inter,system-ui,sans-serif}.ds-nudge-t{margin:0;font:400 18px 'Patrick Hand',cursive}.ds-nudge-b{margin:2px 0 8px;font-size:13px}.ds-nudge-a{background:#2b7a3f;color:#fff;border:0;border-radius:8px;height:36px;padding:0 12px;font:500 13px Inter,sans-serif}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Paper field with a blue focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search in view\u2026\" />",
+      "css": ".ds-input{height:40px;width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #dfe5dd;border-radius:12px;background:#fff;font:14px Inter,sans-serif;color:#17201a}.ds-input::placeholder{color:#5d685f}.ds-input:focus{outline:none;border-color:#2d5da1;box-shadow:0 0 0 2px rgb(45 93 161/.2)}"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "chip-tag",
+      "description": "Tag pill tinted from its colour.",
+      "html": "<span class=\"ds-chip\">exam</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid rgb(43 122 63/.4);border-radius:8px;background:rgb(43 122 63/.1);color:#2b7a3f;font:500 12px Inter,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Clean Desk, Doodle Margins",
+    "overview": "The page is the loudest thing on screen. Controls are calm and legible; personality lives in the margins: a hand-drawn squiggle marking where you are, hand-lettered titles, and Bituin in a corner, never over the work.",
+    "keyCharacteristics": [
+      "Inter for operation; Kalam and Patrick Hand for titles and Bituin only",
+      "One solid green action per view",
+      "Soft low shadows, no hard offsets",
+      "Doodle icons and squiggles as accents",
+      "44px-class touch targets on coarse pointers"
+    ],
+    "rules": [
+      {
+        "name": "The Gold Is Bituin's Rule",
+        "body": "Gold appears only with Bituin, celebration and favorites.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Green Rule",
+        "body": "One solid green control per view carries the action.",
+        "section": "colors"
+      },
+      {
+        "name": "The Margin Hand Rule",
+        "body": "Handwriting faces never set a control label or text under 16px.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Offset Rule",
+        "body": "No zero-blur offset shadows anywhere.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep one solid-green action per view",
+      "Do use gold only with Bituin, celebration and favorites",
+      "Do keep every pair at WCAG AA in both themes",
+      "Do freeze Bituin while writing and in Quiet mode"
+    ],
+    "donts": [
+      "Don't use hard offset shadows or thick pencil borders",
+      "Don't set UI text in Patrick Hand or Kalam",
+      "Don't use stat tiles or kickers above headings",
+      "Don't let Bituin appear while the pen is moving"
+    ]
+  }
+}

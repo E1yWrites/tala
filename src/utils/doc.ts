@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
+import type { PageRecord } from '@/types/models'
 
 /* ---------------------------------------------------------------------------
    Helpers for working with Tiptap document JSON:
@@ -70,14 +71,26 @@ export function sanitizeDoc(doc: unknown): JSONContent | null {
   return clone
 }
 
-/** Short preview for note list rows. */
-export function docPreview(
-  doc: JSONContent | null | undefined,
-  maxLen = 120,
-): string {
-  const text = docToPlainText(doc).trim().replace(/\s+/g, ' ')
-  if (text.length <= maxLen) return text
-  return `${text.slice(0, maxLen).trimEnd()}…`
+/** Short one-line preview of plain text. */
+export function textPreview(text: string, maxLen = 120): string {
+  const t = text.trim().replace(/\s+/g, ' ')
+  if (t.length <= maxLen) return t
+  return `${t.slice(0, maxLen).trimEnd()}…`
 }
 
-/** True when a note has no meaningful content yet. */
+/** Typed text of every page of a note (search and previews read this, not the JSON). */
+export function pagesText(pages: PageRecord[]): string {
+  return pages.map((p) => p.text ?? '').filter(Boolean).join('\n')
+}
+
+/** Checklist totals across every page of a note. */
+export function pagesTasks(pages: PageRecord[]): TaskStats {
+  let total = 0
+  let completed = 0
+  for (const p of pages) {
+    const t = countTasks(p.content)
+    total += t.total
+    completed += t.completed
+  }
+  return { total, completed }
+}

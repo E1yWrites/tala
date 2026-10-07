@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore, SIDEBAR_WIDTH } from '@/store/uiStore'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
@@ -11,13 +12,16 @@ import { NoteEditor } from '@/components/NoteEditor/NoteEditor'
 import { EditorPlaceholder } from '@/components/NoteEditor/EditorPlaceholder'
 import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { TasksPage } from '@/pages/TasksPage'
+import type { ViewRef } from '@/types/models'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
 
 /**
  * Responsive three-pane shell.
  *
- * ≥768px  : sidebar · list · editor (sidebar toggles expanded/hidden)
- *    <768: single pane + bottom nav; editor becomes full-screen
+ * ≥1024px : sidebar · list · editor (sidebar toggles expanded/hidden)
+ * 768-1023 : list · editor, sidebar in a drawer (tablet portrait)
+ *    <768  : single pane + bottom tabs; editor becomes full-screen
  */
 export function AppShell(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
@@ -25,8 +29,8 @@ export function AppShell(): React.ReactNode {
   const focusMode = useUIStore((s) => s.focusMode)
   const sidebarDrawerOpen = useUIStore((s) => s.sidebarDrawerOpen)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const sidebarCollapsed = usePrefsStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
 
   const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
   const isMobile = useMediaQuery(BREAKPOINTS.mobile)
@@ -75,7 +79,7 @@ export function AppShell(): React.ReactNode {
   const openDrawer = (): void => setSidebarDrawer(true)
   // iPad/tablet shows the docked sidebar; the header menu toggles it
   // between expanded and hidden instead of opening the mobile drawer.
-  const openSidebar = isMobile ? openDrawer : toggleSidebar
+  const openSidebar = isDesktop ? toggleSidebar : openDrawer
 
   /* ------------------------------ View content ----------------------------- */
 
@@ -86,15 +90,20 @@ export function AppShell(): React.ReactNode {
     return <OnboardingPage />
   }
 
+  // The phone has no Home tab: Notes is where it opens
+  const view: ViewRef = isMobile && activeView.kind === 'home' ? { kind: 'all' } : activeView
+
   let viewContent: React.ReactNode
-  if (activeView.kind === 'home') {
+  if (view.kind === 'home') {
     viewContent = <HomePage />
-  } else if (activeView.kind === 'settings') {
+  } else if (view.kind === 'tasks') {
+    viewContent = <TasksPage />
+  } else if (view.kind === 'settings') {
     viewContent = <SettingsPage />
   } else {
     viewContent = (
       <NoteListPanel
-        view={activeView}
+        view={view}
         // Mobile: hamburger opens the drawer. Desktop/tablet: it toggles the
         // docked sidebar — always offered when the sidebar is hidden so the
         // bottom section (quick actions, theme, settings, profile) is never
@@ -103,19 +112,19 @@ export function AppShell(): React.ReactNode {
       />
     )
   }
-  const isSettingsArea = activeView.kind === 'settings'
+  const isSettingsArea = view.kind === 'settings'
 
   /* --------------------------------- Drawer -------------------------------- */
 
   const drawer =
-    sidebarDrawerOpen && isMobile ? (
+    sidebarDrawerOpen && !isDesktop ? (
       <div ref={drawerRef} className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
         <div
           className="absolute inset-0 bg-black/35 animate-fade-in"
           onClick={() => setSidebarDrawer(false)}
           aria-hidden="true"
         />
-        <div className="absolute inset-y-0 left-0 shadow-sketch-lg animate-drawer-in">
+        <div className="absolute inset-y-0 left-0 shadow-float animate-drawer-in">
           <Sidebar variant="drawer" />
         </div>
       </div>
@@ -142,7 +151,7 @@ export function AppShell(): React.ReactNode {
 
   /* --------------------------- Desktop / tablet ---------------------------- */
 
-  const showDockedSidebar = !isMobile && !focusMode && !sidebarCollapsed
+  const showDockedSidebar = isDesktop && !focusMode && !sidebarCollapsed
 
   return (
     <div className="flex h-full overflow-hidden pt-[env(safe-area-inset-top)]">

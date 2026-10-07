@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTagStore } from '@/store/tagStore'
 import { useNoteStore } from '@/store/noteStore'
+import { patchNote } from '@/library/notes'
 import { useUIStore } from '@/store/uiStore'
 import { Modal } from '@/components/UI/Modal'
 import { TagChip } from '@/components/UI/TagChip'
@@ -17,7 +18,6 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
   const tags = useTagStore((s) => s.tags)
   const notes = useNoteStore((s) => s.notes)
   const ensureTag = useTagStore((s) => s.ensureTag)
-  const patchNote = useNoteStore((s) => s.patchNote)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
 
   const [input, setInput] = useState('')
@@ -87,7 +87,7 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
   return (
     <Modal title="Edit tags" subtitle={note.title || 'Untitled'} onClose={closeAllModals} size="sm">
       {/* Applied tags */}
-      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-wobbly-md border-2 border-line bg-canvas p-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-card border border-lineSoft bg-canvas p-2">
         {applied.length === 0 && (
           <span className="px-1 text-[11px] text-faint">No tags yet</span>
         )}

@@ -1,12 +1,10 @@
 import type { Config } from 'tailwindcss'
 
 /**
- * Tala design tokens — Hand-Drawn ("sunlight & moonlight") theme.
- * Colors are defined as RGB channel triplets in src/index.css and mapped here,
- * so light/dark themes only swap CSS variables.
- *
- * Hard offset shadows and wobbly radii are theme-aware via CSS variables:
- * light mode draws solid pencil offsets, dark mode uses faint chalk lifts.
+ * Tala design tokens: clean surfaces, doodle accents.
+ * Colors are RGB channel triplets in src/index.css mapped here, so light and
+ * dark only swap CSS variables. Roles: green = actions, gold = Bituin and
+ * celebration, blue (ballpoint) = ink and links, red = destructive.
  */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -14,9 +12,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Patrick Hand"', '"Comic Sans MS"', 'cursive'],
+        sans: ['"Inter Variable"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        // Accents only: titles, Bituin's voice, small annotations
         display: ['Kalam', '"Patrick Hand"', 'cursive'],
-        body: ['"Inter Variable"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        hand: ['"Patrick Hand"', 'Kalam', 'cursive'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       colors: {
@@ -35,9 +34,18 @@ export default {
           soft: 'rgb(var(--c-accent-soft) / <alpha-value>)',
           fg: 'rgb(var(--c-accent-fg) / <alpha-value>)',
         },
-        postit: {
-          DEFAULT: 'rgb(var(--c-postit) / <alpha-value>)',
-          ink: 'rgb(var(--c-postit-ink) / <alpha-value>)',
+        gold: {
+          DEFAULT: 'rgb(var(--c-gold) / <alpha-value>)',
+          soft: 'rgb(var(--c-gold-soft) / <alpha-value>)',
+          ink: 'rgb(var(--c-gold-ink) / <alpha-value>)',
+        },
+        danger: {
+          DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
+          soft: 'rgb(var(--c-danger-soft) / <alpha-value>)',
+        },
+        selected: {
+          DEFAULT: 'rgb(var(--c-selected) / <alpha-value>)',
+          ink: 'rgb(var(--c-selected-ink) / <alpha-value>)',
         },
         ballpoint: {
           DEFAULT: 'rgb(var(--c-ballpoint) / <alpha-value>)',
@@ -48,21 +56,23 @@ export default {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],
       },
       boxShadow: {
-        sketch: 'var(--sketch-shadow)',
-        'sketch-sm': 'var(--sketch-shadow-sm)',
-        'sketch-lg': 'var(--sketch-shadow-lg)',
+        rest: 'var(--shadow-rest)',
+        raise: 'var(--shadow-raise)',
+        float: 'var(--shadow-float)',
       },
       borderRadius: {
-        wobbly: '255px 15px 225px 15px / 15px 225px 15px 255px',
-        'wobbly-md': '105px 12px 115px 12px / 12px 115px 12px 105px',
-        'wobbly-sm': '35px 8px 45px 8px / 8px 45px 8px 35px',
-        'wobbly-blob': '58% 42% 55% 45% / 48% 55% 45% 52%',
+        surface: '16px',
+        card: '12px',
+        control: '8px',
+        // Doodle accents only (Bituin's chip, tape): never on a control
+        doodle: '35px 8px 45px 8px / 8px 45px 8px 35px',
+        blob: '58% 42% 55% 45% / 48% 55% 45% 52%',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'scale-in': {
-          from: { opacity: '0', transform: 'scale(0.96) rotate(-1.25deg) translateY(6px)' },
-          to: { opacity: '1', transform: 'scale(1) rotate(0deg) translateY(0)' },
+          from: { opacity: '0', transform: 'scale(0.97) translateY(6px)' },
+          to: { opacity: '1', transform: 'scale(1) translateY(0)' },
         },
         'slide-up': {
           from: { opacity: '0', transform: 'translateY(8px)' },
@@ -132,14 +142,14 @@ export default {
         wiggle: 'wiggle 3s ease-in-out infinite',
         'bounce-soft': 'bounce-soft 3s ease-in-out infinite',
         'pulse-soft': 'pulse-soft 1.6s ease-in-out infinite',
-        'pen-pop-in': 'pen-pop-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.15)',
+        'pen-pop-in': 'pen-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1)',
         'pen-pop-out': 'pen-pop-out 130ms ease-in forwards',
-        'pen-node': 'pen-node 170ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards',
+        'pen-node': 'pen-node 170ms cubic-bezier(0.16, 1, 0.3, 1) backwards',
         'pen-swap': 'pen-swap 140ms ease-out',
         'note-collapse': 'note-collapse 200ms ease-in forwards',
         'note-expand': 'note-expand 240ms cubic-bezier(0.16, 1, 0.3, 1)',
-        'star-pop': 'star-pop 400ms cubic-bezier(0.2, 0.9, 0.3, 1.2)',
-        'pin-wobble': 'pin-wobble 350ms cubic-bezier(0.2, 0.9, 0.3, 1.2)',
+        'star-pop': 'star-pop 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'pin-wobble': 'pin-wobble 350ms cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

@@ -1,46 +1,82 @@
-import type { AppSettings, Folder, InkDocRecord, Note, Tag } from '@/types/models'
+import type {
+  AppSettings,
+  BlobRecord,
+  Folder,
+  InkDocRecord,
+  MetaRecord,
+  Note,
+  PageRecord,
+  PdfRecord,
+  RecordingRecord,
+  Tag,
+} from '@/types/models'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
-import {
-  folderRepository,
-  inkRepository,
-  noteRepository,
-  settingsRepository,
-  tagRepository,
-} from '@/database/repositories'
-import { useNoteStore } from '@/store/noteStore'
+import { sanitizeDoc } from '@/utils/doc'
+import JSZip from 'jszip'
+import { toast } from 'sonner'
+import { BITUIN } from '@/coach/copy'
+import { detectEnv } from '@/coach/env'
+import { usePrefsStore } from '@/store/prefsStore'
+import { flush } from '@/library/notes'
+import { dump, restore, type Snapshot } from '@/library/snapshot'
 
 export interface BackupFile {
   app: 'tala'
-  /** 1 = pre-v2 inline note.ink; 2 = handwriting in inkDocs. */
-  version: 1 | 2
+  /** 1 = pre-v2 inline note.ink; 2 = handwriting in inkDocs; 3 = per-page text, PDFs and blobs. */
+  version: 1 | 2 | 3
   exportedAt: number
   notes: Note[]
   folders: Folder[]
   tags: Tag[]
   settings: AppSettings | null
   inkDocs?: InkDocRecord[]
+  /** Multi-page notes + PDF pages. Optional so v1/v2 JSON imports still work. */
+  pages?: PageRecord[]
+  pdfs?: PdfRecord[]
+  /** Lecture audio rows (metadata only: the audio itself is never inside a backup). */
+  recordings?: RecordingRecord[]
+  /** Study days and the weekly goal. */
+  meta?: MetaRecord[]
+  /** Binary payloads: the bytes are separate zip entries named `blobs/<id>`. */
+  blobs?: Array<{ id: string; type: string }>
+  /** Runtime only (filled by importBackupFile from the zip entries); never serialized. */
+  blobData?: BlobRecord[]
 }
 
-export async function buildBackup(): Promise<BackupFile> {
-  // Pending debounced handwriting must land before we snapshot IndexedDB
-  await useNoteStore.getState().flushInk()
-  const [notes, folders, tags, settings, inkDocs] = await Promise.all([
-    noteRepository.all(),
-    folderRepository.all(),
-    tagRepository.all(),
-    settingsRepository.get().catch(() => null),
-    inkRepository.all(),
-  ])
+/** The JSON half of a backup. Blob bytes travel as separate zip entries. */
+function snapshotToBackup(s: Snapshot): BackupFile {
   return {
     app: 'tala',
-    version: 2,
+    version: 3,
     exportedAt: Date.now(),
-    notes,
-    folders,
-    tags,
-    settings,
-    inkDocs,
+    notes: s.notes,
+    folders: s.folders,
+    tags: s.tags,
+    settings: s.settings[0] ?? null,
+    inkDocs: s.inkDocs,
+    pages: s.pages,
+    pdfs: s.pdfs,
+    recordings: s.recordings,
+    meta: s.meta,
+    blobs: s.blobs.map((b) => ({ id: b.id, type: b.data.type })),
   }
+}
+
+/** `.tala` archive: manifest.json + backup.json + one `blobs/<id>` entry per blob. */
+export async function snapshotToZip(s: Snapshot): Promise<Blob> {
+  const data = snapshotToBackup(s)
+  const zip = new JSZip()
+  zip.file(
+    'manifest.json',
+    JSON.stringify(
+      { app: 'tala', format: 'tala-backup', version: 2, exportedAt: data.exportedAt, noteCount: s.notes.length },
+      null,
+      2,
+    ),
+  )
+  zip.file('backup.json', JSON.stringify(data, null, 2))
+  for (const b of s.blobs) zip.file(`blobs/${b.id}`, await b.data.arrayBuffer())
+  return zip.generateAsync({ type: 'blob' })
 }
 
 function stamp(): string {
@@ -49,17 +85,70 @@ function stamp(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/**
+ * Saves a backup: the share sheet on phones and tablets (Files, iCloud, a
+ * messaging app: downloads are unreliable in an installed iOS app), a normal
+ * download everywhere else. Records the time so the weekly nudge can rest.
+ */
 export async function downloadBackup(): Promise<void> {
-  const data = await buildBackup()
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `tala-backup-${stamp()}.json`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // Pending debounced handwriting must land before we snapshot IndexedDB
+  await flush()
+  const blob = await snapshotToZip(await dump())
+  const name = `tala-backup-${stamp()}.tala`
+
+  let shared = false
+  const { platform } = detectEnv()
+  if (platform === 'ios' || platform === 'android') {
+    const file = new File([blob], name, { type: 'application/octet-stream' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Tala backup' })
+        shared = true
+      } catch (err) {
+        // Closing the sheet is a choice, not a failure: nothing was saved
+        if ((err as Error).name === 'AbortError') return
+        // Anything else (e.g. the tap's permission lapsed while zipping): fall back to a download
+      }
+    }
+  }
+  if (!shared) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  usePrefsStore.getState().setCoach({ lastBackupAt: Date.now(), backupSnoozeUntil: 0 })
+  toast.success(shared ? BITUIN.reaction.backupShared : BITUIN.reaction.backupDone)
+}
+
+/**
+ * Reads a backup file from disk: a `.tala` ZIP (manifest.json + backup.json)
+ * or a legacy `.json` export. Returns a validated BackupFile.
+ */
+export async function importBackupFile(file: File): Promise<BackupFile> {
+  if (/\.tala$/i.test(file.name)) {
+    let zip: JSZip
+    let backupJson = ''
+    try {
+      zip = await JSZip.loadAsync(await file.arrayBuffer())
+      backupJson = (await zip.file('backup.json')?.async('string')) ?? ''
+    } catch {
+      throw new Error('That file is not a valid .tala archive.')
+    }
+    if (!backupJson) throw new Error('That .tala file contains no backup data.')
+    const backup = parseBackup(backupJson)
+    backup.blobData = []
+    for (const { id, type } of backup.blobs ?? []) {
+      const bytes = await zip.file(`blobs/${id}`)?.async('arraybuffer')
+      if (bytes) backup.blobData.push({ id, data: new Blob([bytes], { type }) })
+    }
+    return backup
+  }
+  return parseBackup(await file.text())
 }
 
 /** Validates an uploaded file's shape. Throws with a human-readable message. */
@@ -74,11 +163,14 @@ export function parseBackup(text: string): BackupFile {
   if (b.app !== 'tala' || !Array.isArray(b.notes) || !Array.isArray(b.folders) || !Array.isArray(b.tags)) {
     throw new Error('That file is not a Tala backup.')
   }
-  if (b.version !== 1 && b.version !== 2) {
+  if (b.version !== 1 && b.version !== 2 && b.version !== 3) {
     throw new Error(`Unsupported backup version: ${String(b.version)}`)
   }
   const notes = b.notes.map(normalizeNote).filter((n): n is Note => n !== null)
-  const folders = dedupeByName(b.folders.filter(isStorableRecord))
+  const folders = dedupeByName(b.folders.filter(isStorableRecord)).map((f) => ({
+    ...f,
+    parentId: typeof f.parentId === 'string' ? (f.parentId as string) : null,
+  }))
   const tags = dedupeByName(b.tags.filter(isStorableRecord))
 
   // Handwriting: v2 carries dedicated records; v1 kept ink inline per note.
@@ -97,16 +189,102 @@ export function parseBackup(text: string): BackupFile {
     if (!byId.has(n.id)) byId.set(n.id, { noteId: n.id, doc: n.ink })
   }
   const inkDocs = Array.from(byId.values())
+  // Inline ink now lives in inkDocs; don't write it twice
+  for (let i = 0; i < notes.length; i++) if (notes[i]!.ink) notes[i] = { ...notes[i]!, ink: null }
+  const pages = Array.isArray(b.pages)
+    ? (b.pages as unknown[]).map(normalizePage).filter((p): p is PageRecord => p !== null)
+    : []
+
+  const pdfs = Array.isArray(b.pdfs)
+    ? (b.pdfs as unknown[]).map(normalizePdf).filter((p): p is PdfRecord => p !== null)
+    : []
+  const blobs = Array.isArray(b.blobs)
+    ? (b.blobs as unknown[])
+        .filter((x): x is { id: string; type?: unknown } => isObj(x) && isStr(x.id))
+        .map((x) => ({ id: x.id, type: typeof x.type === 'string' ? x.type : '' }))
+    : []
+
+  const recordings = Array.isArray(b.recordings)
+    ? (b.recordings as unknown[]).map(normalizeRecording).filter((r): r is RecordingRecord => r !== null)
+    : []
+  const meta = Array.isArray(b.meta)
+    ? (b.meta as unknown[]).filter((m): m is MetaRecord => isObj(m) && isStr(m.key) && 'value' in m)
+        .map((m) => ({ key: m.key, value: m.value }))
+    : []
 
   return {
     ...(b as BackupFile),
-    version: 2,
+    version: 3,
     notes,
     folders,
     tags,
     settings: sanitizeSettings(b.settings),
     inkDocs,
+    pages,
+    pdfs,
+    blobs,
+    recordings,
+    meta,
   }
+}
+
+function normalizeRecording(raw: unknown): RecordingRecord | null {
+  if (!isObj(raw) || !isStr(raw.id) || !isStr(raw.noteId)) return null
+  const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : d)
+  return {
+    id: raw.id,
+    noteId: raw.noteId,
+    startedAt: num(raw.startedAt, Date.now()),
+    durationMs: num(raw.durationMs, 0),
+    mime: typeof raw.mime === 'string' ? raw.mime : '',
+    // a lecture cannot be live inside a file
+    status: raw.status === 'complete' ? 'complete' : 'interrupted',
+    chunkCount: num(raw.chunkCount, 0),
+    bytes: num(raw.bytes, 0),
+  }
+}
+
+function normalizePdf(raw: unknown): PdfRecord | null {
+  if (!isObj(raw) || !isStr(raw.noteId) || !isStr(raw.blobId)) return null
+  return {
+    noteId: raw.noteId,
+    blobId: raw.blobId,
+    pageCount: typeof raw.pageCount === 'number' && Number.isFinite(raw.pageCount) ? raw.pageCount : 0,
+    createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : Date.now(),
+  }
+}
+
+/** Coerces one backup page into a safe PageRecord, dropping broken entries. */
+function normalizePage(raw: unknown): PageRecord | null {
+  if (!isObj(raw) || !isStr(raw.id) || !isStr(raw.noteId)) return null
+  const index = typeof raw.index === 'number' && Number.isFinite(raw.index) ? raw.index : 0
+  const template = raw.template === 'ruled' || raw.template === 'grid' ? raw.template : 'blank'
+  const now = Date.now()
+  const page: PageRecord = {
+    id: raw.id,
+    noteId: raw.noteId,
+    index,
+    template,
+    createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : now,
+    updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : now,
+  }
+  // Pre-v4 pages carry no `content`: leave it undefined so restore() upgrades them.
+  if (isObj(raw.content) || raw.content === null) page.content = sanitizeDoc(raw.content)
+  if (typeof raw.text === 'string') page.text = raw.text
+  if (typeof raw.inkText === 'string') page.inkText = raw.inkText
+  const size = raw.size
+  if (
+    isObj(size) &&
+    typeof size.w === 'number' && size.w > 0 &&
+    typeof size.h === 'number' && size.h > 0 &&
+    (size.kind === 'a4' || size.kind === 'letter' || size.kind === 'slide' || size.kind === 'pdf')
+  ) {
+    page.size = { w: size.w, h: size.h, kind: size.kind }
+  }
+  if (typeof raw.pdfPage === 'number' && raw.pdfPage >= 1) page.pdfPage = Math.floor(raw.pdfPage)
+  if (isStr(raw.backgroundBlobId)) page.backgroundBlobId = raw.backgroundBlobId
+  if (typeof raw.background === 'string' && raw.background.length > 0) page.background = raw.background
+  return page
 }
 
 /** Drops duplicate ids and case-insensitive duplicate names (first wins). */
@@ -221,28 +399,25 @@ export async function restoreBackup(
   backup: BackupFile,
   mode: 'merge' | 'replace',
 ): Promise<{ notes: number; folders: number; tags: number }> {
-  const { db } = await import('@/database/db')
-  const { hydrateAll } = await import('@/database/hydration')
-  const inkDocs = backup.inkDocs ?? []
-
-  await db.transaction('rw', [db.notes, db.folders, db.tags, db.settings, db.inkDocs], async () => {
-    if (mode === 'replace') {
-      await Promise.all([
-        db.notes.clear(),
-        db.folders.clear(),
-        db.tags.clear(),
-        db.inkDocs.clear(),
-      ])
-    }
-    await db.folders.bulkPut(backup.folders)
-    await db.tags.bulkPut(backup.tags)
-    await db.notes.bulkPut(backup.notes)
-    if (inkDocs.length > 0) await db.inkDocs.bulkPut(inkDocs)
-    if (backup.settings) await db.settings.put(backup.settings)
-  })
-
+  await restore(
+    {
+      notes: backup.notes,
+      folders: backup.folders,
+      tags: backup.tags,
+      settings: backup.settings ? [backup.settings] : [],
+      inkDocs: backup.inkDocs,
+      pages: backup.pages,
+      pdfs: backup.pdfs,
+      blobs: backup.blobData,
+      recordings: backup.recordings,
+      meta: backup.meta,
+    },
+    mode,
+  )
+  // Dynamic: boot -> safety -> this module would otherwise be an import cycle
+  const { hydrateAll } = await import('@/library/boot')
   await hydrateAll()
   // Open editors may hold pre-import docs — let them resync (see NoteEditor)
-  window.dispatchEvent(new CustomEvent('tala:external-sync'))
+  window.dispatchEvent(new CustomEvent('tala:external-sync', { detail: 'restore' }))
   return { notes: backup.notes.length, folders: backup.folders.length, tags: backup.tags.length }
 }

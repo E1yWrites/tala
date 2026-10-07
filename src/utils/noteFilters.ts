@@ -1,5 +1,5 @@
-import type { Folder, Note, SortKey, Tag, ViewRef } from '@/types/models'
-import { docPreview } from './doc'
+import type { Folder, Note, PageRecord, SortKey, Tag, ViewRef } from '@/types/models'
+import { pagesText, textPreview } from './doc'
 
 /* Shared logic for "which notes are visible in this view" and ordering. */
 
@@ -8,6 +8,7 @@ const WEEK_MS = 7 * 24 * 3_600_000
 export function notesForView(notes: Note[], view: ViewRef): Note[] {
   switch (view.kind) {
     case 'home':
+    case 'tasks':
     case 'settings':
       return []
     case 'all':
@@ -93,12 +94,14 @@ export function viewMeta(
       const tag = tags.find((t) => t.id === view.refId)
       return { title: tag ? `#${tag.name}` : 'Tag', description: null }
     }
+    case 'tasks':
+      return { title: 'Tasks', description: null }
     case 'settings':
       return { title: 'Settings', description: null }
   }
 }
 
 /** Text used by search filtering within the current list. */
-export function searchableText(note: Note): string {
-  return `${note.title}\u0000${docPreview(note.content, 4000)}`
+export function searchableText(note: Note, pages: PageRecord[]): string {
+  return `${note.title}\u0000${textPreview(pagesText(pages), 4000)}`
 }

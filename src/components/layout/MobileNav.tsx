@@ -1,69 +1,113 @@
-import { House, NotebookText, Search, Settings as SettingsIcon, Star, StarFilled } from 'lucide-react'
+import { CheckSquare, NotebookText, Plus, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
-import type { ViewKind } from '@/types/models'
+import { usePrefsStore } from '@/store/prefsStore'
+import { useSettingsStore } from '@/store/settingsStore'
+import { downloadBackup } from '@/utils/exportImport'
+import { Avatar } from '@/components/UI/Avatar'
+import { DropdownMenu } from '@/components/UI/DropdownMenu'
 import { cn } from '@/utils/cn'
 
-interface Tab {
-  kind: ViewKind
-  label: string
-  icon: LucideIcon
-  /** Solid variant shown while the tab is active. */
-  activeIcon?: LucideIcon
-}
+/** Height of the bar itself; the page above reserves this plus the safe area. */
+export const MOBILE_NAV_HEIGHT = '3.75rem'
 
-const TABS: Tab[] = [
-  { kind: 'home', label: 'Home', icon: House },
-  { kind: 'all', label: 'Notes', icon: NotebookText },
-  { kind: 'favorites', label: 'Favorites', icon: Star, activeIcon: StarFilled },
-]
-
-/** Mobile bottom navigation. Search opens the global search modal. */
+/**
+ * Phone bottom bar: Notes, Tasks, a big green New note, Search, and the
+ * profile menu (Settings lives under the picture). Left-handed mode mirrors it.
+ */
 export function MobileNav(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
   const setView = useUIStore((s) => s.setView)
   const openModal = useUIStore((s) => s.openModal)
+  const leftHanded = usePrefsStore((s) => s.leftHanded)
+  const quietMode = usePrefsStore((s) => s.quietMode)
+  const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
+  const profile = useSettingsStore((s) => s.settings.profile)
 
-  const isActive = (kind: ViewKind): boolean => activeView.kind === kind
+  // Every library view (all, starred, folders, tags, ...) counts as the Notes tab
+  const notesActive = activeView.kind !== 'tasks' && activeView.kind !== 'settings'
 
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(3.75rem+env(safe-area-inset-bottom))] items-stretch border-t-2 border-line bg-panel pb-[env(safe-area-inset-bottom)] md:hidden"
+      style={{ height: `calc(${MOBILE_NAV_HEIGHT} + env(safe-area-inset-bottom))` }}
+      className={cn(
+        'fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-lineSoft bg-panel pb-[env(safe-area-inset-bottom)] md:hidden',
+        leftHanded && 'flex-row-reverse',
+      )}
     >
-      {TABS.slice(0, 2).map((tab) => (
-        <NavTab key={tab.kind} tab={tab} active={isActive(tab.kind)} onClick={() => setView({ kind: tab.kind })} />
-      ))}
-      <div className="flex flex-1 items-center justify-center">
+      <NavTab
+        label="Notes"
+        icon={NotebookText}
+        active={notesActive}
+        onClick={() => setView({ kind: 'all' })}
+      />
+      <NavTab
+        label="Tasks"
+        icon={CheckSquare}
+        active={activeView.kind === 'tasks'}
+        onClick={() => setView({ kind: 'tasks' })}
+      />
+
+      <div className="flex flex-1 items-start justify-center">
         <button
           type="button"
-          onClick={() => openModal({ kind: 'search' })}
-          aria-label="Search notes"
-          className="grid size-12 -rotate-2 place-items-center rounded-wobbly border-[3px] border-line bg-postit text-postit-ink shadow-sketch transition-all duration-100 hover:rotate-0 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+          onClick={() => openModal({ kind: 'new-note' })}
+          aria-label="New note"
+          className="btn-primary -mt-5 size-14 rounded-full shadow-raise ring-4 ring-panel"
         >
-          <Search size={20} strokeWidth={2.5} />
+          <Plus size={28} strokeWidth={2.5} aria-hidden="true" />
         </button>
       </div>
-      <NavTab tab={TABS[2]} active={isActive('favorites')} onClick={() => setView({ kind: 'favorites' })} />
-      <NavTab
-        tab={{ kind: 'settings', label: 'Settings', icon: SettingsIcon }}
-        active={isActive('settings')}
-        onClick={() => setView({ kind: 'settings' })}
-      />
+
+      <NavTab label="Search" icon={Search} active={false} onClick={() => openModal({ kind: 'search' })} />
+
+      <div className="flex flex-1 items-stretch [&>div]:flex-1">
+        <DropdownMenu
+          side="top"
+          align={leftHanded ? 'start' : 'end'}
+          items={[
+            { id: 'settings', label: 'Settings', onSelect: () => setView({ kind: 'settings' }) },
+            {
+              id: 'quiet',
+              label: 'Quiet mode (Bituin)',
+              checked: quietMode,
+              onSelect: toggleQuietMode,
+            },
+            { id: 'sep', label: '', type: 'separator', onSelect: () => {} },
+            { id: 'backup', label: 'Back up now', onSelect: () => void downloadBackup() },
+          ]}
+          trigger={(props) => (
+            <button
+              {...props}
+              type="button"
+              aria-label={`${profile.name || 'Profile'}: settings and more`}
+              className={cn(
+                'flex w-full flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
+                activeView.kind === 'settings' ? 'text-accent' : 'text-faint hover:text-muted',
+              )}
+            >
+              <Avatar src={profile.avatar} name={profile.name} size="xs" />
+              <span className="text-[11px]">You</span>
+            </button>
+          )}
+        />
+      </div>
     </nav>
   )
 }
 
 function NavTab({
-  tab,
+  label,
+  icon: Icon,
   active,
   onClick,
 }: {
-  tab: Tab
+  label: string
+  icon: LucideIcon
   active: boolean
   onClick: () => void
 }): React.ReactNode {
-  const Icon = active && tab.activeIcon ? tab.activeIcon : tab.icon
   return (
     <button
       type="button"
@@ -74,14 +118,14 @@ function NavTab({
         active ? 'text-accent' : 'text-faint hover:text-muted',
       )}
     >
-      <Icon size={18} strokeWidth={active ? 2.75 : 2} aria-hidden="true" />
+      <Icon size={20} strokeWidth={active ? 2.75 : 2} aria-hidden="true" />
       <span
         className={cn(
-          'text-[11px]',
-          active && 'underline decoration-wavy decoration-accent underline-offset-4',
+          'text-[11px] font-medium',
+          active && 'underline decoration-wavy decoration-accent decoration-[1.5px] underline-offset-4',
         )}
       >
-        {tab.label}
+        {label}
       </span>
     </button>
   )

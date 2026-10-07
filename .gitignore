@@ -9,3 +9,13 @@ npm-debug.log*
 # Tauri (added when the desktop shell lands)
 src-tauri/target
 src-tauri/gen/schemas
+
+# Stale tsc output (tsconfig.node.json builds into the repo root)
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
+
+# Impeccable working files (screenshots, comps); briefs and design.json are committed
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/build/

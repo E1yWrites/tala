@@ -31,9 +31,86 @@ export interface InkDocRecord {
   doc: InkDoc
 }
 
+/** Sheet size in PDF points (1 pt = 1/72 in). */
+export interface PageSize {
+  w: number
+  h: number
+  kind: 'a4' | 'letter' | 'slide' | 'pdf'
+}
+
+/** One sheet of a Note. Owns its typed text; its Ink is keyed by this id. */
+export interface PageRecord {
+  id: string
+  noteId: string
+  index: number
+  template: 'blank' | 'ruled' | 'grid'
+  /**
+   * Tiptap JSON typed on this page. `undefined` only on rows written before
+   * v4, where page 1's text still lives in the legacy `Note.content`.
+   */
+  content?: JSONContent | null
+  /** Plain text of `content` (typed pages) or the PDF text layer, for search and previews. */
+  text?: string
+  /** EXPERIMENT: text recognised from the page's handwriting (see library/inkText.ts). Searched, never shown. */
+  inkText?: string
+  /** Missing on legacy rows; read it through `pageSize()`. */
+  size?: PageSize
+  /** 1-based page number inside the note's imported PDF (see PdfRecord). */
+  pdfPage?: number
+  /** Pre-rendered raster background (PDF pages imported before v4), stored in `blobs`. */
+  backgroundBlobId?: string
+  /** Pre-v4 data-URL background; the v4 upgrade moves it into `blobs`. */
+  background?: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+/** Binary payload kept out of the light rows so boot never loads it. */
+export interface BlobRecord {
+  id: string
+  data: Blob
+}
+
+/** Lecture audio. Rows are light; the bytes live in `audioChunks` and are never loaded at boot. */
+export interface RecordingRecord {
+  id: string
+  noteId: string
+  /** Epoch ms. Strokes drawn while recording carry `ts`; `ts - startedAt` is the audio position. */
+  startedAt: number
+  /** Tracked by the recorder itself: browsers report `Infinity` for a chunked WebM. */
+  durationMs: number
+  mime: string
+  /** `recording` on a row at boot means the app died mid-lecture; it becomes `interrupted`. */
+  status: 'recording' | 'complete' | 'interrupted'
+  chunkCount: number
+  bytes: number
+}
+
+/** One timesliced piece of a recording, written the moment the browser hands it over. */
+export interface AudioChunkRecord {
+  recordingId: string
+  seq: number
+  data: Blob
+}
+
+/** Small key/value rows that belong in a backup (study days, weekly goal). Device prefs live in prefsStore instead. */
+export interface MetaRecord {
+  key: string
+  value: unknown
+}
+
+/** The original PDF a note was imported from; the bytes live in `blobs`. */
+export interface PdfRecord {
+  noteId: string
+  blobId: string
+  pageCount: number
+  createdAt: number
+}
+
 export interface Folder {
   id: string
   name: string
+  parentId: string | null
   createdAt: number
 }
 
@@ -85,6 +162,7 @@ export type ViewKind =
   | 'trash'
   | 'folder'
   | 'tag'
+  | 'tasks'
   | 'settings'
 
 export interface ViewRef {
@@ -103,10 +181,11 @@ export type ModalIntent =
   | { kind: 'palette' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
-  | { kind: 'folder-editor'; folderId?: string }
+  | { kind: 'folder-editor'; folderId?: string; parentId?: string }
   | { kind: 'move-note'; noteId: string }
   | { kind: 'tag-editor'; noteId: string }
   | { kind: 'profile-picture' }
+  | { kind: 'install-guide' }
   | {
       kind: 'confirm'
       title: string

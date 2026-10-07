@@ -1,7 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { TalaMark } from '@/components/Brand/TalaMark'
+import { Bituin } from '@/coach/Bituin'
+import { listTasks } from '@/library/tasks'
+import { usePageStore } from '@/store/pageStore'
 import {
   Archive,
+  CheckSquare,
+  ChevronRight,
   Clock,
   Folder as FolderIcon,
   MoreHorizontal,
@@ -23,6 +27,7 @@ import { Avatar } from '../UI/Avatar'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
 import { useTagStore } from '@/store/tagStore'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { ViewKind, ViewRef } from '@/types/models'
@@ -30,7 +35,7 @@ import { cn } from '@/utils/cn'
 import { Tooltip } from '../UI/Tooltip'
 import { ThemeToggle } from '../UI/ThemeToggle'
 import { useTick } from '@/hooks/useTick'
-import { DropdownMenu } from '../UI/DropdownMenu'
+import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
 
 interface NavItemSpec {
@@ -48,14 +53,18 @@ export function Sidebar({
 }): ReactNode {
   useTick(60_000) // keep relative recency labels fresh
   const notes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const folders = useFolderStore((s) => s.folders)
   const tags = useTagStore((s) => s.tags)
   const activeView = useUIStore((s) => s.activeView)
   const setView = useUIStore((s) => s.setView)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
   const openModal = useUIStore((s) => s.openModal)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
   const deleteFolder = useFolderStore((s) => s.deleteFolder)
+  const expandedFolderIds = useFolderStore((s) => s.expandedFolderIds)
+  const toggleFolderExpand = useFolderStore((s) => s.toggleFolderExpand)
+  const moveFolder = useFolderStore((s) => s.moveFolder)
   const [pendingFolderDelete, setPendingFolderDelete] = useState<{
     id: string
     name: string
@@ -84,11 +93,17 @@ export function Sidebar({
     }
   }, [notes])
 
+  const openTasks = useMemo(
+    () => listTasks(notes, pagesByNote).filter((t) => !t.checked).length,
+    [notes, pagesByNote],
+  )
+
   const libraryItems: NavItemSpec[] = [
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
     { id: 'favorites', label: 'Favorites', icon: Star, count: counts.favorites },
     { id: 'pinned', label: 'Pinned', icon: Pin, count: counts.pinned },
     { id: 'recent', label: 'Recent', icon: Clock, count: counts.recent },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
     { id: 'archive', label: 'Archive', icon: Archive, count: counts.archive },
     { id: 'trash', label: 'Trash', icon: Trash2, count: counts.trash },
   ]
@@ -110,7 +125,7 @@ export function Sidebar({
   return (
     <nav
       className={cn(
-        'flex h-full flex-col border-r-2 border-line bg-panel px-3 py-3',
+        'flex h-full flex-col border-r border-lineSoft bg-panel px-3 py-3',
         variant === 'drawer' ? 'w-60' : 'w-full',
       )}
     >
@@ -118,11 +133,11 @@ export function Sidebar({
       <div className="flex items-center gap-2.5 px-1">
         <button
           type="button"
-          className="grid size-9 shrink-0 -rotate-3 place-items-center rounded-wobbly-sm transition-transform duration-150 hover:rotate-0"
+          className="grid size-9 shrink-0 place-items-center rounded-control transition-transform duration-150 hover:scale-105"
           onClick={() => navigate({ kind: 'home' })}
           aria-label="Tala home"
         >
-          <TalaMark size={30} className="text-accent" />
+          <Bituin size={32} />
         </button>
         <div className="min-w-0">
           <p className="font-display text-lg leading-none">
@@ -137,7 +152,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => openModal({ kind: 'new-note' })}
-          className="flex h-10 w-full items-center gap-2 rounded-wobbly border-[3px] border-line bg-postit px-4 text-[15px] text-postit-ink shadow-sketch transition-all duration-100 hover:bg-accent hover:text-accent-fg hover:shadow-sketch-sm hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
+          className="btn-primary h-10 w-full justify-start rounded-card px-4 text-[15px] font-medium"
         >
           <span className={ICON_CONTAINER} aria-hidden="true">
             <Plus size={ICON_SIZE} strokeWidth={2.5} />
@@ -169,55 +184,20 @@ export function Sidebar({
           {folders.length === 0 ? (
             <p className="px-2 py-1 text-xs text-faint">No folders yet</p>
           ) : (
-            <ul className="mt-1 flex flex-col gap-0.5">
-              {folders.map((folder) => {
-                const active = activeView.kind === 'folder' && activeView.refId === folder.id
-                return (
-                  <li key={folder.id} className="group/f relative flex items-center">
-                    <NavItemInline
-                      active={active}
-                      onClick={() => navigate({ kind: 'folder', refId: folder.id })}
-                      icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
-                      label={folder.name}
-                      count={counts.perFolder.get(folder.id)}
-                    />
-                    <DropdownMenu
-                      align="end"
-                      items={[
-                        {
-                          id: 'rename',
-                          label: 'Rename folder',
-                          onSelect: () => openModal({ kind: 'folder-editor', folderId: folder.id }),
-                        },
-                        {
-                          id: 'delete',
-                          label: 'Delete folder',
-                          danger: true,
-                          onSelect: () =>
-                            setPendingFolderDelete({
-                              id: folder.id,
-                              name: folder.name,
-                              count: notes.filter(
-                                (n) => n.folderId === folder.id && !n.isDeleted,
-                              ).length,
-                            }),
-                        },
-                      ]}
-                      trigger={(props) => (
-                        <button
-                          {...props}
-                          type="button"
-                          aria-label={`Options for folder ${folder.name}`}
-                          className="absolute right-1 grid size-6 place-items-center rounded-wobbly-sm text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
-                        >
-                          <MoreHorizontal size={13} />
-                        </button>
-                      )}
-                    />
-                  </li>
-                )
-              })}
-            </ul>
+            <FolderTree
+              folders={folders}
+              parentId={null}
+              depth={0}
+              activeView={activeView}
+              navigate={navigate}
+              counts={counts.perFolder}
+              openModal={openModal}
+              notes={notes}
+              expandedFolderIds={expandedFolderIds}
+              toggleFolderExpand={toggleFolderExpand}
+              moveFolder={moveFolder}
+              setPendingFolderDelete={setPendingFolderDelete}
+            />
           )}
 
           {/* Tags */}
@@ -235,7 +215,7 @@ export function Sidebar({
                     onClick={() => navigate({ kind: 'tag', refId: tag.id })}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'inline-flex h-6 items-center gap-1 rounded-wobbly-sm border px-2 text-xs transition-colors',
+                      'inline-flex h-6 items-center gap-1 rounded-control border px-2 text-xs transition-colors',
                       active
                         ? 'border-ballpoint/60 bg-ballpoint-soft text-ballpoint'
                         : 'border-lineSoft bg-canvas text-muted hover:border-ballpoint/40 hover:text-ink',
@@ -267,7 +247,7 @@ export function Sidebar({
 
         {/* Profile — display only. Editing lives in Settings → Profile. */}
         <div className="mt-2">
-          <div className="flex items-center gap-2.5 rounded-wobbly-sm p-1.5">
+          <div className="flex items-center gap-2.5 rounded-control p-1.5">
             <Avatar
               src={settings.profile.avatar}
               name={settings.profile.name}
@@ -304,6 +284,122 @@ export function Sidebar({
 
 /* ------------------------------ Sub-components ----------------------------- */
 
+/** Recursive folder tree with expand/collapse and per-folder actions. */
+function FolderTree(props: {
+  folders: ReturnType<typeof useFolderStore.getState>['folders']
+  parentId: string | null
+  depth: number
+  activeView: { kind: string; refId?: string | undefined }
+  navigate: (view: ViewRef) => void
+  counts: Map<string, number>
+  openModal: ReturnType<typeof useUIStore.getState>['openModal']
+  notes: ReturnType<typeof useNoteStore.getState>['notes']
+  expandedFolderIds: Set<string>
+  toggleFolderExpand: (id: string) => void
+  moveFolder: (id: string, newParentId: string | null) => Promise<boolean>
+  setPendingFolderDelete: (d: { id: string; name: string; count: number }) => void
+}): ReactNode {
+  const children = props.folders
+    .filter((f) => f.parentId === props.parentId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return (
+    <ul className="mt-1 flex flex-col gap-0.5">
+      {children.map((folder) => {
+        const subfolders = props.folders.filter((f) => f.parentId === folder.id)
+        const isExpanded = props.expandedFolderIds.has(folder.id)
+        const active = props.activeView.kind === 'folder' && props.activeView.refId === folder.id
+        return (
+          <li key={folder.id}>
+            <div className="group/f relative flex items-center">
+              {subfolders.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => props.toggleFolderExpand(folder.id)}
+                  aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+                  aria-expanded={isExpanded}
+                  className={cn(
+                    'grid w-5 shrink-0 place-items-center text-faint transition-transform duration-100',
+                    isExpanded && 'rotate-90',
+                  )}
+                  style={{ marginLeft: `${props.depth * 14}px` }}
+                >
+                  <ChevronRight size={12} />
+                </button>
+              ) : (
+                <span
+                  className="w-5 shrink-0"
+                  style={{ marginLeft: `${props.depth * 14}px` }}
+                />
+              )}
+              <NavItemInline
+                active={active}
+                onClick={() => props.navigate({ kind: 'folder', refId: folder.id })}
+                icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
+                label={folder.name}
+                count={props.counts.get(folder.id)}
+              />
+              <DropdownMenu
+                align="end"
+                items={[
+                  {
+                    id: 'rename',
+                    label: 'Rename folder',
+                    onSelect: () => props.openModal({ kind: 'folder-editor', folderId: folder.id }),
+                  },
+                  {
+                    id: 'new-subfolder',
+                    label: 'New subfolder',
+                    onSelect: () => props.openModal({ kind: 'folder-editor', parentId: folder.id }),
+                  },
+                  ...props.folders
+                    .filter((f) => f.id !== folder.id && f.parentId !== folder.id)
+                    .map<MenuItem>((f) => ({
+                      id: `move-${f.id}`,
+                      label: `Move into “${f.name}”`,
+                      onSelect: () => void props.moveFolder(folder.id, f.id),
+                    })),
+                  {
+                    id: 'move-root',
+                    label: 'Move to root',
+                    onSelect: () => void props.moveFolder(folder.id, null),
+                  },
+                  {
+                    id: 'delete',
+                    label: 'Delete folder',
+                    danger: true,
+                    onSelect: () =>
+                      props.setPendingFolderDelete({
+                        id: folder.id,
+                        name: folder.name,
+                        count: props.notes.filter(
+                          (n) => n.folderId === folder.id && !n.isDeleted,
+                        ).length,
+                      }),
+                  },
+                ]}
+                trigger={(triggerProps) => (
+                  <button
+                    {...triggerProps}
+                    type="button"
+                    aria-label={`Options for folder ${folder.name}`}
+                    className="absolute right-1 grid size-6 place-items-center rounded-control text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
+                  >
+                    <MoreHorizontal size={13} />
+                  </button>
+                )}
+              />
+            </div>
+            {isExpanded && subfolders.length > 0 && (
+              <FolderTree {...props} parentId={folder.id} depth={props.depth + 1} />
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function NavItemButton({
   item,
   active,
@@ -319,19 +415,26 @@ function NavItemButton({
       onClick={onSelect}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-8 w-full items-center gap-2.5 rounded-wobbly-sm px-2 text-[15px] transition-colors duration-100',
-        active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'group flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-[15px] transition-colors duration-100',
+        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
       <span className={ICON_CONTAINER} aria-hidden="true">
         <item.icon size={ICON_SIZE} strokeWidth={active ? 2.5 : 2} />
       </span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
+      <span
+        className={cn(
+          'flex-1 truncate text-left',
+          active && 'underline decoration-wavy decoration-accent decoration-[1.5px] underline-offset-4',
+        )}
+      >
+        {item.label}
+      </span>
       {!!item.count && item.count > 0 && (
         <span
           className={cn(
-            'rounded-wobbly-sm px-1.5 text-[11px] tabular-nums',
-            active ? 'bg-panel/70 text-postit-ink' : 'bg-raise text-faint',
+            'rounded-control px-1.5 text-[11px] tabular-nums',
+            active ? 'bg-panel/70 text-selected-ink' : 'bg-raise text-faint',
           )}
         >
           {item.count > 99 ? '99+' : item.count}
@@ -360,8 +463,8 @@ function NavItemInline({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-wobbly-sm pl-1.5 pr-1.5 text-xs transition-colors',
-        active ? 'bg-postit text-postit-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-control pl-1.5 pr-1.5 text-xs transition-colors',
+        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
       )}
     >
       <span className={cn(ICON_CONTAINER, active ? 'text-accent' : 'text-faint')}>{icon}</span>
@@ -391,7 +494,7 @@ function SectionHeader({
             type="button"
             onClick={onAction}
             aria-label={actionLabel}
-            className="grid size-5 place-items-center rounded-wobbly-sm text-faint transition-colors hover:bg-raise hover:text-ink"
+            className="grid size-5 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink"
           >
             <Plus size={12} strokeWidth={2.5} />
           </button>
@@ -407,7 +510,7 @@ function SettingsButton({ onClick }: { onClick: () => void }): ReactNode {
       type="button"
       onClick={onClick}
       aria-label="Settings"
-      className="grid size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink"
+      className="grid size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink"
     >
       <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
         <SettingsIcon size={BOTTOM_ICON_SIZE} />
@@ -423,7 +526,7 @@ function CollapseButton({ onClick }: { onClick: () => void }): ReactNode {
         type="button"
         onClick={onClick}
         aria-label="Hide sidebar"
-        className="hidden size-9 place-items-center rounded-wobbly-sm text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
+        className="hidden size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
       >
         <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
           <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />

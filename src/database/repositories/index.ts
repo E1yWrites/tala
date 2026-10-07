@@ -1,5 +1,0 @@
-export { noteRepository } from './noteRepository'
-export { inkRepository } from './inkRepository'
-export { folderRepository } from './folderRepository'
-export { tagRepository } from './tagRepository'
-export { settingsRepository } from './settingsRepository'

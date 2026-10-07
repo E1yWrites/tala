@@ -10,7 +10,8 @@ import {
   highlightText,
   runSearch,
 } from '@/utils/search'
-import { docToPlainText } from '@/utils/doc'
+import { pagesText } from '@/utils/doc'
+import { useNotePages, usePageStore } from '@/store/pageStore'
 import { formatRelative } from '@/utils/dates'
 import { Modal } from '@/components/UI/Modal'
 import { Kbd } from '@/components/UI/Kbd'
@@ -25,6 +26,7 @@ export function SearchModal(): React.ReactNode {
   const notes = useNoteStore((s) => s.notes)
   const tags = useTagStore((s) => s.tags)
   const folders = useFolderStore((s) => s.folders)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
   const selectNote = useUIStore((s) => s.selectNote)
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const setView = useUIStore((s) => s.setView)
@@ -34,8 +36,8 @@ export function SearchModal(): React.ReactNode {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const docs = useMemo(
-    () => buildSearchDocs(notes.filter((n) => !n.isDeleted), tags, folders),
-    [notes, tags, folders],
+    () => buildSearchDocs(notes.filter((n) => !n.isDeleted), tags, folders, pagesByNote),
+    [notes, tags, folders, pagesByNote],
   )
   const hits = useMemo(() => runSearch(docs, query), [docs, query])
   const results: Note[] = query.trim() ? hits.map((h) => h.note) : recentNotes(notes)
@@ -89,7 +91,7 @@ export function SearchModal(): React.ReactNode {
       onKeyDownCapture={onKeyDown}
       initialFocus={false}
     >
-      <div className="flex items-center gap-2 border-b-2 border-line px-4">
+      <div className="flex items-center gap-2 border-b border-lineSoft px-4">
         <Search className="size-[18px] shrink-0 text-faint" aria-hidden="true" />
         <input
           ref={inputRef}
@@ -142,7 +144,7 @@ export function SearchModal(): React.ReactNode {
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-t-2 border-line px-4 py-2 text-[11px] text-faint">
+      <div className="flex items-center gap-4 border-t border-lineSoft px-4 py-2 text-[11px] text-faint">
         <span className="inline-flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> navigate
@@ -183,7 +185,7 @@ function ResultRow({
 }): React.ReactNode {
   const allTags = useTagStore((s) => s.tags)
   const tagNameById = new Map(allTags.map((t) => [t.id, t]))
-  const body = docToPlainText(note.content)
+  const body = pagesText(useNotePages(note.id))
   const preview = body || 'Empty note'
 
   return (
@@ -195,8 +197,8 @@ function ResultRow({
       onMouseMove={onHover}
       onClick={onChoose}
       className={cn(
-        'flex w-full items-start gap-3 rounded-wobbly-sm px-2.5 py-2 text-left transition',
-        active ? 'bg-postit text-postit-ink' : 'hover:bg-canvas',
+        'flex w-full items-start gap-3 rounded-control px-2.5 py-2 text-left transition',
+        active ? 'bg-selected text-selected-ink' : 'hover:bg-canvas',
       )}
     >
       <div className="min-w-0 flex-1">
@@ -230,7 +232,7 @@ function Highlighted({
     <span className={className}>
       {segments.map((seg, i) =>
         seg.hit ? (
-          <mark key={i} className="rounded-[3px_2px_4px_2px] bg-postit px-0.5 text-inherit dark:text-postit-ink">
+          <mark key={i} className="rounded-control bg-selected px-0.5 text-inherit dark:text-selected-ink">
             {seg.text}
           </mark>
         ) : (

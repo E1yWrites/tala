@@ -38,7 +38,7 @@ function DoodleFace({ className }: { className?: string }): React.ReactNode {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={cn('size-3/4 -rotate-3', className)}
+      className={cn('size-3/4', className)}
     >
       <circle cx="12" cy="12" r="9" strokeDasharray="42 5 3 6 40 4" />
       <path d="M8.2 9.9c.55-.75 1.7-.85 2.35-.2" />
@@ -65,7 +65,7 @@ export function Avatar({
   return (
     <div
       className={cn(
-        'relative shrink-0 rounded-full border-2 border-line overflow-hidden bg-accent/10 text-accent',
+        'relative shrink-0 rounded-full border border-lineSoft overflow-hidden bg-accent/10 text-accent',
         SIZE_CLASSES[size],
         className,
       )}

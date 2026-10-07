@@ -9,6 +9,25 @@ import { createId } from '@/utils/id'
 
 const round1 = (n: number): number => Math.round(n * 10) / 10
 
+/** Readable cap: holding a stylus nearly flat is ~70° of declination. */
+const MAX_TILT = 70
+
+/** Effective half-width at a point (pressure modulates between 45%..115%,
+ *  tilt between 100%..150% on top of that — a slanted nib spreads wider). */
+export function halfWidthAt(
+  size: number,
+  p: number | undefined,
+  hasPressure: boolean,
+  t: number | undefined,
+  hasTilt: boolean,
+): number {
+  const base = size / 2
+  let w = base
+  if (hasPressure && p !== undefined) w = base * (0.45 + 0.7 * Math.max(0, Math.min(1, p)))
+  if (hasTilt && t !== undefined && t > 0) w *= 1 + 0.5 * Math.min(1, t / MAX_TILT)
+  return w
+}
+
 /** Squared distance from point P to segment AB. */
 function distToSegmentSq(
   px: number,
@@ -26,13 +45,6 @@ function distToSegmentSq(
   const cx = ax + t * dx - px
   const cy = ay + t * dy - py
   return cx * cx + cy * cy
-}
-
-/** Effective half-width at a point (pressure modulates between 45%..115%). */
-function halfWidthAt(size: number, p?: number, hasPressure?: boolean): number {
-  const base = size / 2
-  if (!hasPressure || p === undefined) return base
-  return base * (0.45 + 0.7 * Math.max(0, Math.min(1, p)))
 }
 
 /** Smooth a polyline into an SVG path using quadratic midpoint curves. */
@@ -68,15 +80,32 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
   // Dot: single tap → circle
   if (n === 1) {
     const p0 = pts[0]!
-    const r = halfWidthAt(stroke.size, p0.p)
+    const isHl = stroke.tool === 'highlighter'
+    const r = isHl
+      ? stroke.size / 2
+      : halfWidthAt(
+          stroke.size,
+          p0.p,
+          p0.p !== undefined && p0.p > 0,
+          p0.t,
+          !isHl && p0.t !== undefined && p0.t > 0,
+        )
     return circlePath(p0.x, p0.y, r)
   }
 
   let hasPressure = false
+  let hasTilt = false
   for (let i = 0; i < n; i++) {
-    const p = pts[i]!.p
-    if (stroke.tool !== 'highlighter' && p !== undefined && p > 0) {
+    const p = pts[i]!
+    if (stroke.tool !== 'highlighter' && p.p !== undefined && p.p > 0) {
       hasPressure = true
+      break
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!
+    if (stroke.tool !== 'highlighter' && p.t !== undefined && p.t > 0) {
+      hasTilt = true
       break
     }
   }
@@ -88,7 +117,7 @@ export function strokeOutlineD(stroke: Pick<InkStroke, 'points' | 'size' | 'tool
   const isHl = stroke.tool === 'highlighter'
   for (let i = 0; i < n; i++) {
     const pt = pts[i]!
-    hw[i] = isHl ? stroke.size / 2 : halfWidthAt(stroke.size, pt.p, hasPressure)
+    hw[i] = isHl ? stroke.size / 2 : halfWidthAt(stroke.size, pt.p, hasPressure, pt.t, hasTilt)
     const prev = pts[Math.max(0, i - 1)]!
     const next = pts[Math.min(n - 1, i + 1)]!
     let tx = next.x - prev.x

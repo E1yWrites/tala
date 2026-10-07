@@ -1,5 +1,5 @@
-import type { Folder, Note, Tag } from '@/types/models'
-import { docToPlainText } from './doc'
+import type { Folder, Note, PageRecord, Tag } from '@/types/models'
+import { pagesText } from './doc'
 
 /* ---------------------------------------------------------------------------
    Instant client-side search.
@@ -15,17 +15,22 @@ export interface SearchDoc {
   folderNameLower: string | null
 }
 
+/** Typed text plus (experimental) recognised handwriting: what a search looks through. */
+const noteBody = (pages: PageRecord[]): string =>
+  [pagesText(pages), ...pages.map((p) => p.inkText ?? '')].filter(Boolean).join('\n')
+
 export function buildSearchDocs(
   notes: Note[],
   tags: Tag[],
   folders: Folder[],
+  pagesByNote: Record<string, PageRecord[]>,
 ): SearchDoc[] {
   const tagNameById = new Map(tags.map((t) => [t.id, t.name.toLowerCase()]))
   const folderNameById = new Map(folders.map((f) => [f.id, f.name.toLowerCase()]))
   return notes.map((note) => ({
     note,
     titleLower: note.title.toLowerCase(),
-    bodyLower: docToPlainText(note.content).toLowerCase(),
+    bodyLower: noteBody(pagesByNote[note.id] ?? []).toLowerCase(),
     tagNamesLower: note.tagIds.map((id) => tagNameById.get(id) ?? ''),
     folderNameLower: note.folderId ? (folderNameById.get(note.folderId) ?? null) : null,
   }))

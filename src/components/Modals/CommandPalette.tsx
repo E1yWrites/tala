@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { usePrefsStore } from '@/store/prefsStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { downloadBackup } from '@/utils/exportImport'
@@ -52,7 +53,7 @@ export function CommandPalette(): React.ReactNode {
   const closeAllModals = useUIStore((s) => s.closeAllModals)
   const openModal = useUIStore((s) => s.openModal)
   const setView = useUIStore((s) => s.setView)
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
   const toggleFocusMode = useUIStore((s) => s.toggleFocusMode)
   const theme = useSettingsStore((s) => s.settings.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
@@ -103,7 +104,7 @@ export function CommandPalette(): React.ReactNode {
       { id: 'toggle-sidebar', label: 'Toggle sidebar', icon: Notebook, run: () => { closeAllModals(); toggleSidebar() } },
       {
         id: 'export',
-        label: 'Export backup (JSON)',
+        label: 'Export backup (.tala)',
         icon: Import,
         run: () => {
           closeAllModals()
@@ -154,7 +155,7 @@ export function CommandPalette(): React.ReactNode {
       onKeyDownCapture={onKeyDown}
       initialFocus={false}
     >
-      <div className="flex items-center gap-2 border-b-2 border-line px-4">
+      <div className="flex items-center gap-2 border-b border-lineSoft px-4">
         <Command className="size-4 shrink-0 text-faint" aria-hidden="true" />
         <input
           autoFocus
@@ -188,8 +189,8 @@ export function CommandPalette(): React.ReactNode {
               onMouseMove={() => setActiveIdx(i)}
               onClick={cmd.run}
               className={cn(
-                'flex w-full items-center gap-3 rounded-wobbly-sm px-2.5 py-2 text-left transition',
-                i === activeIdx ? 'bg-postit text-postit-ink' : 'hover:bg-canvas',
+                'flex w-full items-center gap-3 rounded-control px-2.5 py-2 text-left transition',
+                i === activeIdx ? 'bg-selected text-selected-ink' : 'hover:bg-canvas',
               )}
             >
               <cmd.icon className="size-[18px] shrink-0 overflow-visible text-muted" aria-hidden="true" />

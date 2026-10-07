@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
-import type { Note } from '@/types/models'
+import type { Note, PageRecord } from '@/types/models'
 import { docToPlainText } from './doc'
 
 /* ---------------------------------------------------------------------------
@@ -117,15 +117,18 @@ export function docToMarkdown(docNode: JSONContent | null | undefined): string {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
-export function noteToMarkdown(note: Note): string {
+/** Pages are separated by a horizontal rule; empty pages are skipped. */
+const joinPages = (parts: string[]): string => parts.filter((p) => p.trim()).join('\n\n---\n\n')
+
+export function noteToMarkdown(note: Note, pages: PageRecord[]): string {
   const title = note.title.trim()
-  const body = docToMarkdown(note.content)
+  const body = joinPages(pages.map((p) => docToMarkdown(p.content)))
   return title ? `# ${title}\n\n${body}` : body
 }
 
-export function noteToPlainText(note: Note): string {
+export function noteToPlainText(note: Note, pages: PageRecord[]): string {
   const title = note.title.trim()
-  const body = docToPlainText(note.content)
+  const body = joinPages(pages.map((p) => docToPlainText(p.content)))
   return title ? `${title}\n\n${body}` : body
 }
 
@@ -136,8 +139,7 @@ export function sanitizeFilename(title: string): string {
   return base || 'untitled-note'
 }
 
-export function downloadTextFile(filename: string, content: string, mime: string): void {
-  const blob = new Blob([content], { type: mime })
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -146,4 +148,8 @@ export function downloadTextFile(filename: string, content: string, mime: string
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function downloadTextFile(filename: string, content: string, mime: string): void {
+  downloadBlob(filename, new Blob([content], { type: mime }))
 }

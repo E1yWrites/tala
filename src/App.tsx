@@ -2,8 +2,8 @@ import { Component, useRef } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { toast, Toaster } from 'sonner'
-import { CheckSoft, Info } from 'lucide-react'
-import { bootApp } from '@/database/hydration'
+import { Bituin } from '@/coach/Bituin'
+import { bootApp } from '@/library/boot'
 import { useSettingsStore } from '@/store/settingsStore'
 import { AppShell } from '@/components/layout/AppShell'
 
@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+              className="mt-4 btn-primary rounded-control px-4 py-2 text-sm"
             >
               Reload Tala
             </button>
@@ -114,16 +114,18 @@ export default function App(): React.ReactNode {
         position="bottom-right"
         theme={theme}
         gap={8}
-        icons={{ success: <CheckSoft className="size-4" />, info: <Info className="size-4" /> }}
+        // On phones the tab bar sits at the bottom: keep toasts above it
+        mobileOffset={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        icons={{ success: <Bituin size={22} />, info: <Bituin size={22} /> }}
         toastOptions={{
           style: {
             background: 'rgb(var(--c-overlay))',
             color: 'rgb(var(--c-ink))',
-            border: '2px solid rgb(var(--c-line))',
-            borderRadius: '14px 10px 16px 9px',
-            fontFamily: "'Patrick Hand', cursive",
-            fontSize: '15px',
-            boxShadow: '4px 4px 0 0 rgb(0 0 0 / 0.12)',
+            border: '1px solid rgb(var(--c-line-soft))',
+            borderRadius: '12px',
+            fontFamily: "'Inter Variable', Inter, system-ui, sans-serif",
+            fontSize: '14px',
+            boxShadow: 'var(--shadow-raise)',
           },
         }}
       />
@@ -138,7 +140,7 @@ export default function App(): React.ReactNode {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+              className="mt-4 btn-primary rounded-control px-4 py-2 text-sm"
             >
               Reload
             </button>
@@ -162,7 +164,7 @@ export default function App(): React.ReactNode {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-wobbly-sm border-[3px] border-line bg-accent px-4 py-2 text-sm text-accent-fg shadow-sketch transition-all hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+              className="mt-4 btn-primary rounded-control px-4 py-2 text-sm"
             >
               Reload Tala
             </button>

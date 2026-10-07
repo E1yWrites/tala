@@ -7,17 +7,25 @@ import { cn } from '@/utils/cn'
 import { Button } from '@/components/UI/Button'
 import { processImageFile } from '@/utils/image'
 import { Avatar } from '@/components/UI/Avatar'
-import { TalaMark } from '@/components/Brand/TalaMark'
+import { Bituin } from '@/coach/Bituin'
+import { BITUIN } from '@/coach/copy'
+import { detectEnv } from '@/coach/env'
 
 const AVATAR_SIZE = 256
 /** Must match the formats promised in the UI copy. */
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-type OnboardingStep = 'welcome' | 'name' | 'avatar' | 'complete'
+type OnboardingStep = 'welcome' | 'name' | 'avatar' | 'safety' | 'complete'
 
 function OnboardingContent(): React.ReactNode {
   const { settings, update } = useSettingsStore()
   const { setView } = useUIStore()
+  // A phone or tablet tab gets a data-safety step: installed apps keep their notes protected
+  const env = detectEnv()
+  const steps: OnboardingStep[] =
+    (env.platform === 'ios' || env.platform === 'android') && !env.standalone
+      ? ['welcome', 'name', 'avatar', 'safety', 'complete']
+      : ['welcome', 'name', 'avatar', 'complete']
   const [step, setStep] = useState<OnboardingStep>('welcome')
   const [name, setName] = useState('')
   const [avatar, setAvatar] = useState<string | null>(settings.profile.avatar ?? null)
@@ -87,17 +95,8 @@ function OnboardingContent(): React.ReactNode {
     setIsDragging(false)
   }
 
-  const nextStep = (): void => {
-    if (step === 'welcome') setStep('name')
-    else if (step === 'name') setStep('avatar')
-    else if (step === 'avatar') setStep('complete')
-  }
-
-  const prevStep = (): void => {
-    if (step === 'name') setStep('welcome')
-    else if (step === 'avatar') setStep('name')
-    else if (step === 'complete') setStep('avatar')
-  }
+  const nextStep = (): void => setStep(steps[Math.min(steps.length - 1, steps.indexOf(step) + 1)]!)
+  const prevStep = (): void => setStep(steps[Math.max(0, steps.indexOf(step) - 1)]!)
 
   const completeOnboarding = async (): Promise<void> => {
     await update({
@@ -122,12 +121,12 @@ function OnboardingContent(): React.ReactNode {
       <div className="w-full max-w-md space-y-8">
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2">
-          {(['welcome', 'name', 'avatar', 'complete'] as OnboardingStep[]).map((s, i) => (
+          {steps.map((s, i) => (
             <span
               key={s}
               className={cn(
                 'h-1.5 rounded-full transition-colors',
-                i < (['welcome', 'name', 'avatar', 'complete'].indexOf(step)) ? 'w-12 bg-accent' : 'w-8 bg-lineSoft',
+                i <= steps.indexOf(step) ? 'w-12 bg-accent' : 'w-8 bg-lineSoft',
               )}
             />
           ))}
@@ -135,10 +134,10 @@ function OnboardingContent(): React.ReactNode {
 
         {step === 'welcome' && (
           <div className="text-center space-y-4">
-            <TalaMark size={80} className="mx-auto -rotate-3 animate-wiggle drop-shadow-sm text-accent" />
+            <Bituin size={150} motion="wave" blink className="mx-auto" />
             <h1 className="font-display text-3xl leading-tight">Welcome to tala</h1>
-            <p className="text-muted">Pagtatala, made simple.</p>
-            <p className="text-sm text-faint">A little place for your thoughts, notes, ideas, and everything worth remembering.</p>
+            <p className="font-hand text-[20px] leading-snug text-ink">{BITUIN.welcome.title}</p>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted">{BITUIN.welcome.body}</p>
             <Button variant="primary" size="md" className="w-full" onClick={nextStep}>
               <span className="flex items-center justify-center gap-2">
                 Get Started
@@ -165,7 +164,7 @@ function OnboardingContent(): React.ReactNode {
               autoFocus
               aria-label="Your name"
               required
-              className="w-full h-12 rounded-wobbly-md border-2 border-line bg-canvas px-4 text-center text-lg outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+              className="w-full h-12 rounded-card border border-lineSoft bg-canvas px-4 text-center text-lg outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
               maxLength={40}
             />
             <div className="flex gap-3">
@@ -191,7 +190,7 @@ function OnboardingContent(): React.ReactNode {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               className={cn(
-                'relative mx-auto size-24 shrink-0 rounded-full border-4 border-dashed flex items-center justify-center overflow-hidden transition-colors cursor-pointer',
+                'relative mx-auto size-24 shrink-0 rounded-full border-4 flex items-center justify-center overflow-hidden transition-colors cursor-pointer',
                 isDragging ? 'border-accent bg-accent-soft' : 'border-lineSoft hover:border-ballpoint/40',
               )}
             >
@@ -204,7 +203,7 @@ function OnboardingContent(): React.ReactNode {
                     <Avatar src={null} name={name} size="xl" className="size-full border-0" />
                   </div>
                   <span
-                    className="absolute bottom-0 right-0 z-10 grid size-7 translate-x-1 translate-y-1 place-items-center rounded-full border-2 border-line bg-panel text-faint shadow-sketch-sm"
+                    className="absolute bottom-0 right-0 z-10 grid size-7 translate-x-1 translate-y-1 place-items-center rounded-full border border-lineSoft bg-panel text-faint shadow-rest"
                     aria-hidden="true"
                   >
                     <Camera className="size-3.5" />
@@ -241,12 +240,41 @@ function OnboardingContent(): React.ReactNode {
           </div>
         )}
 
+        {step === 'safety' && (
+          <div className="space-y-4 text-center">
+            <Bituin size={88} motion="bob" blink className="mx-auto" />
+            <h1 className="font-display text-2xl leading-tight">{BITUIN.install.title}</h1>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted">{BITUIN.install.why}</p>
+            <ol className="mx-auto max-w-sm space-y-2.5 text-left">
+              {(env.platform === 'ios' ? BITUIN.install.iosSteps : BITUIN.install.androidSteps).map((line, i) => (
+                <li key={line} className="flex gap-3 text-sm leading-relaxed">
+                  <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent text-2xs font-medium text-accent-fg">
+                    {i + 1}
+                  </span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="flex gap-3">
+              <Button variant="ghost" size="md" className="flex-1" onClick={prevStep}>
+                Back
+              </Button>
+              <Button variant="primary" size="md" className="flex-1" onClick={nextStep}>
+                <span className="flex items-center justify-center gap-2">
+                  Continue
+                  <ArrowRight className="size-4" />
+                </span>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === 'complete' && (
           <div className="text-center space-y-6">
-            <Avatar src={avatar} name={name} size="xl" />
+            <Bituin size={130} motion="cheer" blink className="mx-auto" />
             <div className="space-y-1">
               <h1 className="font-display text-2xl leading-tight">You're all set, {name.trim() || 'there'}!</h1>
-              <p className="text-muted">Your workspace is ready.</p>
+              <p className="text-muted">Your workspace is ready. Galing!</p>
             </div>
             <Button variant="primary" size="md" className="w-full" onClick={completeOnboarding}>
               <span className="flex items-center justify-center gap-2">
