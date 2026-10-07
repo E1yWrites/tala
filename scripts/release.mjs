@@ -15,7 +15,7 @@ const fail = (m) => { console.error(m); process.exit(1) }
 const semver = (v) => (/^\d+\.\d+\.\d+$/.test(v) ? v : fail(`"${v}" is not X.Y.Z`))
 
 function notes(v) {
-  const m = read('CHANGELOG.md').match(new RegExp(`^## \\[${v.replaceAll('.', '\\.')}\\].*\\n([\\s\\S]*?)(?=^## \\[|(?![\\s\\S]))`, 'm'))
+  const m = read('CHANGELOG.md').match(new RegExp(`^## \\[${v.replaceAll('.', '\\.')}\\][^\\r\\n]*\\r?\\n([\\s\\S]*?)(?=^## \\[|(?![\\s\\S]))`, 'm'))
   return m ? m[1].trim() : fail(`CHANGELOG.md has no "## [${v}]" section`)
 }
 
