@@ -11,6 +11,7 @@ import { useTick } from '@/hooks/useTick'
 import { Bituin } from '@/coach/Bituin'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 
 /**
  * Home: a greeting from Bituin, any nudge and the tasks still open. The rail
@@ -24,6 +25,9 @@ export function HomePage(): React.ReactNode {
 
   return (
     <section aria-label="Home" className="h-full overflow-y-auto bg-shelf">
+      <div className="px-3 pt-4 empty:hidden">
+        <SidebarToggle />
+      </div>
       <div className="mx-auto flex max-w-[560px] flex-col gap-6 px-5 py-8 animate-slide-up">
         <header className="flex items-center gap-3">
           <Bituin size={48} motion="wave" blink />

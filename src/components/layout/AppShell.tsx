@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { useUIStore, SIDEBAR_WIDTH } from '@/store/uiStore'
-import { usePrefsStore } from '@/store/prefsStore'
+import { useUIStore } from '@/store/uiStore'
+import { usePrefsStore, PANE_WIDTHS } from '@/store/prefsStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/useMediaQuery'
 import { useHotkeys } from '@/hooks/useHotkeys'
 import { Sidebar } from '@/components/Sidebar/Sidebar'
 import { MobileNav } from './MobileNav'
+import { PaneResizer } from './PaneResizer'
 import { ModalHost } from '@/components/Modals/ModalHost'
 import { NoteListPanel } from '@/components/NoteList/NoteListPanel'
 import { NoteEditor } from '@/components/NoteEditor/NoteEditor'
@@ -20,7 +21,9 @@ import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
 /**
  * Responsive three-pane shell.
  *
- * ≥1024px : sidebar · list · editor (sidebar toggles expanded/hidden)
+ * ≥1024px : sidebar · list · editor (sidebar toggles expanded/hidden; both
+ *            columns are drag-resizable, flex shrinks them before the editor
+ *            drops below 480px)
  * 768-1023 : list · editor, sidebar in a drawer (tablet portrait)
  *    <768  : single pane + bottom tabs; editor becomes full-screen
  */
@@ -32,9 +35,14 @@ export function AppShell(): React.ReactNode {
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
   const sidebarCollapsed = usePrefsStore((s) => s.sidebarCollapsed)
   const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
+  const sidebarWidth = usePrefsStore((s) => s.sidebarWidth)
+  const setSidebarWidth = usePrefsStore((s) => s.setSidebarWidth)
+  const listWidth = usePrefsStore((s) => s.listWidth)
+  const setListWidth = usePrefsStore((s) => s.setListWidth)
 
   const isDesktop = useMediaQuery(BREAKPOINTS.desktop)
   const isMobile = useMediaQuery(BREAKPOINTS.mobile)
+  const isXl = useMediaQuery('(min-width: 1280px)')
 
   // Global keyboard shortcuts
   useHotkeys()
@@ -77,11 +85,6 @@ export function AppShell(): React.ReactNode {
     }
   }, [sidebarDrawerOpen, isDesktop])
 
-  const openDrawer = (): void => setSidebarDrawer(true)
-  // iPad/tablet shows the docked sidebar; the header menu toggles it
-  // between expanded and hidden instead of opening the mobile drawer.
-  const openSidebar = isDesktop ? toggleSidebar : openDrawer
-
   /* ------------------------------ View content ----------------------------- */
 
   const setupCompleted = useSettingsStore((s) => s.settings.setupCompleted)
@@ -102,16 +105,7 @@ export function AppShell(): React.ReactNode {
   } else if (view.kind === 'settings') {
     viewContent = <SettingsPage />
   } else {
-    viewContent = (
-      <NoteListPanel
-        view={view}
-        // Mobile: hamburger opens the drawer. Desktop/tablet: it toggles the
-        // docked sidebar — always offered when the sidebar is hidden so the
-        // bottom section (quick actions, theme, settings, profile) is never
-        // unreachable, not even on a fresh visit with a stale collapsed flag.
-        onOpenSidebar={!isDesktop || sidebarCollapsed ? openSidebar : undefined}
-      />
-    )
+    viewContent = <NoteListPanel view={view} />
   }
   const isSettingsArea = view.kind === 'settings'
 
@@ -157,11 +151,18 @@ export function AppShell(): React.ReactNode {
   return (
     <div className="flex h-full overflow-hidden pt-[env(safe-area-inset-top)]">
       {showDockedSidebar && (
-        <aside
-          style={{ width: `${SIDEBAR_WIDTH}px` }}
-          className="h-full shrink-0 transition-[width] duration-200 ease-out"
-        >
+        <aside style={{ flexBasis: sidebarWidth, minWidth: PANE_WIDTHS.sidebar.min }} className="relative h-full shrink">
           <Sidebar variant="dock" />
+          <PaneResizer
+            label="Resize sidebar"
+            value={sidebarWidth}
+            min={PANE_WIDTHS.sidebar.min}
+            max={PANE_WIDTHS.sidebar.max}
+            onChange={setSidebarWidth}
+            onReset={() => setSidebarWidth(PANE_WIDTHS.sidebar.default)}
+            snapBelow={PANE_WIDTHS.sidebar.snapBelow}
+            onCollapse={toggleSidebar}
+          />
         </aside>
       )}
 
@@ -176,11 +177,24 @@ export function AppShell(): React.ReactNode {
       ) : (
         <>
           {!focusMode && (
-            <aside className="h-full w-[300px] min-h-0 shrink-0 xl:w-[360px]">
+            <aside
+              style={{ flexBasis: listWidth ?? undefined, minWidth: PANE_WIDTHS.list.min }}
+              className="relative h-full min-h-0 shrink basis-[300px] xl:basis-[360px]"
+            >
               {viewContent}
+              {isDesktop && (
+                <PaneResizer
+                  label="Resize note list"
+                  value={listWidth ?? (isXl ? 360 : 300)}
+                  min={PANE_WIDTHS.list.min}
+                  max={PANE_WIDTHS.list.max}
+                  onChange={setListWidth}
+                  onReset={() => setListWidth(null)}
+                />
+              )}
             </aside>
           )}
-          <section aria-label="Editor" className="min-h-0 min-w-0 flex-1">
+          <section aria-label="Editor" className="min-h-0 min-w-[480px] flex-1">
             {selectedNoteId ? (
               <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
             ) : (

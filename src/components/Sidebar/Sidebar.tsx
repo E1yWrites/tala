@@ -136,16 +136,19 @@ export function Sidebar({
         variant === 'drawer' ? 'w-64' : 'w-full',
       )}
     >
-      {/* Brand */}
-      <button
-        type="button"
-        className="flex items-center gap-2.5 self-start rounded-control px-1.5 py-0.5"
-        onClick={() => navigate({ kind: 'home' })}
-        aria-label="Tala home"
-      >
-        <img src={APP_ICON} alt="" width={30} height={30} className="size-[30px] rounded-[8px]" draggable={false} />
-        <span className="text-[21px] font-bold tracking-[-0.02em]">Tala</span>
-      </button>
+      {/* Brand, with "Hide sidebar" first: the views put "Show sidebar" in this same spot */}
+      <div className="flex items-center gap-1">
+        {variant === 'dock' && <CollapseButton onClick={toggleSidebar} />}
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-2.5 rounded-control px-1.5 py-0.5"
+          onClick={() => navigate({ kind: 'home' })}
+          aria-label="Tala home"
+        >
+          <img src={APP_ICON} alt="" width={30} height={30} className="size-[30px] rounded-[8px]" draggable={false} />
+          <span className="truncate text-[21px] font-bold tracking-[-0.02em]">Tala</span>
+        </button>
+      </div>
 
       {/* New note: the one gold control */}
       <button
@@ -262,7 +265,6 @@ export function Sidebar({
         />
         <span className="flex-1" />
         <ThemeToggle className="text-rail-muted hover:bg-rail-active hover:text-rail-fg" />
-        {variant === 'dock' && <CollapseButton onClick={toggleSidebar} />}
       </div>
 
       {/* Profile: a menu for the profile, Quiet mode and backups; the gear opens Settings */}
@@ -577,7 +579,7 @@ function RailIconLink({
 
 function CollapseButton({ onClick }: { onClick: () => void }): ReactNode {
   return (
-    <Tooltip label="Hide sidebar" side="top">
+    <Tooltip label="Hide sidebar" side="right">
       <button type="button" onClick={onClick} aria-label="Hide sidebar" className={cn(RAIL_ICON_BTN, 'hidden lg:grid')}>
         <PanelLeft size={18} />
       </button>

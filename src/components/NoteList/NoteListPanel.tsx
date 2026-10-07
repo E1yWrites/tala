@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Filter,
   FilterActive,
-  Menu,
   MoreHorizontal,
   NotebookText,
   Pin,
@@ -39,10 +38,10 @@ import { Tooltip } from '../UI/Tooltip'
 import { NoteGridCard, NoteRow } from './NoteListItem'
 import { NotePreviewCard } from './NotePreviewCard'
 import { useLongPress } from '@/hooks/useLongPress'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 
 interface NoteListPanelProps {
   view: ViewRef
-  onOpenSidebar?: () => void
 }
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -55,7 +54,6 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 export function NoteListPanel({
   view,
-  onOpenSidebar,
 }: NoteListPanelProps): React.ReactNode {
   const allNotes = useNoteStore((s) => s.notes)
   const pagesByNote = usePageStore((s) => s.pagesByNote)
@@ -314,16 +312,7 @@ export function NoteListPanel({
     >
       {/* Header */}
       <header className="flex items-center gap-2 px-4 pb-2 pt-4">
-        {onOpenSidebar && (
-          <button
-            type="button"
-            onClick={onOpenSidebar}
-            aria-label="Open navigation"
-            className="grid size-8 shrink-0 place-items-center rounded-control text-muted hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
-          >
-            <Menu size={18} strokeWidth={2.5} />
-          </button>
-        )}
+        <SidebarToggle className="-ml-1" />
         <div className="min-w-0 flex-1">
           <h1 className="flex items-baseline gap-2 text-[21px] font-bold leading-tight tracking-[-0.02em]">
             <span className="truncate">{meta.title}</span>
