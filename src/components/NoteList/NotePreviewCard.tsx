@@ -157,7 +157,7 @@ export function NotePreviewCard({
     >
       {/* Header */}
       <div className="flex items-start gap-2 border-b-2 border-lineSoft px-4 pb-2 pt-3">
-        <h3 className="min-w-0 flex-1 truncate font-display text-base leading-snug text-ink">
+        <h3 className="min-w-0 flex-1 truncate font-bold tracking-[-0.02em] text-base leading-snug text-ink">
           {displayTitle(note)}
         </h3>
         <button

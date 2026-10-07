@@ -19,3 +19,4 @@ vite.config.d.ts
 .impeccable/review/
 .impeccable/mocks/
 .impeccable/build/
+.impeccable/questions/

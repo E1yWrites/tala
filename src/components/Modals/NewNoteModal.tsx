@@ -113,59 +113,66 @@ export function NewNoteModal(): React.ReactNode {
       size="lg"
       initialFocus
     >
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {/* Blank note */}
         <button
           type="button"
           onClick={() => void createFrom(undefined)}
           className={cn(
-            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-lineSoft bg-panel p-4 text-left',
-            'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+            'flex items-center gap-3 rounded-card border border-ink bg-panel p-3.5 text-left',
+            'transition-colors hover:bg-raise/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ballpoint',
           )}
         >
-          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control bg-selected text-selected-ink border border-line shadow-rest">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-panel">
             <FileText className="size-5" aria-hidden="true" />
           </span>
-          <span className="text-[13px]">Blank note</span>
-          <span className="text-xs leading-snug text-muted">Just start typing</span>
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold">Blank note</span>
+            <span className="block text-[13px] leading-snug text-muted">Type, or write with your pen</span>
+          </span>
         </button>
 
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={importing}
+          className={cn(
+            'flex items-center gap-3 rounded-card border border-lineSoft bg-panel p-3.5 text-left',
+            'transition-colors hover:border-line hover:bg-raise/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ballpoint',
+            importing && 'pointer-events-none opacity-60',
+          )}
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
+            <FileUp className="size-5" aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold">Import PDF</span>
+            <span className="block text-[13px] leading-snug text-muted">
+              {importing ? importProgress || 'Importing…' : 'Mark up slides and handouts'}
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <p className="mb-1 mt-5 px-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">Templates</p>
+      <div className="grid grid-cols-1 gap-x-2 sm:grid-cols-2">
         {templates.map(({ tpl, Icon }) => (
           <button
             key={tpl.id}
             type="button"
             onClick={() => void createFrom(tpl)}
             className={cn(
-              'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-lineSoft bg-panel p-4 text-left',
-              'transition hover:border-accent/50 hover:bg-accent-soft/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+              'flex items-center gap-3 rounded-control px-2.5 py-2.5 text-left',
+              'transition-colors hover:bg-raise/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ballpoint',
             )}
           >
-            <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control border border-line bg-canvas text-accent">
-              <Icon className="size-5" aria-hidden="true" />
+            <Icon className="size-[18px] shrink-0 text-muted" aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium">{tpl.name}</span>
+              <span className="block truncate text-xs text-faint">{tpl.description}</span>
             </span>
-            <span className="text-[13px]">{tpl.name}</span>
-            <span className="text-xs leading-snug text-muted">{tpl.description}</span>
           </button>
         ))}
-      <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={importing}
-          className={cn(
-            'flex min-h-[110px] min-w-[160px] flex-col items-start gap-2 overflow-visible rounded-control border border-line bg-canvas p-4 text-left text-accent',
-            'transition hover:border-ballpoint/40 hover:bg-ballpoint-soft/50 hover:text-ballpoint focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-            importing && 'pointer-events-none opacity-60',
-          )}
-        >
-          <span className="grid size-8 shrink-0 place-items-center overflow-visible rounded-control border border-line bg-canvas text-accent">
-            <FileUp className="size-5" aria-hidden="true" />
-          </span>
-          <span className="text-[13px]">Import PDF</span>
-          <span className="text-xs leading-snug text-muted">
-            {importing ? importProgress || 'Importing…' : 'Annotate an existing document'}
-          </span>
-        </button>
-
         <input
           ref={fileRef}
           type="file"
@@ -180,8 +187,8 @@ export function NewNoteModal(): React.ReactNode {
           }}
         />
       </div>
-      <p className="mt-3 text-center text-xs text-faint">
-        Tip: press <Kbd>Esc</Kbd> to cancel
+      <p className="mt-4 text-center text-xs text-faint">
+        <Kbd>Esc</Kbd> to cancel
       </p>
     </Modal>
   )

@@ -1,145 +1,92 @@
 import { useMemo } from 'react'
-import { Plus, Search, Folder as FolderIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { listTasks, toggleTask } from '@/library/tasks'
+import { displayTitle } from '@/utils/noteFilters'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
-import { displayTitle } from '@/utils/noteFilters'
-import { pagesText, textPreview } from '@/utils/doc'
-import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
+import { timeOfDayGreeting } from '@/utils/dates'
 import { useTick } from '@/hooks/useTick'
 import { Bituin } from '@/coach/Bituin'
-import { studyDaysThisWeek, weekDays } from '@/coach/study'
-import { useStudyStore } from '@/library/study'
-import { cn } from '@/utils/cn'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
-import { Button } from '@/components/UI/Button'
 
-/** Home: a greeting from Bituin, the quick actions, and the notes to pick up again. */
+/**
+ * Home: a greeting from Bituin, any nudge and the tasks still open. The rail
+ * shows the week; the editor pane beside it shows the notes to pick up again.
+ */
 export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
-
-  const notes = useNoteStore((s) => s.notes)
-  const pagesByNote = usePageStore((s) => s.pagesByNote)
+  const hasNotes = useNoteStore((s) => s.notes.some((n) => !n.isDeleted && !n.isArchived))
   const openModal = useUIStore((s) => s.openModal)
   const firstName = useSettingsStore((s) => s.settings.profile.name.split(/\s+/)[0] ?? '')
 
-  const recent = useMemo(
-    () =>
-      notes
-        .filter((n) => !n.isDeleted && !n.isArchived)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, 6),
-    [notes],
-  )
-
   return (
-    <section aria-label="Home" className="h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-2xl flex-col gap-5 px-5 py-8 animate-slide-up">
+    <section aria-label="Home" className="h-full overflow-y-auto bg-shelf">
+      <div className="mx-auto flex max-w-[560px] flex-col gap-6 px-5 py-8 animate-slide-up">
         <header className="flex items-center gap-3">
-          <Bituin size={64} motion="wave" blink />
-          <div className="min-w-0">
-            <h1 className="font-display text-3xl leading-tight">
+          <Bituin size={48} motion="wave" blink />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[26px] font-bold leading-tight tracking-[-0.025em]">
               {timeOfDayGreeting()}
               {firstName ? `, ${firstName}` : ''}
             </h1>
-            <p className="font-hand text-[18px] leading-tight text-muted">{BITUIN.home.line}</p>
+            <p className="text-sm text-muted">{BITUIN.home.line}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => openModal({ kind: 'search' })}
+            aria-label="Search notes"
+            className="grid size-10 shrink-0 place-items-center rounded-control border border-lineSoft bg-panel text-muted transition-colors hover:border-line hover:text-ink [@media(pointer:coarse)]:size-11"
+          >
+            <Search size={17} />
+          </button>
         </header>
 
         <BituinNudge placement="card" className="" />
 
-        {recent.length > 0 && <WeekCard />}
-
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => openModal({ kind: 'new-note' })}>
-            <Plus size={16} />
-            New note
-          </Button>
-          <Button onClick={() => openModal({ kind: 'search' })}>
-            <Search size={16} />
-            Search
-          </Button>
-          <Button variant="ghost" onClick={() => openModal({ kind: 'folder-editor' })}>
-            <FolderIcon size={16} />
-            New folder
-          </Button>
-        </div>
-
-        {recent.length === 0 ? (
-          <div className="rounded-card border border-lineSoft bg-panel px-6 py-8 text-center">
-            <p className="font-display text-xl">{BITUIN.empty.notes.title}</p>
-            <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{BITUIN.empty.notes.body}</p>
-          </div>
-        ) : (
-          <div>
-            <h2 className="mb-1 px-1 text-[13px] font-medium text-muted">Pick up where you left off</h2>
-            <ul className="flex flex-col">
-              {recent.map((note) => (
-                <li key={note.id}>
-                  <button
-                    type="button"
-                    onClick={() => openNote(note.id)}
-                    className="group flex min-h-14 w-full items-center gap-3 rounded-card px-3 py-2 text-left transition-colors hover:bg-panel"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-medium">{displayTitle(note)}</p>
-                      <p className="truncate text-[13px] text-faint">
-                        {textPreview(pagesText(pagesByNote[note.id] ?? []), 80) || 'Empty note'}
-                      </p>
-                    </div>
-                    <time className="shrink-0 text-xs tabular-nums text-faint">{formatRelative(note.updatedAt)}</time>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {hasNotes && <OpenTasks />}
       </div>
     </section>
   )
 }
 
-function openNote(id: string): void {
-  const ui = useUIStore.getState()
-  ui.setView({ kind: 'all' })
-  ui.selectNote(id)
-}
-
-/** Study days this week: seven small stars, gold for the days that count. Passive, never a nag. */
-function WeekCard(): React.ReactNode {
-  const seconds = useStudyStore((s) => s.seconds)
-  const goal = useStudyStore((s) => s.goal)
-  const now = Date.now()
-  const days = weekDays(seconds, now)
-  const done = studyDaysThisWeek(seconds, now)
-  const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+/** The first unticked tasks across notes: tick them here or jump to the note. */
+function OpenTasks(): React.ReactNode {
+  const notes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
+  const selectNote = useUIStore((s) => s.selectNote)
+  const setView = useUIStore((s) => s.setView)
+  const open = useMemo(() => listTasks(notes, pagesByNote).filter((t) => !t.checked), [notes, pagesByNote])
+  const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
+  if (open.length === 0) return null
   return (
-    <section aria-label={BITUIN.week.title} className="rounded-card border border-lineSoft bg-panel px-4 py-3 shadow-rest">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-medium text-muted">{BITUIN.week.title}</h2>
-        <p className="text-[13px] tabular-nums text-ink">{BITUIN.week.summary(done, goal)}</p>
+    <section aria-labelledby="home-tasks">
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <h2 id="home-tasks" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
+          Still to do
+        </h2>
+        <button type="button" onClick={() => setView({ kind: 'tasks' })} className="text-xs font-medium text-accent hover:underline">
+          All {open.length} tasks
+        </button>
       </div>
-      <ol className="mt-2 flex justify-between gap-1" aria-label="Study days this week">
-        {days.map((d, i) => (
-          <li key={d.key} className="flex flex-col items-center gap-1">
-            <span
-              role="img"
-              aria-label={`${LETTERS[i]}: ${d.studied ? 'studied' : d.today ? 'today' : 'no study'}`}
-              className={cn(
-                'grid size-8 place-items-center rounded-full border text-[18px] leading-none',
-                d.studied ? 'border-gold/60 bg-gold-soft text-gold' : 'border-lineSoft text-faint',
-                d.today && !d.studied && 'border-dashed border-line',
-              )}
-            >
-              {d.studied ? '★' : '·'}
-            </span>
-            <span className={cn('text-[11px]', d.today ? 'font-medium text-ink' : 'text-faint')}>{LETTERS[i]}</span>
+      <ul className="overflow-hidden rounded-card border border-lineSoft bg-panel">
+        {open.slice(0, 5).map((t) => (
+          <li key={`${t.pageId}:${t.path.join('.')}`} className="flex items-start gap-3 border-b border-lineSoft px-3.5 py-2.5 last:border-b-0">
+            <button
+              type="button"
+              onClick={() => void toggleTask(t)}
+              aria-label={`Tick “${t.text}”`}
+              className="mt-0.5 size-[18px] shrink-0 rounded-[5px] border-[1.5px] border-line transition-colors hover:border-ink"
+            />
+            <button type="button" onClick={() => selectNote(t.noteId)} className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-[14px]">{t.text || 'Untitled task'}</span>
+              <span className="block truncate text-xs text-faint">{displayTitle(byId.get(t.noteId)!)}</span>
+            </button>
           </li>
         ))}
-      </ol>
-      <p className="mt-2 text-xs text-faint">{BITUIN.week.hint}</p>
+      </ul>
     </section>
   )
 }

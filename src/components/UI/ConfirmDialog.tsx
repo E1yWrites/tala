@@ -37,7 +37,7 @@ export function ConfirmDialog({
       standalone={standalone}
     >
       <div className="p-5">
-        <h2 className="font-display text-xl leading-snug">{title}</h2>
+        <h2 className="font-bold tracking-[-0.02em] text-xl leading-snug">{title}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted">{message}</p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onCancel}>

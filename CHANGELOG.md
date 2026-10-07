@@ -18,11 +18,19 @@ Tala is rebuilt as a stylus-first, local-first notebook that installs as a web a
 - **Data safety**: persistent-storage request, Add-to-Home-Screen guide, weekly backup nudge, share-sheet backup on phones and tablets, and a copy of a pre-upgrade library kept in a separate database.
 - **`.tala` backups** (zip with `manifest.json`, `backup.json` and blobs). Legacy `.json` backups from versions 1–3 still import. Backups carry lecture rows and study days but not audio; each lecture has its own "Save audio".
 - Experimental, off by default: handwriting search using the browser's built-in recogniser (ChromeOS and some Android; not iPad Safari).
-- New app icon (star with pencil) for web, iOS, Android and desktop.
+- New app icon (star with pencil, pencil on the left) for web, iOS, Android and desktop.
+- **First-run onboarding and start screens**: a two-column welcome on tablet and desktop, three tips at the end of setup, a start list (New note, Import a PDF, Add a folder) when the library is empty, and "Pick up where you left off" when it is not.
+- **Week constellation** in the sidebar: one star per study day this week, joined as the week fills. Missing a day costs nothing.
+- **Catalogue numbers** (№ 001, № 002, …) on every note, and note lists grouped by day (Pinned, Today, Yesterday, This week, Earlier).
+- Home shows the tasks still open across notes; tick them there or jump to the note.
+- Profile menu in the sidebar (edit profile, change picture, Quiet mode, back up now) with the last backup time.
 - Search-engine and social-sharing metadata, `robots.txt`, `sitemap.xml` and a share image for tala.lorenzmalabanan.com.
 
 ### Changed
-- Clean visual system: Inter for UI text, green for actions, blue for ink, gold only for Bituin and favourites; doodle accents instead of hand-drawn borders.
+- **New look, built for tablet and desktop first**: colours taken from the app icon (forest-green sidebar, star-yellow New note, white pages on a light green dotted ground, dark mode to match), one typeface (Hanken Grotesk) instead of handwriting fonts, and plain line icons instead of doodles.
+- **Calmer editor**: a Type | Write switch and a Record button in the header; the pen tools sit in a dock on the page's edge (mirrored for left-handed use, a bottom row on phones) instead of a bar above the text. Switching modes never moves the text under your handwriting.
+- The note list's density (comfortable, compact, grid) moved into the Sort menu. Pinned and Recent left the sidebar; pinned notes head All Notes and both views stay in the command palette.
+- Keyboard hints read ⌘ on Mac and iPad and Ctrl elsewhere.
 - Database schema v5 (additive; upgrades from v2 and v3 are tested). One library module is now the only writer of note data, with optimistic updates and rollback on a failed write.
 - The service worker now precaches the pdf.js worker, so PDF import works offline.
 - Release workflow checks that the tag matches the app version, runs tests, and publishes the changelog section as the release notes.
@@ -33,6 +41,7 @@ Tala is rebuilt as a stylus-first, local-first notebook that installs as a web a
 - A note with ink only on a later page looked empty and was never saved; emptying a saved note was not saved.
 - Edits are flushed when the tab is hidden or closed.
 - PDF import failures now show a message.
+- Menus near the right edge of the screen (such as the phone's "You" menu) no longer jump to the left side.
 
 ### Not carried over from 1.1.0
 DOCX/PPTX/DOC/PPT import, the `.zip` package format (replaced by `.tala` backups, which can still read old backups but not 1.1.0 packages), editable shape handles, and the Draw popover. Pencil double-tap and squeeze are not available in a browser.

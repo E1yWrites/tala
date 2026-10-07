@@ -77,14 +77,14 @@ export function BituinNudge({
     return (
       <div
         className={cn(
-          'flex items-start gap-3 rounded-card border border-gold/40 bg-gold-soft p-3 text-gold-ink animate-fade-in',
+          'flex items-start gap-3 rounded-card border border-lineSoft bg-panel p-3 text-ink animate-fade-in',
           className ?? 'mx-4 mb-2',
         )}
       >
-        <Bituin size={44} motion="bob" blink />
+        <Bituin size={36} blink />
         <div className="min-w-0 flex-1">
-          <p className="font-hand text-[18px] leading-tight">{w.title}</p>
-          <p className="mt-0.5 text-[13px] leading-snug">{w.body}</p>
+          <p className="text-[15px] font-semibold leading-tight">{w.title}</p>
+          <p className="mt-0.5 text-[13px] leading-snug text-muted">{w.body}</p>
           <div className="mt-2 flex items-center gap-1.5">
             <button
               type="button"
@@ -96,7 +96,7 @@ export function BituinNudge({
             <button
               type="button"
               onClick={() => snoozeSuggestion(suggestion)}
-              className="h-9 rounded-control px-2.5 text-[13px] font-medium hover:bg-gold/25"
+              className="h-9 rounded-control px-2.5 text-[13px] font-medium text-muted hover:bg-raise hover:text-ink"
             >
               {w.later}
             </button>
@@ -115,14 +115,14 @@ export function BituinNudge({
         leftHanded ? 'left-4' : 'right-4',
       )}
     >
-      <div className="pointer-events-auto flex max-w-[300px] items-center gap-2 rounded-surface border border-gold/50 bg-gold-soft py-2 pl-2 pr-1 text-gold-ink shadow-raise animate-slide-up">
+      <div className="pointer-events-auto flex max-w-[320px] items-center gap-2.5 rounded-full border border-rail-line bg-rail py-1.5 pl-1.5 pr-1 text-rail-fg shadow-float animate-slide-up">
         <Bituin size={36} />
         <div className="min-w-0">
-          <p className="text-[13px] font-medium leading-tight">{w.title}</p>
+          <p className="text-[13px] font-semibold leading-tight">{w.title}</p>
           <button
             type="button"
             onClick={() => run(suggestion)}
-            className="mt-0.5 text-[13px] font-medium underline underline-offset-2"
+            className="mt-0.5 text-[12.5px] font-medium text-gold underline-offset-2 hover:underline"
           >
             {w.action}
           </button>
@@ -131,7 +131,7 @@ export function BituinNudge({
           type="button"
           onClick={() => snoozeSuggestion(suggestion)}
           aria-label={w.later}
-          className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-gold/25"
+          className="grid size-9 shrink-0 place-items-center rounded-full text-rail-muted hover:bg-rail-active hover:text-rail-fg"
         >
           <X size={16} aria-hidden="true" />
         </button>

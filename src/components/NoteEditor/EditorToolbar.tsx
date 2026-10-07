@@ -109,7 +109,7 @@ export function EditorToolbar({ editor }: { editor: Editor }): React.ReactNode {
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="no-scrollbar flex flex-wrap items-center gap-0.5 rounded-card border border-lineSoft bg-panel px-1.5 py-1 shadow-rest [@media(pointer:coarse)]:flex-nowrap [@media(pointer:coarse)]:overflow-x-auto"
+      className="no-scrollbar flex w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-card border border-lineSoft bg-panel px-1.5 py-1 shadow-rest"
     >
       {groups.map((group, g) => (
         <Fragment key={g}>
@@ -187,7 +187,7 @@ function LinkDialog({
           apply(new FormData(e.currentTarget).get('url')?.toString() ?? '')
         }}
       >
-        <h2 className="font-display text-xl leading-snug">{existing ? 'Edit link' : 'Add link'}</h2>
+        <h2 className="font-bold tracking-[-0.02em] text-xl leading-snug">{existing ? 'Edit link' : 'Add link'}</h2>
         <input
           name="url"
           type="text"

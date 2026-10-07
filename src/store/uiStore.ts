@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { ModalIntent, ViewRef } from '@/types/models'
 
 /** Fixed sidebar width when expanded (px). */
-export const SIDEBAR_WIDTH = 260
+export const SIDEBAR_WIDTH = 232
 
 interface UIState {
   activeView: ViewRef

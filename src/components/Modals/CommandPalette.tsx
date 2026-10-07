@@ -22,6 +22,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { downloadBackup } from '@/utils/exportImport'
 import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
+import { shortcut } from '@/utils/keys'
 
 interface CommandEntry {
   id: string
@@ -66,7 +67,7 @@ export function CommandPalette(): React.ReactNode {
       {
         id: 'new-note',
         label: 'New note',
-        hint: 'Ctrl N',
+        hint: shortcut('N'),
         icon: FileText,
         run: () => {
           closeAllModals()
@@ -76,7 +77,7 @@ export function CommandPalette(): React.ReactNode {
       {
         id: 'search',
         label: 'Search notes',
-        hint: 'Ctrl K',
+        hint: shortcut('K'),
         icon: Notebook,
         run: () => {
           closeAllModals()

@@ -13,7 +13,7 @@ import { cn } from '@/utils/cn'
    (paragraphs, quotes, code, images, lists) flow full-width between cards.
 
    The DOM mirrors ProseMirror's output and is rendered inside a `.tiptap`
-   element so every editor style (Kalam headings, ballpoint quotes, sketchy
+   element so every editor style (headings, quotes, sketchy
    code blocks, hand-drawn checkboxes) applies unchanged.
 --------------------------------------------------------------------------- */
 
@@ -291,7 +291,7 @@ function BodyPieces({ pieces, idPrefix }: { pieces: BodyPiece[]; idPrefix: strin
                 key={`${run.key}-${i}`}
                 className="rounded-control border border-lineSoft bg-panel px-4 py-3 transition-colors duration-150 hover:bg-raise/40"
               >
-                <h4 className="font-display text-base leading-snug">
+                <h4 className="font-bold tracking-[-0.02em] text-base leading-snug">
                   {headingText(card.heading) || 'Untitled'}
                 </h4>
                 <FlowBlocks blocks={card.blocks} idPrefix={`${run.key}-${i}`} />
@@ -333,7 +333,7 @@ function CollapsibleSection({
             !collapsed && 'rotate-90',
           )}
         />
-        <span className="font-display text-[22px] leading-tight underline decoration-wavy decoration-lineSoft underline-offset-[6px]">
+        <span className="font-bold tracking-[-0.02em] text-[22px] leading-tight">
           {headingText(section.heading) || `Section ${index + 1}`}
         </span>
       </button>

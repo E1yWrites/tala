@@ -57,6 +57,33 @@ export function sortNotes(notes: Note[], sortKey: SortKey, pinnedFirst = true): 
   return sorted
 }
 
+/**
+ * Heading for each row of a last-edited list: the label at index i when row i
+ * starts a new group, else undefined. Pinned notes (already sorted first)
+ * form their own group; the rest fall into Today / Yesterday / This week /
+ * Earlier by local calendar day. Pure: `now` is passed in.
+ */
+export function dayGroupLabels(notes: readonly Note[], pinnedFirst: boolean, now: number): (string | undefined)[] {
+  const startOf = (t: number): number => new Date(t).setHours(0, 0, 0, 0)
+  const today = startOf(now)
+  const DAY = 86_400_000
+  const label = (n: Note): string => {
+    if (pinnedFirst && n.isPinned) return 'Pinned'
+    const d = startOf(n.updatedAt)
+    if (d >= today) return 'Today'
+    if (d >= today - DAY) return 'Yesterday'
+    if (d >= today - 6 * DAY) return 'This week'
+    return 'Earlier'
+  }
+  let prev: string | undefined
+  return notes.map((n) => {
+    const l = label(n)
+    if (l === prev) return undefined
+    prev = l
+    return l
+  })
+}
+
 export function displayTitle(note: Note): string {
   return note.title.trim() || 'Untitled'
 }

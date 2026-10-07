@@ -125,7 +125,7 @@ export function SearchModal(): React.ReactNode {
         ) : (
           <>
             {!query.trim() && (
-              <p className="px-2.5 pt-1.5 pb-1 text-[13px] text-muted underline decoration-wavy decoration-lineSoft/70 underline-offset-4">
+              <p className="px-2.5 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
                 Jump back in
               </p>
             )}

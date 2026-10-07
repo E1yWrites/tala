@@ -46,8 +46,8 @@
         "author": { "@type": "Person", "name": "Lorenz Malabanan", "url": "https://lorenzmalabanan.com" }
       }
     </script>
-    <meta name="theme-color" content="#f3f6f2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#101512" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#1f4a2b" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a180f" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" href="/app-icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -65,14 +65,13 @@
         align-items: center;
         justify-content: center;
         gap: 14px;
-        background-color: #f3f6f2;
-        color: #17201a;
+        background-color: #1f4a2b;
+        color: #eef6ee;
         transition: opacity 240ms ease;
-        font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       }
       #splash.dark {
-        background-color: #101512;
-        color: #e9efe9;
+        background-color: #0a180f;
       }
       .splash-mark {
         width: 120px;
@@ -95,11 +94,8 @@
         margin-top: 6px;
         overflow: hidden;
         border-radius: 4px;
-        background: #dfe5dd;
+        background: #2f5e3a;
         animation: splash-fade 400ms 300ms both;
-      }
-      #splash.dark .splash-bar {
-        background: #2a342d;
       }
       .splash-bar::after {
         content: '';
@@ -107,12 +103,9 @@
         height: 100%;
         width: 100%;
         border-radius: 4px;
-        background: #2b7a3f;
+        background: #f6c845;
         transform-origin: left;
         animation: splash-fill 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
-      }
-      #splash.dark .splash-bar::after {
-        background: #5cc277;
       }
       @keyframes splash-pop {
         from { opacity: 0; transform: scale(0.85); }
@@ -164,7 +157,7 @@
           var t = localStorage.getItem('tala:theme');
           var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
-          document.documentElement.style.background = dark ? '#101512' : '#f3f6f2';
+          document.documentElement.style.background = dark ? '#0c150f' : '#edf3ec';
           var s = document.getElementById('splash');
           if (s && dark) s.classList.add('dark');
         } catch (e) {}

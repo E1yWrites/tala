@@ -1,10 +1,11 @@
 import type { Config } from 'tailwindcss'
 
 /**
- * Tala design tokens: clean surfaces, doodle accents.
+ * Tala design tokens, taken from the app icon (tile green, star yellow).
  * Colors are RGB channel triplets in src/index.css mapped here, so light and
- * dark only swap CSS variables. Roles: green = actions, gold = Bituin and
- * celebration, blue (ballpoint) = ink and links, red = destructive.
+ * dark only swap CSS variables. Roles: green = actions, gold = stars only
+ * (Bituin, Study days, starred notes), ballpoint = ink, links and focus,
+ * red = destructive, rail = the green navigation column.
  */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -12,14 +13,22 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Inter Variable"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        // Accents only: titles, Bituin's voice, small annotations
-        display: ['Kalam', '"Patrick Hand"', 'cursive'],
-        hand: ['"Patrick Hand"', 'Kalam', 'cursive'],
+        sans: ['"Hanken Grotesk Variable"', 'system-ui', '-apple-system', 'sans-serif'],
+        // One face: titles are the same family, set larger and heavier
+        display: ['"Hanken Grotesk Variable"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       colors: {
         canvas: 'rgb(var(--c-canvas) / <alpha-value>)',
+        shelf: 'rgb(var(--c-shelf) / <alpha-value>)',
+        rail: {
+          DEFAULT: 'rgb(var(--c-rail) / <alpha-value>)',
+          well: 'rgb(var(--c-rail-well) / <alpha-value>)',
+          active: 'rgb(var(--c-rail-active) / <alpha-value>)',
+          line: 'rgb(var(--c-rail-line) / <alpha-value>)',
+          fg: 'rgb(var(--c-rail-fg) / <alpha-value>)',
+          muted: 'rgb(var(--c-rail-muted) / <alpha-value>)',
+        },
         panel: 'rgb(var(--c-panel) / <alpha-value>)',
         raise: 'rgb(var(--c-raise) / <alpha-value>)',
         overlay: 'rgb(var(--c-overlay) / <alpha-value>)',
@@ -38,6 +47,7 @@ export default {
           DEFAULT: 'rgb(var(--c-gold) / <alpha-value>)',
           soft: 'rgb(var(--c-gold-soft) / <alpha-value>)',
           ink: 'rgb(var(--c-gold-ink) / <alpha-value>)',
+          fg: 'rgb(var(--c-gold-fg) / <alpha-value>)',
         },
         danger: {
           DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
@@ -59,14 +69,12 @@ export default {
         rest: 'var(--shadow-rest)',
         raise: 'var(--shadow-raise)',
         float: 'var(--shadow-float)',
+        sheet: 'var(--shadow-sheet)',
       },
       borderRadius: {
-        surface: '16px',
-        card: '12px',
+        surface: '14px',
+        card: '10px',
         control: '8px',
-        // Doodle accents only (Bituin's chip, tape): never on a control
-        doodle: '35px 8px 45px 8px / 8px 45px 8px 35px',
-        blob: '58% 42% 55% 45% / 48% 55% 45% 52%',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },

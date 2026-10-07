@@ -31,7 +31,7 @@ export function TasksPage(): React.ReactNode {
   return (
     <section aria-label="Tasks" className="flex h-full min-h-0 flex-col bg-canvas">
       <header className="px-4 pb-2 pt-4">
-        <h1 className="font-display text-xl leading-snug">Tasks</h1>
+        <h1 className="font-bold tracking-[-0.02em] text-xl leading-snug">Tasks</h1>
         <p className="text-xs text-faint">
           {tasks.length === 0 ? 'Checklists from all your notes' : `${open.length} open · ${done.length} done`}
         </p>

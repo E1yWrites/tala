@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { menuShift } from '@/utils/menuPosition'
 
 export interface MenuItem {
   id: string
@@ -83,22 +84,9 @@ export function DropdownMenu({
         triggerRect.top > menuH,
     )
 
-    // Horizontal clamping — default align="end" means CSS sets right:0,
-    // placing the menu's right edge at the trigger's right edge. Shift if
-    // the menu would extend past the viewport left or right boundary.
-    const pad = 8
-    const defaultRight = triggerRect.right
-    const wouldOverflowLeft = defaultRight - menuW < pad
-    const wouldOverflowRight = defaultRight > window.innerWidth - pad
-
-    if (wouldOverflowLeft) {
-      setHorizShift(Math.max(0, menuW - defaultRight + pad))
-    } else if (wouldOverflowRight) {
-      setHorizShift(Math.min(0, window.innerWidth - defaultRight - menuW - pad))
-    } else {
-      setHorizShift(0)
-    }
-  }, [open, items.length, side])
+    // Horizontal clamping: keep the menu inside the viewport, moving it only by the overflow.
+    setHorizShift(menuShift(align, triggerRect, menuW, window.innerWidth))
+  }, [open, items.length, side, align])
 
   useEffect(() => {
     if (open) setActiveIndex(Math.max(0, items.findIndex((i) => !i.disabled && i.type !== 'separator')))

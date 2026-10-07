@@ -14,6 +14,7 @@ import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
 import type { ViewRef } from '@/types/models'
+import { cn } from '@/utils/cn'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
 
 /**
@@ -135,7 +136,7 @@ export function AppShell(): React.ReactNode {
   if (isMobile) {
     return (
       <div className="flex h-full flex-col pt-[env(safe-area-inset-top)]">
-        <div className="min-h-0 flex-1 pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
+        <div className={cn('min-h-0 flex-1', !selectedNoteId && 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]')}>
           {selectedNoteId ? (
             <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
           ) : (

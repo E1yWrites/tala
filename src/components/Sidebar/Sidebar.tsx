@@ -1,28 +1,22 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Bituin } from '@/coach/Bituin'
+import { WeekConstellation } from '@/coach/WeekConstellation'
 import { listTasks } from '@/library/tasks'
 import { usePageStore } from '@/store/pageStore'
 import {
   Archive,
   CheckSquare,
   ChevronRight,
-  Clock,
-  Folder as FolderIcon,
+  Home,
   MoreHorizontal,
   NotebookText,
   PanelLeft,
-  Pin,
   Plus,
+  Search,
   Settings as SettingsIcon,
   Star,
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-
-const ICON_SIZE = 24
-const ICON_CONTAINER = 'grid size-7 shrink-0 place-items-center overflow-visible'
-const BOTTOM_ICON_SIZE = 26
-const BOTTOM_ICON_CONTAINER = 'grid size-full place-items-center overflow-visible'
 import { Avatar } from '../UI/Avatar'
 import { useNoteStore } from '@/store/noteStore'
 import { useFolderStore } from '@/store/folderStore'
@@ -32,11 +26,25 @@ import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { ViewKind, ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
+import { formatRelative } from '@/utils/dates'
+import { folderColor } from '@/utils/folderColor'
+import { downloadBackup } from '@/utils/exportImport'
 import { Tooltip } from '../UI/Tooltip'
 import { ThemeToggle } from '../UI/ThemeToggle'
 import { useTick } from '@/hooks/useTick'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
+import { shortcut } from '@/utils/keys'
+
+/** Initials on the rail: a star-yellow chip, readable on green in both themes. */
+const RAIL_AVATAR = 'border-transparent bg-gold font-semibold text-gold-fg'
+
+/** The app icon (public/, precached by the service worker). */
+const APP_ICON = `${import.meta.env.BASE_URL}app-icon-192.png`
+
+/** Quiet icon button on the green rail. */
+const RAIL_ICON_BTN =
+  'grid size-9 shrink-0 place-items-center rounded-control text-rail-muted transition-colors hover:bg-rail-active hover:text-rail-fg [@media(pointer:coarse)]:size-11'
 
 interface NavItemSpec {
   /** Stable identity for list keys / aria. */
@@ -74,7 +82,6 @@ export function Sidebar({
 
   const counts = useMemo(() => {
     const live = notes.filter((n) => !n.isDeleted && !n.isArchived)
-    const weekAgo = Date.now() - 7 * 86_400_000
     const perFolder = new Map<string, number>()
     const perTag = new Map<string, number>()
     for (const n of live) {
@@ -84,8 +91,6 @@ export function Sidebar({
     return {
       all: live.length,
       favorites: live.filter((n) => n.isFavorite).length,
-      pinned: live.filter((n) => n.isPinned).length,
-      recent: live.filter((n) => n.updatedAt >= weekAgo).length,
       archive: notes.filter((n) => !n.isDeleted && n.isArchived).length,
       trash: notes.filter((n) => n.isDeleted).length,
       perFolder,
@@ -98,14 +103,15 @@ export function Sidebar({
     [notes, pagesByNote],
   )
 
-  const libraryItems: NavItemSpec[] = [
+  const lastBackupAt = usePrefsStore((s) => s.coach.lastBackupAt)
+  const quietMode = usePrefsStore((s) => s.quietMode)
+  const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
+
+  const primaryItems: NavItemSpec[] = [
+    { id: 'home', label: 'Home', icon: Home },
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
-    { id: 'favorites', label: 'Favorites', icon: Star, count: counts.favorites },
-    { id: 'pinned', label: 'Pinned', icon: Pin, count: counts.pinned },
-    { id: 'recent', label: 'Recent', icon: Clock, count: counts.recent },
+    { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
-    { id: 'archive', label: 'Archive', icon: Archive, count: counts.archive },
-    { id: 'trash', label: 'Trash', icon: Trash2, count: counts.trash },
   ]
 
   const topTags = useMemo(
@@ -124,87 +130,93 @@ export function Sidebar({
 
   return (
     <nav
+      aria-label="Library"
       className={cn(
-        'flex h-full flex-col border-r border-lineSoft bg-panel px-3 py-3',
-        variant === 'drawer' ? 'w-60' : 'w-full',
+        'flex h-full flex-col border-r border-rail-line bg-rail px-3 pb-3 pt-4 text-rail-fg',
+        variant === 'drawer' ? 'w-64' : 'w-full',
       )}
     >
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-1">
-        <button
-          type="button"
-          className="grid size-9 shrink-0 place-items-center rounded-control transition-transform duration-150 hover:scale-105"
-          onClick={() => navigate({ kind: 'home' })}
-          aria-label="Tala home"
-        >
-          <Bituin size={32} />
-        </button>
-        <div className="min-w-0">
-          <p className="font-display text-lg leading-none">
-            tala<span className="text-accent">.</span>
-          </p>
-          <p className="mt-0.5 truncate text-xs leading-none text-faint">Pagtatala, made simple.</p>
-        </div>
-      </div>
+      <button
+        type="button"
+        className="flex items-center gap-2.5 self-start rounded-control px-1.5 py-0.5"
+        onClick={() => navigate({ kind: 'home' })}
+        aria-label="Tala home"
+      >
+        <img src={APP_ICON} alt="" width={30} height={30} className="size-[30px] rounded-[8px]" draggable={false} />
+        <span className="text-[21px] font-bold tracking-[-0.02em]">Tala</span>
+      </button>
 
-      {/* New note */}
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={() => openModal({ kind: 'new-note' })}
-          className="btn-primary h-10 w-full justify-start rounded-card px-4 text-[15px] font-medium"
-        >
-          <span className={ICON_CONTAINER} aria-hidden="true">
-            <Plus size={ICON_SIZE} strokeWidth={2.5} />
-          </span>
-          New Note
-        </button>
-      </div>
+      {/* New note: the one gold control */}
+      <button
+        type="button"
+        onClick={() => openModal({ kind: 'new-note' })}
+        className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-card bg-gold text-[15px] font-semibold text-gold-fg transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.98]"
+      >
+        <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
+        New note
+      </button>
 
-      {/* Library */}
-      <ul className="mt-4 flex flex-col gap-0.5 overflow-y-auto no-scrollbar">
-        {libraryItems.map((item) => (
-          <li key={item.id}>
+      <div className="-mx-1 mt-4 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
+        <ul className="flex flex-col gap-0.5">
+          {primaryItems.map((item) => (
+            <li key={item.id}>
+              <NavItemButton
+                item={item}
+                active={activeView.kind === item.id}
+                onSelect={() => navigate({ kind: item.id as ViewKind })}
+              />
+            </li>
+          ))}
+          <li>
             <NavItemButton
-              item={item}
-              active={activeView.kind === item.id}
-              onSelect={() => navigate({ kind: item.id as ViewKind })}
+              item={{ id: 'search', label: 'Search', icon: Search }}
+              hint={shortcut('K')}
+              active={false}
+              onSelect={() => {
+                if (variant === 'drawer') setSidebarDrawer(false)
+                openModal({ kind: 'search' })
+              }}
             />
           </li>
-        ))}
-      </ul>
+        </ul>
 
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
-          {/* Folders */}
-          <SectionHeader
-            label="Folders"
-            actionLabel="Create folder"
-            onAction={() => openModal({ kind: 'folder-editor' })}
+        {/* Folders */}
+        <SectionHeader
+          label="Folders"
+          actionLabel="Create folder"
+          onAction={() => openModal({ kind: 'folder-editor' })}
+        />
+        {folders.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => openModal({ kind: 'folder-editor' })}
+            className="mx-1 mt-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-control border border-dashed border-rail-line px-2.5 py-2 text-left text-xs text-rail-muted transition-colors hover:border-rail-muted hover:text-rail-fg"
+          >
+            <Plus size={14} aria-hidden="true" />
+            One folder per class keeps a term tidy
+          </button>
+        ) : (
+          <FolderTree
+            folders={folders}
+            parentId={null}
+            depth={0}
+            activeView={activeView}
+            navigate={navigate}
+            counts={counts.perFolder}
+            openModal={openModal}
+            notes={notes}
+            expandedFolderIds={expandedFolderIds}
+            toggleFolderExpand={toggleFolderExpand}
+            moveFolder={moveFolder}
+            setPendingFolderDelete={setPendingFolderDelete}
           />
-          {folders.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-faint">No folders yet</p>
-          ) : (
-            <FolderTree
-              folders={folders}
-              parentId={null}
-              depth={0}
-              activeView={activeView}
-              navigate={navigate}
-              counts={counts.perFolder}
-              openModal={openModal}
-              notes={notes}
-              expandedFolderIds={expandedFolderIds}
-              toggleFolderExpand={toggleFolderExpand}
-              moveFolder={moveFolder}
-              setPendingFolderDelete={setPendingFolderDelete}
-            />
-          )}
+        )}
 
-          {/* Tags */}
-          <SectionHeader label="Tags" />
-          {topTags.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-faint">No tags yet</p>
-          ) : (
+        {/* Tags */}
+        {topTags.length > 0 && (
+          <>
+            <SectionHeader label="Tags" />
             <div className="mt-1.5 flex flex-wrap gap-1.5 px-1">
               {topTags.map(({ tag, count }) => {
                 const active = activeView.kind === 'tag' && activeView.refId === tag.id
@@ -215,69 +227,106 @@ export function Sidebar({
                     onClick={() => navigate({ kind: 'tag', refId: tag.id })}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'inline-flex h-6 items-center gap-1 rounded-control border px-2 text-xs transition-colors',
+                      'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs transition-colors',
                       active
-                        ? 'border-ballpoint/60 bg-ballpoint-soft text-ballpoint'
-                        : 'border-lineSoft bg-canvas text-muted hover:border-ballpoint/40 hover:text-ink',
+                        ? 'border-rail-fg bg-rail-fg text-rail'
+                        : 'border-rail-line text-rail-muted hover:border-rail-muted hover:text-rail-fg',
                     )}
                   >
                     #{tag.name}
-                    <span className="text-[10px] opacity-60">{count}</span>
+                    <span className="tabular-nums opacity-70">{count}</span>
                   </button>
                 )
               })}
             </div>
-          )}
-        </div>
-
-      {/* Bottom area */}
-      <div className="mt-auto flex flex-col gap-0.5 pt-3">
-        <NavItemButton
-          item={{ id: 'quick-actions', label: 'Quick actions…', icon: Plus }}
-          active={false}
-          onSelect={() => openModal({ kind: 'palette' })}
-        />
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <SettingsButton onClick={() => navigate({ kind: 'settings' })} />
-          {variant === 'dock' && (
-            <CollapseButton onClick={toggleSidebar} />
-          )}
-        </div>
-
-        {/* Profile — display only. Editing lives in Settings → Profile. */}
-        <div className="mt-2">
-          <div className="flex items-center gap-2.5 rounded-control p-1.5">
-            <Avatar
-              src={settings.profile.avatar}
-              name={settings.profile.name}
-              size="md"
-            />
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-sm leading-tight">{settings.profile.name}</span>
-              <span className="block truncate text-xs text-faint">{settings.profile.role}</span>
-            </span>
-          </div>
-        </div>
+          </>
+        )}
       </div>
-          {pendingFolderDelete !== null && (
-            <ConfirmDialog
-              open
-              standalone
-              title={`Delete “${pendingFolderDelete.name}”?`}
-              message={
-                pendingFolderDelete.count > 0
-                  ? `Its ${pendingFolderDelete.count} note${pendingFolderDelete.count === 1 ? '' : 's'} will stay in All Notes. This can't be undone.`
-                  : "This folder is empty. This can't be undone."
-              }
-              confirmLabel="Delete folder"
-              onCancel={() => setPendingFolderDelete(null)}
-              onConfirm={() => {
-                void deleteFolder(pendingFolderDelete.id)
-                setPendingFolderDelete(null)
-              }}
-            />
-          )}
+
+      {/* The week, plotted */}
+      <WeekConstellation tone="rail" className="mt-3" />
+
+      {/* Archive and Trash sit apart from the working items */}
+      <div className="mt-3 flex items-center gap-0.5 border-t border-rail-line pt-2">
+        <RailIconLink
+          label={`Archive${counts.archive ? ` (${counts.archive})` : ''}`}
+          active={activeView.kind === 'archive'}
+          onClick={() => navigate({ kind: 'archive' })}
+          icon={Archive}
+        />
+        <RailIconLink
+          label={`Trash${counts.trash ? ` (${counts.trash})` : ''}`}
+          active={activeView.kind === 'trash'}
+          onClick={() => navigate({ kind: 'trash' })}
+          icon={Trash2}
+        />
+        <span className="flex-1" />
+        <ThemeToggle className="text-rail-muted hover:bg-rail-active hover:text-rail-fg" />
+        {variant === 'dock' && <CollapseButton onClick={toggleSidebar} />}
+      </div>
+
+      {/* Profile: a menu for the profile, Quiet mode and backups; the gear opens Settings */}
+      <div className="mt-1 flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <DropdownMenu
+            side="top"
+            align="start"
+            items={[
+              { id: 'profile', label: 'Edit name and profile', onSelect: () => navigate({ kind: 'settings' }) },
+              { id: 'picture', label: 'Change picture', onSelect: () => openModal({ kind: 'profile-picture' }) },
+              { id: 'quiet', label: 'Quiet mode (Bituin)', checked: quietMode, onSelect: toggleQuietMode },
+              { id: 'sep', label: '', type: 'separator', onSelect: () => {} },
+              { id: 'backup', label: 'Back up now', onSelect: () => void downloadBackup() },
+            ]}
+            trigger={(props) => (
+              <button
+                {...props}
+                type="button"
+                aria-label={`${settings.profile.name || 'Profile'}: profile, Quiet mode and backup`}
+                className="flex w-full items-center gap-2.5 rounded-control px-1 py-1 text-left transition-colors hover:bg-rail-active"
+              >
+                <Avatar src={settings.profile.avatar} name={settings.profile.name} size="sm" className={RAIL_AVATAR} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-sm font-semibold">{settings.profile.name || 'You'}</span>
+                  <span className="block truncate text-[11.5px] text-rail-muted">
+                    {lastBackupAt ? `Backed up ${formatRelative(lastBackupAt)}` : 'No backup yet'}
+                  </span>
+                </span>
+              </button>
+            )}
+          />
+        </div>
+        <Tooltip label="Settings" side="top">
+          <button
+            type="button"
+            onClick={() => navigate({ kind: 'settings' })}
+            aria-label="Settings"
+            aria-current={activeView.kind === 'settings' ? 'page' : undefined}
+            className={cn(RAIL_ICON_BTN, activeView.kind === 'settings' && 'bg-rail-active text-rail-fg')}
+          >
+            <SettingsIcon size={18} />
+          </button>
+        </Tooltip>
+      </div>
+
+      {pendingFolderDelete !== null && (
+        <ConfirmDialog
+          open
+          standalone
+          title={`Delete “${pendingFolderDelete.name}”?`}
+          message={
+            pendingFolderDelete.count > 0
+              ? `Its ${pendingFolderDelete.count} note${pendingFolderDelete.count === 1 ? '' : 's'} will stay in All Notes. This can't be undone.`
+              : "This folder is empty. This can't be undone."
+          }
+          confirmLabel="Delete folder"
+          onCancel={() => setPendingFolderDelete(null)}
+          onConfirm={() => {
+            void deleteFolder(pendingFolderDelete.id)
+            setPendingFolderDelete(null)
+          }}
+        />
+      )}
     </nav>
   )
 }
@@ -319,7 +368,7 @@ function FolderTree(props: {
                   aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
                   aria-expanded={isExpanded}
                   className={cn(
-                    'grid w-5 shrink-0 place-items-center text-faint transition-transform duration-100',
+                    'grid w-5 shrink-0 place-items-center text-rail-muted transition-transform duration-100',
                     isExpanded && 'rotate-90',
                   )}
                   style={{ marginLeft: `${props.depth * 14}px` }}
@@ -335,7 +384,7 @@ function FolderTree(props: {
               <NavItemInline
                 active={active}
                 onClick={() => props.navigate({ kind: 'folder', refId: folder.id })}
-                icon={<FolderIcon size={ICON_SIZE} strokeWidth={2} />}
+                icon={<span className="size-2 rounded-full" style={{ background: folderColor(folder.id) }} />}
                 label={folder.name}
                 count={props.counts.get(folder.id)}
               />
@@ -383,9 +432,9 @@ function FolderTree(props: {
                     {...triggerProps}
                     type="button"
                     aria-label={`Options for folder ${folder.name}`}
-                    className="absolute right-1 grid size-6 place-items-center rounded-control text-faint opacity-40 transition-opacity hover:bg-raise hover:text-ink focus-visible:opacity-100 group-hover/f:opacity-100"
+                    className="absolute right-1 grid size-7 place-items-center rounded-control text-rail-muted opacity-0 transition-opacity hover:bg-rail-active hover:text-rail-fg focus-visible:opacity-100 group-hover/f:opacity-100 [@media(pointer:coarse)]:opacity-50"
                   >
-                    <MoreHorizontal size={13} />
+                    <MoreHorizontal size={15} />
                   </button>
                 )}
               />
@@ -403,10 +452,12 @@ function FolderTree(props: {
 function NavItemButton({
   item,
   active,
+  hint,
   onSelect,
 }: {
   item: NavItemSpec
   active: boolean
+  hint?: string
   onSelect: () => void
 }): ReactNode {
   return (
@@ -415,30 +466,26 @@ function NavItemButton({
       onClick={onSelect}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-[15px] transition-colors duration-100',
-        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'group flex h-9 w-full items-center gap-3 rounded-control px-2.5 text-[14px] font-medium transition-colors duration-100 [@media(pointer:coarse)]:h-11',
+        active ? 'bg-rail-active text-rail-fg' : 'text-rail-fg/90 hover:bg-rail-active/60 hover:text-rail-fg',
       )}
     >
-      <span className={ICON_CONTAINER} aria-hidden="true">
-        <item.icon size={ICON_SIZE} strokeWidth={active ? 2.5 : 2} />
-      </span>
-      <span
-        className={cn(
-          'flex-1 truncate text-left',
-          active && 'underline decoration-wavy decoration-accent decoration-[1.5px] underline-offset-4',
-        )}
-      >
-        {item.label}
-      </span>
-      {!!item.count && item.count > 0 && (
-        <span
-          className={cn(
-            'rounded-control px-1.5 text-[11px] tabular-nums',
-            active ? 'bg-panel/70 text-selected-ink' : 'bg-raise text-faint',
-          )}
-        >
-          {item.count > 99 ? '99+' : item.count}
-        </span>
+      <item.icon
+        size={18}
+        strokeWidth={active ? 2.2 : 1.8}
+        aria-hidden="true"
+        className={active ? 'text-gold' : 'text-rail-muted group-hover:text-rail-fg'}
+      />
+      <span className="flex-1 truncate text-left">{item.label}</span>
+      {hint ? (
+        <span className="text-[11px] text-rail-muted">{hint}</span>
+      ) : (
+        !!item.count &&
+        item.count > 0 && (
+          <span className={cn('text-xs tabular-nums', active ? 'text-rail-fg/80' : 'text-rail-muted')}>
+            {item.count > 999 ? '999+' : item.count}
+          </span>
+        )
       )}
     </button>
   )
@@ -463,13 +510,13 @@ function NavItemInline({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-control pl-1.5 pr-1.5 text-xs transition-colors',
-        active ? 'bg-selected text-selected-ink' : 'text-muted hover:bg-raise hover:text-ink',
+        'flex h-8 min-w-0 flex-1 items-center gap-2.5 rounded-control px-1.5 text-[13.5px] transition-colors [@media(pointer:coarse)]:h-10',
+        active ? 'bg-rail-active text-rail-fg' : 'text-rail-fg/85 hover:bg-rail-active/60 hover:text-rail-fg',
       )}
     >
-      <span className={cn(ICON_CONTAINER, active ? 'text-accent' : 'text-faint')}>{icon}</span>
+      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">{icon}</span>
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-      {!!count && count > 0 && <span className="text-[10px] tabular-nums text-faint">{count}</span>}
+      {!!count && count > 0 && <span className="pr-1 text-xs tabular-nums text-rail-muted group-hover/f:invisible [@media(pointer:coarse)]:invisible">{count}</span>}
     </button>
   )
 }
@@ -484,19 +531,17 @@ function SectionHeader({
   onAction?: () => void
 }): ReactNode {
   return (
-    <div className="flex items-center justify-between px-2 pt-1">
-      <p className="text-[13px] text-muted underline decoration-wavy decoration-lineSoft/70 underline-offset-4">
-        {label}
-      </p>
+    <div className="mt-5 flex items-center justify-between px-2.5">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-rail-muted">{label}</p>
       {onAction && (
         <Tooltip label={actionLabel ?? ''}>
           <button
             type="button"
             onClick={onAction}
             aria-label={actionLabel}
-            className="grid size-5 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink"
+            className="-mr-1.5 grid size-7 place-items-center rounded-control text-rail-muted transition-colors hover:bg-rail-active hover:text-rail-fg"
           >
-            <Plus size={12} strokeWidth={2.5} />
+            <Plus size={15} strokeWidth={2.2} />
           </button>
         </Tooltip>
       )}
@@ -504,33 +549,37 @@ function SectionHeader({
   )
 }
 
-function SettingsButton({ onClick }: { onClick: () => void }): ReactNode {
+function RailIconLink({
+  label,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  label: string
+  icon: LucideIcon
+  active: boolean
+  onClick: () => void
+}): ReactNode {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Settings"
-      className="grid size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink"
-    >
-      <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
-        <SettingsIcon size={BOTTOM_ICON_SIZE} />
-      </span>
-    </button>
+    <Tooltip label={label} side="top">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        aria-current={active ? 'page' : undefined}
+        className={cn(RAIL_ICON_BTN, active && 'bg-rail-active text-rail-fg')}
+      >
+        <Icon size={18} />
+      </button>
+    </Tooltip>
   )
 }
 
 function CollapseButton({ onClick }: { onClick: () => void }): ReactNode {
   return (
     <Tooltip label="Hide sidebar" side="top">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label="Hide sidebar"
-        className="hidden size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink lg:grid"
-      >
-        <span className={BOTTOM_ICON_CONTAINER} aria-hidden="true">
-          <PanelLeft size={BOTTOM_ICON_SIZE} strokeWidth={2} />
-        </span>
+      <button type="button" onClick={onClick} aria-label="Hide sidebar" className={cn(RAIL_ICON_BTN, 'hidden lg:grid')}>
+        <PanelLeft size={18} />
       </button>
     </Tooltip>
   )

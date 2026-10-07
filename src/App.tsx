@@ -41,7 +41,7 @@ class ErrorBoundary extends Component<
       return (
         <div className="grid h-full place-items-center p-6 text-center">
           <div className="max-w-sm">
-            <p className="font-display text-xl">Something went wrong</p>
+            <p className="font-bold tracking-[-0.02em] text-xl">Something went wrong</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
               An unexpected error occurred while rendering Tala. Your notes are safe on this device.
             </p>
@@ -123,7 +123,7 @@ export default function App(): React.ReactNode {
             color: 'rgb(var(--c-ink))',
             border: '1px solid rgb(var(--c-line-soft))',
             borderRadius: '12px',
-            fontFamily: "'Inter Variable', Inter, system-ui, sans-serif",
+            fontFamily: "'Hanken Grotesk Variable', system-ui, sans-serif",
             fontSize: '14px',
             boxShadow: 'var(--shadow-raise)',
           },
@@ -132,7 +132,7 @@ export default function App(): React.ReactNode {
       {failed ? (
         <div className="grid h-full place-items-center p-6 text-center">
           <div className="max-w-sm">
-            <p className="font-display text-xl">Tala could not start</p>
+            <p className="font-bold tracking-[-0.02em] text-xl">Tala could not start</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
               Local storage may be unavailable or corrupted. Try reloading; if the problem persists,
               clear this site&rsquo;s data in your browser settings.
@@ -153,7 +153,7 @@ export default function App(): React.ReactNode {
       ) : bootHint !== 'none' ? (
         <div className="grid h-full place-items-center p-6 text-center">
           <div className="max-w-sm">
-            <p className="font-display text-xl">
+            <p className="font-bold tracking-[-0.02em] text-xl">
               {bootHint === 'blocked' ? 'Waiting for another tab…' : 'Still loading…'}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted">

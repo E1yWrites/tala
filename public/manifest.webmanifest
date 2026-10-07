@@ -5,8 +5,8 @@
   "description": "Free, local-first notes with handwriting and PDF markup. No account, no server, works offline.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f3f6f2",
-  "theme_color": "#f3f6f2",
+  "background_color": "#1f4a2b",
+  "theme_color": "#1f4a2b",
   "icons": [
     {
       "src": "./app-icon-192.png",
