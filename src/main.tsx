@@ -1,9 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import '@fontsource/patrick-hand'
-import '@fontsource/kalam/400.css'
-import '@fontsource/kalam/700.css'
-import '@fontsource-variable/inter'
+import '@fontsource-variable/hanken-grotesk/wght.css'
+import '@fontsource-variable/hanken-grotesk/wght-italic.css'
 import '@/index.css'
 import App from './App'
 

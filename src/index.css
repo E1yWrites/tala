@@ -3,74 +3,97 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Tala design tokens: clean surfaces, doodle accents.
-   Light: a desk in daylight, cool paper neutrals with a faint green tint.
-   Dark:  the same desk at 1 AM, charcoal with a green cast.
-   Roles: green = actions, gold = Bituin + celebration, blue = ink + links,
-   red = destructive. Colors are RGB channel triplets so Tailwind can apply
-   alpha modifiers. Every text/control pair below clears WCAG AA (checked).
+   Tala design tokens, taken from the app icon: the deep green tile, the star's
+   yellow, white paper. Light: green-tinted chart paper under white sheets and
+   a forest-green rail. Dark: the same tile at night.
+   Roles: icon green = actions and selection, star yellow = stars only (Bituin,
+   Study days, starred notes, New note on the rail), ballpoint = ink, links and
+   the focus ring, red = destructive. Panes divide with one-pixel seams;
+   shadows are for floating things only. Colors are RGB channel triplets so
+   Tailwind can apply alpha modifiers. Text/control pairs clear WCAG AA.
 --------------------------------------------------------------------------- */
 :root {
-  --c-canvas: 243 246 242;        /* #f3f6f2 desk                         */
-  --c-panel: 255 255 255;         /* #ffffff cards, lists, sheets          */
-  --c-raise: 233 238 231;         /* #e9eee7 hover wells, inputs           */
+  --c-canvas: 237 243 236;        /* #edf3ec chart ground (editor)         */
+  --c-shelf: 245 248 244;         /* #f5f8f4 list pane                     */
+  --c-panel: 255 255 255;         /* #ffffff sheets, inputs, menus         */
+  --c-raise: 228 237 227;         /* #e4ede3 hover wells                   */
   --c-overlay: 255 255 255;       /* modals / popovers                     */
-  --c-line: 134 145 138;          /* #86918a control borders (3:1)         */
-  --c-line-soft: 223 229 221;     /* #dfe5dd dividers                      */
-  --c-ink: 23 32 26;              /* #17201a                               */
-  --c-muted: 86 98 89;            /* #566259 secondary text                */
-  --c-faint: 93 104 95;           /* #5d685f placeholders, meta (AA)       */
-  --c-accent: 43 122 63;          /* #2b7a3f TALA-cap green, actions       */
-  --c-accent-strong: 31 106 51;   /* #1f6a33 hover / pressed               */
-  --c-accent-soft: 227 243 230;   /* #e3f3e6 tint                          */
+  --c-line: 124 142 128;          /* #7c8e80 control borders (3:1)         */
+  --c-line-soft: 214 225 212;     /* #d6e1d4 seams                         */
+  --c-ink: 20 38 26;              /* #14261a                               */
+  --c-muted: 75 94 80;            /* #4b5e50 secondary text                */
+  --c-faint: 87 105 92;           /* #57695c meta, placeholders (AA)       */
+  --c-accent: 46 106 58;          /* #2e6a3a icon green, actions           */
+  --c-accent-strong: 35 86 46;    /* #23562e hover / pressed               */
+  --c-accent-soft: 225 239 224;   /* #e1efe0 tint                          */
   --c-accent-fg: 255 255 255;     /* text on green                         */
-  --c-gold: 250 204 21;           /* #facc15 star gold                     */
-  --c-gold-soft: 255 241 191;     /* #fff1bf                               */
-  --c-gold-ink: 92 67 0;          /* #5c4300 text on gold                  */
-  --c-danger: 179 38 30;          /* #b3261e                               */
-  --c-danger-soft: 252 232 230;
-  --c-selected: 220 239 223;      /* #dcefdf selected rows / toggles       */
-  --c-selected-ink: 23 32 26;
-  --c-ballpoint: 45 93 161;       /* #2d5da1 blue pen: ink + links         */
-  --c-ballpoint-soft: 228 237 250;
+  --c-gold: 246 200 69;           /* #f6c845 star yellow                   */
+  --c-gold-soft: 253 242 204;     /* #fdf2cc                               */
+  --c-gold-ink: 92 67 0;          /* #5c4300 text on yellow wash           */
+  --c-gold-fg: 31 26 6;           /* #1f1a06 text on solid yellow          */
+  --c-danger: 190 52 40;          /* #be3428                               */
+  --c-danger-soft: 251 231 228;
+  --c-selected: 225 239 224;      /* #e1efe0 selected rows / toggles       */
+  --c-selected-ink: 20 38 26;
+  --c-ballpoint: 42 82 201;       /* #2a52c9 ink, links, focus             */
+  --c-ballpoint-soft: 228 235 252;
 
-  --shadow-rest: 0 1px 2px rgb(23 32 26 / 0.08);
-  --shadow-raise: 0 1px 2px rgb(23 32 26 / 0.08), 0 4px 12px rgb(23 32 26 / 0.10);
-  --shadow-float: 0 2px 4px rgb(23 32 26 / 0.08), 0 16px 40px rgb(23 32 26 / 0.18);
+  /* The rail: the icon's tile green in both themes */
+  --c-rail: 31 74 43;             /* #1f4a2b                               */
+  --c-rail-well: 39 88 53;        /* #275835 inset panels                  */
+  --c-rail-active: 46 101 61;     /* #2e653d active item                   */
+  --c-rail-line: 47 94 58;        /* #2f5e3a seams                         */
+  --c-rail-fg: 238 246 238;       /* #eef6ee                               */
+  --c-rail-muted: 183 207 186;    /* #b7cfba (6.3:1 on the rail)           */
 
-  --editor-font-size: 15px;
-  --editor-line-height: 1.7;
+  --shadow-rest: 0 1px 1px rgb(20 38 26 / 0.05);
+  --shadow-raise: 0 1px 2px rgb(20 38 26 / 0.06), 0 6px 16px rgb(20 38 26 / 0.08);
+  --shadow-float: 0 2px 6px rgb(20 38 26 / 0.08), 0 18px 44px rgb(20 38 26 / 0.18);
+  --shadow-sheet: 0 1px 2px rgb(20 38 26 / 0.08), 0 8px 28px rgb(20 38 26 / 0.08);
+
+  --editor-font-size: 16px;
+  --editor-line-height: 1.65;
 
   color-scheme: light;
 }
 
 .dark {
-  --c-canvas: 16 21 18;           /* #101512 night desk                    */
-  --c-panel: 23 29 25;            /* #171d19                               */
-  --c-raise: 31 39 34;            /* #1f2722                               */
-  --c-overlay: 27 34 30;
-  --c-line: 109 121 111;          /* #6d796f control borders (3:1)         */
-  --c-line-soft: 42 52 45;        /* #2a342d                               */
-  --c-ink: 233 239 233;           /* #e9efe9                               */
-  --c-muted: 167 178 169;         /* #a7b2a9                               */
-  --c-faint: 139 150 141;         /* #8b968d                               */
-  --c-accent: 92 194 119;         /* #5cc277                               */
-  --c-accent-strong: 124 214 146; /* #7cd692                               */
-  --c-accent-soft: 31 58 42;      /* #1f3a2a                               */
-  --c-accent-fg: 11 32 19;        /* #0b2013 text on green                 */
-  --c-gold: 244 194 58;           /* #f4c23a                               */
-  --c-gold-soft: 58 48 21;        /* #3a3015                               */
-  --c-gold-ink: 244 215 122;      /* #f4d77a                               */
+  --c-canvas: 12 21 15;           /* #0c150f                               */
+  --c-shelf: 15 26 19;            /* #0f1a13                               */
+  --c-panel: 21 34 26;            /* #15221a                               */
+  --c-raise: 29 46 35;            /* #1d2e23                               */
+  --c-overlay: 25 40 30;
+  --c-line: 104 125 109;          /* #687d6d control borders (3:1)         */
+  --c-line-soft: 38 56 44;        /* #26382c                               */
+  --c-ink: 230 240 231;           /* #e6f0e7                               */
+  --c-muted: 168 186 171;         /* #a8baab                               */
+  --c-faint: 141 160 145;         /* #8da091                               */
+  --c-accent: 124 201 140;        /* #7cc98c                               */
+  --c-accent-strong: 156 218 168; /* #9cdaa8                               */
+  --c-accent-soft: 30 54 37;      /* #1e3625                               */
+  --c-accent-fg: 10 30 16;        /* #0a1e10 text on green                 */
+  --c-gold: 246 200 69;
+  --c-gold-soft: 58 50 21;        /* #3a3215                               */
+  --c-gold-ink: 246 217 130;      /* #f6d982                               */
+  --c-gold-fg: 31 26 6;
   --c-danger: 255 138 128;        /* #ff8a80                               */
   --c-danger-soft: 70 30 28;
-  --c-selected: 31 58 42;
-  --c-selected-ink: 233 239 233;
-  --c-ballpoint: 143 180 240;     /* #8fb4f0                               */
-  --c-ballpoint-soft: 40 54 80;
+  --c-selected: 30 54 37;
+  --c-selected-ink: 230 240 231;
+  --c-ballpoint: 143 176 245;     /* #8fb0f5                               */
+  --c-ballpoint-soft: 34 48 90;
 
-  --shadow-rest: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.35);
-  --shadow-float: 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 40px rgb(0 0 0 / 0.6);
+  --c-rail: 10 24 15;             /* #0a180f                               */
+  --c-rail-well: 18 36 24;        /* #122418                               */
+  --c-rail-active: 27 50 34;      /* #1b3222                               */
+  --c-rail-line: 26 44 31;        /* #1a2c1f                               */
+  --c-rail-fg: 232 242 233;
+  --c-rail-muted: 150 176 155;    /* #96b09b                               */
+
+  --shadow-rest: 0 1px 1px rgb(0 0 0 / 0.4);
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.35);
+  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.4), 0 18px 44px rgb(0 0 0 / 0.6);
+  --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 28px rgb(0 0 0 / 0.35);
 
   color-scheme: dark;
 }
@@ -90,7 +113,12 @@
   }
 
   ::selection {
-    background: rgb(var(--c-accent) / 0.28);
+    background: rgb(var(--c-ballpoint) / 0.22);
+  }
+
+  /* Catalogue numbers, counts, times: figures line up */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
   button {
@@ -141,14 +169,12 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Editor typography (Tiptap): note bodies stay in Inter for long-form
-   readability; headings are Kalam marker strokes and quotes read like
-   ballpoint margin notes (doodle accents inside the content).
+   Editor typography (Tiptap): one face, hierarchy by scale and weight.
 --------------------------------------------------------------------------- */
 .tiptap {
   outline: none;
-  caret-color: rgb(var(--c-accent));
-  font-family: '"Inter Variable"', Inter, system-ui, -apple-system, sans-serif;
+  caret-color: rgb(var(--c-ballpoint));
+  font-family: 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;
   font-size: var(--editor-font-size);
   line-height: var(--editor-line-height);
   min-height: 100%;
@@ -164,9 +190,9 @@
 .tiptap h1,
 .tiptap h2,
 .tiptap h3 {
-  font-family: Kalam, 'Patrick Hand', cursive;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   margin: 24px 0 8px;
 }
 .tiptap h1 { font-size: 1.8em; margin-top: 40px; }
@@ -188,8 +214,8 @@
 }
 .tiptap li p { margin: 0; }
 .tiptap li > p { margin: 0; }
-.tiptap ul > li::marker { color: rgb(var(--c-accent) / 0.85); }
-.tiptap ol > li::marker { color: rgb(var(--c-ballpoint)); }
+.tiptap ul > li::marker { color: rgb(var(--c-muted)); }
+.tiptap ol > li::marker { color: rgb(var(--c-muted)); font-variant-numeric: tabular-nums; }
 .tiptap ul ul,
 .tiptap ol ol,
 .tiptap ul ol,
@@ -295,23 +321,21 @@
   font-size: inherit;
 }
 
-/* Blockquote — a ballpoint margin note */
+/* Blockquote: a quiet aside */
 .tiptap blockquote {
-  border-left: 2px solid rgb(var(--c-line-soft));
+  border-left: 1px solid rgb(var(--c-line));
   padding: 0 0 0 16px;
   margin: 0 0 16px;
-  color: rgb(var(--c-ballpoint));
-  font-family: 'Patrick Hand', cursive;
-  font-size: 1.05em;
+  color: rgb(var(--c-muted));
+  font-style: italic;
 }
 
-/* Links — ballpoint pen, wavy hand-drawn underline */
+/* Links: ballpoint, plain underline */
 .tiptap a {
   color: rgb(var(--c-ballpoint));
   text-decoration: underline;
-  text-decoration-style: wavy;
   text-decoration-thickness: 1px;
-  text-decoration-color: rgb(var(--c-ballpoint) / 0.55);
+  text-decoration-color: rgb(var(--c-ballpoint) / 0.45);
   text-underline-offset: 3px;
   cursor: pointer;
   word-break: break-word;
@@ -390,39 +414,34 @@
   touch-action: pan-x pan-y;
 }
 
-/* Notebook page templates */
-.editor-scroll[data-template='ruled'] {
+/* The chart ground around pages: a faint coordinate dot grid (tablet and up) */
+@media (min-width: 768px) {
+  .editor-scroll {
+    background-image: radial-gradient(circle, rgb(var(--c-line-soft)) 1px, transparent 1.3px);
+    background-size: 24px 24px;
+    background-position: 12px 12px;
+    background-attachment: local;
+  }
+}
+
+/* Notebook page templates, drawn on the sheet itself so the ruling scales
+   with the zoomed column and ink stays put on it */
+.editor-sheet.tpl-ruled {
   background-image: repeating-linear-gradient(
       transparent,
       transparent calc(var(--editor-template-rule, 28px) * 0.96 - 1px),
       rgb(var(--c-line) / 0.35) calc(var(--editor-template-rule, 28px) * 0.96),
       transparent calc(var(--editor-template-rule, 28px) * 0.96)
     );
-  /* paper moves with the content (and zoom), so ink stays put on the ruling */
-  background-attachment: local;
 }
-.editor-scroll[data-template='grid'] {
+.editor-sheet.tpl-grid {
   background-image:
     linear-gradient(rgb(var(--c-line) / 0.25) 1px, transparent 1px),
     linear-gradient(90deg, rgb(var(--c-line) / 0.25) 1px, transparent 1px);
   background-size: var(--editor-template-rule, 28px) var(--editor-template-rule, 28px);
-  background-attachment: local;
 }
 
 /* Reading layout — smooth collapsible sections (grid-rows trick) */
-/*
- * react-doodle-icons wraps every glyph in <g clip-path="url(#clip0)"> whose
- * clipPath rect equals the viewBox. That crops the hand-drawn strokes'
- * intentional overshoot (the svg-level overflow:visible set by the shim can't
- * help), and since every icon reuses id="clip0", all of them resolve to the
- * first clip rect in the document, cross-clipping glyphs. Presentation
- * attributes lose to any author rule, so this neutralises the clip for doodle
- * slots; lucide icons never carry the .doodle-slot class.
- */
-.doodle-slot [clip-path] {
-  clip-path: none;
-}
-
 .rv-collapse {
   display: grid;
   grid-template-rows: 1fr;
@@ -439,22 +458,6 @@
 .theme-transition,
 .theme-transition * {
   transition: background-color 200ms ease, border-color 200ms ease !important;
-}
-
-/* Washi-tape strip — position relative on the host element */
-.tape {
-  position: absolute;
-  top: -11px;
-  left: 50%;
-  width: 88px;
-  height: 22px;
-  transform: translateX(-50%) rotate(-2deg);
-  background: rgb(120 114 104 / 0.30);
-  clip-path: polygon(3% 14%, 97% 0%, 100% 86%, 0% 100%);
-  pointer-events: none;
-}
-.dark .tape {
-  background: rgb(210 204 194 / 0.18);
 }
 
 /* ---------------------------------------------------------------------------

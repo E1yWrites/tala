@@ -6,6 +6,7 @@ import { patchNote } from '@/library/notes'
 import { useUIStore } from '@/store/uiStore'
 import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
+import { shortcut } from '@/utils/keys'
 
 /** Move a note into a folder (or out to "No folder"). */
 export function MoveNoteModal({ noteId }: { noteId: string }): React.ReactNode {
@@ -46,7 +47,7 @@ export function MoveNoteModal({ noteId }: { noteId: string }): React.ReactNode {
         ))}
         {folders.length === 0 && (
           <p className="px-2 py-3 text-center text-[11px] text-faint">
-            Create a folder first — use the + button in the sidebar or the command palette (Ctrl K).
+            Create a folder first — use the + button in the sidebar or the command palette ({shortcut('⇧P')}).
           </p>
         )}
       </div>

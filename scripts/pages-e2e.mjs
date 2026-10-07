@@ -401,8 +401,19 @@ check('ctrl+wheel zooms like a trackpad pinch', (await columnTransform()).starts
 await page.click('button[aria-label="Fit page to width"]')
 await wait(250)
 
-await page.click('button[aria-label="Pen mode"]')
+// Ink is positioned from the column's top-left and scales with its width, so
+// switching modes must not move or resize the text under it.
+const textFrame = () =>
+  page.evaluate(() => {
+    const ink = document.querySelector('.ink-layer').getBoundingClientRect()
+    const text = document.querySelector('.ProseMirror').getBoundingClientRect()
+    return { dy: Math.round(text.top - ink.top), dx: Math.round(text.left - ink.left), w: Math.round(ink.width) }
+  })
+const typeFrame = await textFrame()
+await page.click('button[aria-label="Write"]')
 await wait(300)
+const writeFrame = await textFrame()
+check('Type and Write keep the text where the ink expects it', JSON.stringify(typeFrame) === JSON.stringify(writeFrame), `${JSON.stringify(typeFrame)} vs ${JSON.stringify(writeFrame)}`)
 await page.click('button[aria-label="Zoom in"]')
 await page.click('button[aria-label="Zoom in"]')
 await wait(300)
@@ -490,7 +501,7 @@ check('undo history survives a page switch', await page.locator('button[aria-lab
 // Page strip: thumbnails and drag reorder
 await page.click('button:has-text("Add page")')
 await wait(400)
-await page.click('button[aria-label="Exit pen mode"]')
+await page.click('button[aria-label="Type"]')
 await page.click('.ProseMirror')
 await page.keyboard.type('INK-PAGE-THREE')
 await wait(900)
@@ -551,7 +562,7 @@ await wait(400)
 await page.click('button[aria-label="Start recording"]')
 await wait(1500)
 check('Stop shows while a lecture records', await page.locator('button[aria-label="Stop recording"]').isVisible())
-await page.click('button[aria-label="Pen mode"]')
+await page.click('button[aria-label="Write"]')
 await wait(300)
 const audioSvg = await page.locator('svg.ink-svg').boundingBox()
 const ax2 = Math.max(audioSvg.x, 700) + 100
@@ -564,7 +575,7 @@ await wait(7500)
 let audio = await audioRows()
 check('a 5 s chunk is on disk while still recording', audio.chunks >= 1 && lastRec(audio).status === 'recording', `${audio.chunks} chunk(s)`)
 check('handwriting written during a lecture carries a timestamp', audio.ink.some((r) => typeof r.doc.strokes[0]?.ts === 'number'))
-await page.click('button[aria-label="Exit pen mode"]')
+await page.click('button[aria-label="Type"]')
 await page.click('button[aria-label="Stop recording"]')
 await wait(1500)
 audio = await audioRows()
@@ -573,7 +584,7 @@ await page.click('button[aria-label="Play"]')
 await wait(1500)
 check('Play shows a pause button and a scrubber', (await page.locator('button[aria-label="Pause"]').count()) === 1 && (await page.locator('input[aria-label="Playback position"]').count()) === 1)
 await page.click('button[aria-label="Pause"]')
-await page.click('button[aria-label="Pen mode"]')
+await page.click('button[aria-label="Write"]')
 await page.keyboard.press('v')
 await wait(200)
 // the panel grows once the lecture is listed, which moves the page under the pen
@@ -583,7 +594,7 @@ await page.mouse.down()
 await page.mouse.up()
 await wait(1500)
 check('tapping the stroke with the lasso plays the lecture from then', (await page.locator('button[aria-label="Pause"]').count()) === 1)
-await page.click('button[aria-label="Exit pen mode"]')
+await page.click('button[aria-label="Type"]')
 const audioFile = page.waitForEvent('download', { timeout: 10000 })
 await page.click('button[aria-label="Save audio file"]')
 check('Save audio downloads the recording', /\.(webm|m4a|ogg)$/.test((await audioFile).suggestedFilename()))
@@ -599,7 +610,7 @@ check('boot tells the owner about it', await page.locator('text=A recording was 
 await newNote(page)
 await page.locator('text=Blank note').first().click()
 await wait(700)
-await page.click('button[aria-label="Pen mode"]')
+await page.click('button[aria-label="Write"]')
 await wait(300)
 const snapBox = await page.locator('svg.ink-svg').boundingBox()
 const px = Math.max(snapBox.x, 480) + 140
@@ -670,7 +681,7 @@ const rect = await drawn(edge, 900)
 const xs = [...new Set(rect.map((q) => Math.round(q.x)))]
 const ys = [...new Set(rect.map((q) => Math.round(q.y)))]
 check('a rough rectangle becomes an exact one', rect.length <= 6 && xs.length === 2 && ys.length === 2, `${rect.length} points, ${xs.length}x${ys.length} distinct`)
-await page.click('button[aria-label="Exit pen mode"]')
+await page.click('button[aria-label="Type"]')
 
 /* ---- 7. Bituin: weekly backup nudge, snooze, Quiet mode ----------------------- */
 const weekOld = JSON.stringify({ state: { coach: { firstSeenAt: Date.now() - 10 * 86400000 } }, version: 1 })

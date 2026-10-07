@@ -1,79 +1,223 @@
 ---
 name: Tala
-description: A clean study desk with doodle margins: calm surfaces, a green action color, and Bituin the star in the corner.
+description: "Planisphere: the note library as a star atlas, in the app icon's colours: a forest-green rail, white sheets on a green chart ground, star yellow for stars only."
 colors:
-  cap-green: "#2b7a3f"
-  cap-green-deep: "#1f6a33"
-  cap-green-wash: "#e3f3e6"
-  star-gold: "#facc15"
-  star-gold-wash: "#fff1bf"
-  star-gold-ink: "#5c4300"
-  ballpoint-blue: "#2d5da1"
-  ballpoint-wash: "#e4edfa"
-  marker-red: "#b3261e"
-  desk: "#f3f6f2"
-  paper: "#ffffff"
-  well: "#e9eee7"
-  ink: "#17201a"
-  ink-muted: "#566259"
-  ink-faint: "#5d685f"
-  line-control: "#86918a"
-  line-divider: "#dfe5dd"
-  night-desk: "#101512"
-  night-paper: "#171d19"
-  night-green: "#5cc277"
-  night-ink: "#e9efe9"
+  tile-green: "#2e6a3a"
+  tile-green-deep: "#23562e"
+  tile-green-wash: "#e1efe0"
+  rail-forest: "#1f4a2b"
+  rail-well: "#275835"
+  rail-active: "#2e653d"
+  rail-seam: "#2f5e3a"
+  rail-text: "#eef6ee"
+  rail-muted: "#b7cfba"
+  star-yellow: "#f6c845"
+  star-wash: "#fdf2cc"
+  star-ink: "#5c4300"
+  on-star: "#1f1a06"
+  ballpoint-blue: "#2a52c9"
+  ballpoint-wash: "#e4ebfc"
+  marker-red: "#be3428"
+  marker-wash: "#fbe7e4"
+  chart-ground: "#edf3ec"
+  shelf: "#f5f8f4"
+  chart-white: "#ffffff"
+  hover-well: "#e4ede3"
+  control-line: "#7c8e80"
+  seam: "#d6e1d4"
+  ink: "#14261a"
+  ink-muted: "#4b5e50"
+  ink-faint: "#57695c"
+  night-ground: "#0c150f"
+  night-shelf: "#0f1a13"
+  night-sheet: "#15221a"
+  night-well: "#1d2e23"
+  night-seam: "#26382c"
+  night-line: "#687d6d"
+  night-ink: "#e6f0e7"
+  night-muted: "#a8baab"
+  night-faint: "#8da091"
+  night-green: "#7cc98c"
+  night-green-bright: "#9cdaa8"
+  night-green-wash: "#1e3625"
+  night-on-green: "#0a1e10"
+  night-rail: "#0a180f"
+  night-rail-well: "#122418"
+  night-rail-active: "#1b3222"
+  night-star-wash: "#3a3215"
+  night-star-ink: "#f6d982"
+  night-ballpoint: "#8fb0f5"
+  night-red: "#ff8a80"
 typography:
+  display:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "30px"
+    fontWeight: 700
+    lineHeight: 1.15
+    letterSpacing: "-0.025em"
+  headline:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "21px"
+    fontWeight: 700
+    lineHeight: 1.25
+    letterSpacing: "-0.02em"
   title:
-    fontFamily: "Kalam, 'Patrick Hand', cursive"
-    fontSize: "1.25rem"
-    fontWeight: 400
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "14.5px"
+    fontWeight: 600
     lineHeight: 1.3
-  voice:
-    fontFamily: "'Patrick Hand', Kalam, cursive"
-    fontSize: "1.125rem"
-    fontWeight: 400
-    lineHeight: 1.2
+    letterSpacing: "-0.005em"
   body:
-    fontFamily: "'Inter Variable', Inter, system-ui, sans-serif"
-    fontSize: "0.9375rem"
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.65
+  body-ui:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.375
+  label:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "10.5px"
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: "0.14em"
+  catalogue:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "11.5px"
+    fontWeight: 500
+    lineHeight: 1.4
+    fontFeature: "'tnum' 1"
+  meta:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.33
+    fontFeature: "'tnum' 1"
+  code:
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "0.88em"
     fontWeight: 400
     lineHeight: 1.6
-  label:
-    fontFamily: "'Inter Variable', Inter, system-ui, sans-serif"
-    fontSize: "0.8125rem"
-    fontWeight: 500
-    lineHeight: 1.3
 rounded:
+  sheet: "4px"
   control: "8px"
-  card: "12px"
-  surface: "16px"
+  card: "10px"
+  surface: "14px"
+  full: "9999px"
 spacing:
+  xs: "4px"
   sm: "8px"
-  md: "16px"
-  lg: "24px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  2xl: "40px"
 components:
+  button-new-note:
+    backgroundColor: "{colors.star-yellow}"
+    textColor: "{colors.on-star}"
+    typography: "{typography.title}"
+    rounded: "{rounded.card}"
+    height: "44px"
   button-primary:
-    backgroundColor: "{colors.cap-green}"
-    textColor: "{colors.paper}"
+    backgroundColor: "{colors.tile-green}"
+    textColor: "{colors.chart-white}"
     rounded: "{rounded.card}"
-    height: "40px"
     padding: "0 16px"
-  button-primary-hover:
-    backgroundColor: "{colors.cap-green-deep}"
-  button-subtle:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.card}"
     height: "40px"
-  card-note:
-    backgroundColor: "{colors.paper}"
+  button-primary-hover:
+    backgroundColor: "{colors.tile-green-deep}"
+  button-primary-sm:
+    backgroundColor: "{colors.tile-green}"
+    textColor: "{colors.chart-white}"
+    rounded: "{rounded.control}"
+    padding: "0 12px"
+    height: "32px"
+  button-subtle:
+    backgroundColor: "{colors.chart-white}"
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
-    padding: "12px"
-  nudge-bituin:
-    backgroundColor: "{colors.star-gold-wash}"
-    textColor: "{colors.star-gold-ink}"
+    padding: "0 16px"
+    height: "40px"
+  button-subtle-hover:
+    backgroundColor: "{colors.hover-well}"
+  button-ghost:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.card}"
+    padding: "0 16px"
+    height: "40px"
+  button-danger:
+    backgroundColor: "{colors.marker-red}"
+    textColor: "{colors.chart-white}"
+    rounded: "{rounded.card}"
+    padding: "0 16px"
+    height: "40px"
+  segment-type-write:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.control}"
+    padding: "0 10px"
+    height: "36px"
+  segment-type-write-active:
+    backgroundColor: "{colors.tile-green}"
+    textColor: "{colors.chart-white}"
+  chip-filter:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.full}"
+    padding: "0 10px"
+    height: "28px"
+  chip-filter-active:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.chart-white}"
+  input-search:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "0 32px 0 36px"
+    height: "40px"
+  rail-nav-item:
+    backgroundColor: "{colors.rail-forest}"
+    textColor: "{colors.rail-text}"
+    rounded: "{rounded.control}"
+    padding: "0 10px"
+    height: "36px"
+  rail-nav-item-active:
+    backgroundColor: "{colors.rail-active}"
+    textColor: "{colors.rail-text}"
+  note-row:
+    backgroundColor: "{colors.shelf}"
+    textColor: "{colors.ink}"
+    typography: "{typography.title}"
+    rounded: "{rounded.control}"
+    padding: "10px 12px"
+  note-row-hover:
+    backgroundColor: "{colors.hover-well}"
+  note-row-selected:
+    backgroundColor: "{colors.tile-green-wash}"
+  week-constellation:
+    backgroundColor: "{colors.rail-well}"
+    textColor: "{colors.rail-text}"
+    rounded: "{rounded.card}"
+    padding: "12px 12px 10px"
+  pen-dock:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.surface}"
+    padding: "6px"
+    width: "52px"
+  page-sheet:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.sheet}"
+    padding: "24px 40px 96px"
+    width: "720px"
+  bituin-card:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.card}"
     padding: "12px"
 ---
@@ -82,111 +226,188 @@ components:
 
 ## Overview
 
-**Creative North Star: "Clean Desk, Doodle Margins"**
+**Creative North Star: "Planisphere"**
 
-The page is the loudest thing on screen. Controls are calm, legible and modern; personality lives in the margins: a hand-drawn squiggle that marks where you are, hand-lettered titles, and Bituin, the star mascot who appears in a corner and never over the work. The system refuses the all-handwriting interface the app wore before (hard offset shadows, wobbly borders on every control, small handwriting body text) and equally refuses the generic gray-card SaaS shell.
+Tala's library is a star atlas. A forest-green rail, cut from the app icon's tile, is the instrument you steer by; the notes it charts sit on a pale green chart ground, and each page is a white sheet laid on that chart, the loudest thing on screen. The student's week is plotted in the rail as a small constellation: a Study day lights a star, the lit days join with a line, today waits as a dashed ring. Every note carries a catalogue number (№ 024) the way a star carries its entry in a catalogue.
 
-Light is a desk in daylight: a cool paper neutral with a faint green cast. Dark is the same desk at 1 AM: charcoal with the same green cast. Three colours do jobs: green acts, gold belongs to Bituin and celebration, blue is ink and links.
+The world is quiet and exact rather than cute. One typeface, Hanken Grotesk, does all the work, with hierarchy made by size and weight alone. Panes are divided by one-pixel seams, not shadows; shadows are kept for things that genuinely float (the pen dock, menus, dialogs). Colour carries meaning: green acts and selects, star yellow marks stars, ballpoint blue is ink, links and focus, red is destructive. Density is a study desk at tablet scale: rows are tight enough to scan a term of notes, controls grow to 44 px under a finger or stylus.
+
+The released world (doodle icons, Kalam and Patrick Hand display type, Inter, a scrapbook mood) is retired by owner decision, and the generic grey-card notes shell is refused. Bituin, the star mascot, and the name Tala are the only pinned brand assets.
 
 **Key Characteristics:**
-- Inter for everything you operate; Kalam and Patrick Hand only for titles and Bituin's voice.
-- One solid green action per view; everything else is quiet.
-- Soft, low shadows; no hard offsets.
-- Doodle icons and squiggles are accents, never controls' structure.
-- Touch-first sizes on coarse pointers (44px class hit areas).
+- Forest-green rail (both themes) with pale green text; the one star-yellow New note button sits at its top.
+- Green-tinted chart ground with a 24 px coordinate dot grid behind white page sheets (tablet and up).
+- Hanken Grotesk Variable only; spaced small-caps labels head list groups; tabular figures for every number.
+- Catalogue numbers (№ 001) on every note row, in creation order.
+- One-pixel seams between panes and rows; shadows only on floating tools and the page sheet.
+- The week as a constellation of star-yellow Study days; missing a day is a faint point, never red.
+- Lucide line icons throughout; no doodles, no handwriting fonts.
 
 ## Colors
 
-A restrained neutral ground with one working accent and one reserved celebratory colour.
+The palette is the app icon spread over a whole screen: tile green, star yellow, white paper, with a blue ballpoint for ink and a red marker for danger. Tokens are RGB channel triplets in `src/index.css` (`--c-*`), mapped through `tailwind.config.ts`, so light and dark swap variables and never per-component overrides.
 
 ### Primary
-- **Cap Green** (#2b7a3f; dark mode #5cc277): every primary action, the selected tab, toggles, focus-adjacent affordances. White text on it is 5.3:1. Deep (#1f6a33) is hover and pressed.
+- **Tile Green** (tile-green): fills the actions and selections that live on white: the primary button, the active half of the Type | Write segment, checked task boxes, lasso and selection overlays, complete task badges. Hover and press deepen to **Tile Green Deep**.
+- **Green Wash** (tile-green-wash): the selected note row, selected toggles and the pressed tool in the pen dock. It is also the soft tint behind placeholder step icons.
 
 ### Secondary
-- **Star Gold** (#facc15, wash #fff1bf, ink #5c4300): Bituin, the favorite star, backup and install nudges. Never a button colour and never text on white (use Star Gold Ink on its wash, 8.2:1).
-- **Ballpoint Blue** (#2d5da1; dark #8fb4f0): handwriting ink defaults, links, the keyboard focus ring.
-- **Marker Red** (#b3261e; dark #ff8a80): destructive actions only.
+- **Rail Forest** (rail-forest): the navigation rail and the mobile tab bar, the icon's tile at full size. It stays green in dark mode (night-rail), so the rail is a place, not a theme colour.
+- **Rail Well / Rail Active / Rail Seam** (rail-well, rail-active, rail-seam): inset panels on the rail (the week constellation), the active and hovered nav item, and the hairlines inside the rail.
+- **Rail Text / Rail Muted** (rail-text, rail-muted): labels on the rail, and secondary text, counts and idle icons (6.3:1 on the rail).
+
+### Tertiary
+- **Star Yellow** (star-yellow): stars. Bituin, Study-day stars in the constellation, the starred-note star, the New note button on the rail and the mobile New note button. Text on solid yellow is **On Star** (on-star).
+- **Star Wash / Star Ink** (star-wash, star-ink): the active Starred toggle in the editor header.
+- **Ballpoint Blue** (ballpoint-blue): the default ink, the text caret, links in the page, the focus ring (2 px outline, 2 px offset) and text selection at 22% alpha. **Ballpoint Wash** is its tint.
+- **Marker Red** (marker-red): destructive actions, the recording dot and the live Record state (on **Marker Wash**).
 
 ### Neutral
-- **Desk** (#f3f6f2) is the app ground; **Paper** (#ffffff) is cards, lists and sheets; **Well** (#e9eee7) is hover and input wells.
-- **Ink** (#17201a), **Ink Muted** (#566259), **Ink Faint** (#5d685f, still 5.3:1 on the desk) for text.
-- **Line Control** (#86918a, 3:1) outlines inputs and toggles; **Line Divider** (#dfe5dd) separates panes and rows.
+- **Chart Ground** (chart-ground): the editor ground behind sheets and the empty editor; carries the dot grid.
+- **Shelf** (shelf): the note list pane, one step lighter than the chart.
+- **Chart White** (chart-white): page sheets, inputs, menus, the pen dock, list cards and modals.
+- **Hover Well** (hover-well): hover fills on white and on the shelf.
+- **Control Line** (control-line): borders that must read as controls (3:1).
+- **Seam** (seam): the one-pixel dividers between panes and rows, dot-grid dots, scrollbar thumbs.
+- **Ink / Ink Muted / Ink Faint** (ink, ink-muted, ink-faint): primary text; secondary text and idle icons; meta, placeholders and catalogue numbers (all AA on their surfaces).
+- **Night set** (night-*): the same roles at night. Green and ballpoint lighten (night-green, night-ballpoint) and text on green turns dark (night-on-green); star yellow keeps its value in both themes.
+
+Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folderColor.ts`); green and yellow are deliberately left out of it.
 
 ### Named Rules
-**The Gold Is Bituin's Rule.** Gold appears only with Bituin, celebration and favorites. If something is merely important, it is green or ink, not gold.
-**The One Green Rule.** One solid green control per view carries the action; a second one means the hierarchy failed.
+**The One Star Rule.** Star yellow means a star: Bituin, Study days, starred notes, and the single New note button. On the rail it also marks "you are here" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.
+
+**The Steering Green Rule.** Green on white means "act" or "selected". The rail is the same green at full strength and is never itself a button; nothing on white is filled with rail-forest.
+
+**The Ballpoint Rule.** Blue belongs to the pen: ink, caret, links and the focus ring. It never fills a control, so focus is always distinguishable from selection.
 
 ## Typography
 
-**Display Font:** Kalam (fallback Patrick Hand, cursive)
-**Body Font:** Inter Variable (fallback Inter, system-ui)
-**Voice Font:** Patrick Hand, only for Bituin's lines.
+**Display Font:** Hanken Grotesk Variable (with system-ui, -apple-system, sans-serif)
+**Body Font:** Hanken Grotesk Variable (same stack)
+**Label/Mono Font:** Hanken Grotesk for labels; `ui-monospace` stack only for code inside a page
 
-**Character:** A clean workhorse sans carries the interface so long reading and small meta text stay legible; a marker hand signs the titles so the app still feels written.
+**Character:** One grotesque in many weights: friendly-precise, closer to a variable-font specimen than to a notebook. Hierarchy comes from scale, weight and tracking, never from a second family.
 
 ### Hierarchy
-- **Title** (Kalam 400, 20-30px, 1.3): panel, page and note titles.
-- **Voice** (Patrick Hand 400, 18px, 1.2): Bituin's headline in nudges and the welcome.
-- **Body** (Inter 400, 15px, 1.6, 65-75ch in the editor): notes and descriptions.
-- **Label** (Inter 500, 13px): buttons, tabs, row labels. Meta text is 12px Ink Faint.
+- **Display** (700, 30 px, 1.15, -0.025em): the note title on the sheet (24 px on phones) and the onboarding headline.
+- **Headline** (700, 21 px, 1.25, -0.02em): pane titles ("All Notes" with its count), the Tala wordmark, placeholder section heads (22 px). In-page headings scale from the editor size: H1 1.8em, H2 1.45em, H3 1.22em, all 700 at -0.02em.
+- **Title** (600, 14.5 px, 1.3, -0.005em): note-row titles (13.5 px compact), card titles and nudge titles (15 px), nav items (500, 14 px).
+- **Body** (400, 16 px, 1.65): typed page text, adjustable per user via `--editor-font-size` / `--editor-line-height`; the sheet holds it to a 720 px column.
+- **Body UI** (400, 13 px, 1.375): row snippets, descriptions, nudge copy.
+- **Label** (600, 10.5 px, 0.14em, uppercase): section labels on the rail (FOLDERS, TAGS) and day groups in the list (TODAY, YESTERDAY, THIS WEEK).
+- **Catalogue** (500, 11.5 px, tabular): the № 000 number leading every note row.
+- **Meta** (400, 12 px, tabular): times, counts, page/ink/task meta.
+- **Code** (400, 0.88em of the page size, 1.6): inline code and code blocks inside a page only; the system monospace stack, never used for interface chrome.
 
 ### Named Rules
-**The Margin Hand Rule.** Handwriting faces never set a control's label or any text under 16px.
+**The One Face Rule.** Hanken Grotesk is the only typeface in the interface. A new level is made by size and weight, not by a new family, italic or colour.
+
+**The Catalogue Rule.** Every number a student scans (catalogue numbers, counts, times, page counts, zoom) is set with tabular figures so columns line up. Catalogue numbers are `№` plus three padded digits in creation order, in ink-faint.
+
+**The Small-Caps Label Rule.** Spaced uppercase labels only head a group of list items. They never sit above a headline as a kicker.
 
 ## Layout
 
-Desktop and tablet landscape (≥1024px) use three panes: a 260px rail, a 300-360px list, and the editor filling the rest. Tablet portrait (768-1023px) drops the rail into a drawer. The phone (<768px) is one pane with a bottom tab bar (Notes, Tasks, a big green New note, Search, profile) and a full-screen editor. Spacing is a 4/8/16/24 rhythm. Bituin's corner chip sits bottom-right (bottom-left in left-handed mode).
+Navigation is a responsive three-pane atlas:
+- **Desktop and tablet landscape (1024 px and up):** a 232 px rail, a note list pane (300 px, 360 px from 1280 px) on the shelf colour, and the editor filling the rest. The rail can be hidden.
+- **Tablet portrait (768 to 1023 px):** the rail becomes a 256 px drawer over a scrim; list and editor remain.
+- **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, a raised star-yellow New note button, Tasks, You), which mirrors for left-handed users.
+
+The editor centres a 720 px sheet with 40 px side padding (24 px on phones) on the chart ground. From 768 px up the ground carries a coordinate dot grid: 1 px seam-coloured dots on a 24 px pitch that scroll with the content. Plain lists inside the page flow into two columns when the editor pane is at least 720 px wide (container query); checklists stay single-column.
+
+Spacing follows a 4 px grid: 4, 8, 12, 16, 24, 40. Pane gutters are 16 px, rail padding 12 px, rail sections are separated by 20 px, page paragraphs by 8 px and headings by 16 to 40 px above. On coarse pointers every control grows to a 44 px target (40 px for small buttons).
+
+**The Chart Ground Rule.** The dot grid lives only behind sheets in the editor pane. It never appears inside a sheet, on the rail, in the list or on phones.
 
 ## Elevation & Depth
 
-Tonal layering first (Desk, Paper, Well), then soft shadows for lift. Surfaces are flat at rest; shadows appear on floating things and as a response to hover.
+Depth is mostly flat: surfaces are separated by tone (chart ground, shelf, white sheet) and one-pixel seams. Shadows are ambient, green-black tinted in light mode and pure black in dark, and reserved for things lifted off the chart.
 
 ### Shadow Vocabulary
-- **Rest** (`0 1px 2px rgb(23 32 26 / 0.08)`): buttons and cards at rest.
-- **Raise** (`0 1px 2px rgb(23 32 26 / 0.08), 0 4px 12px rgb(23 32 26 / 0.10)`): hovered cards, the New note FAB.
-- **Float** (`0 2px 4px rgb(23 32 26 / 0.08), 0 16px 40px rgb(23 32 26 / 0.18)`): modals, menus, drawers.
+- **Rest** (`box-shadow: 0 1px 1px rgb(20 38 26 / 0.05)`): the barely-there edge on primary and subtle buttons.
+- **Raise** (`box-shadow: 0 1px 2px rgb(20 38 26 / 0.06), 0 6px 16px rgb(20 38 26 / 0.08)`): hover on primary buttons and grid cards, the mobile New note button.
+- **Float** (`box-shadow: 0 2px 6px rgb(20 38 26 / 0.08), 0 18px 44px rgb(20 38 26 / 0.18)`): the pen dock, menus, popovers, dialogs and the compact Bituin pill.
+- **Sheet** (`box-shadow: 0 1px 2px rgb(20 38 26 / 0.08), 0 8px 28px rgb(20 38 26 / 0.08)`): the white page on the chart ground (tablet and up).
 
-**The No Offset Rule.** No zero-blur offset shadows anywhere.
+### Named Rules
+**The Seam Rule.** Panes, rows and groups divide with a one-pixel seam (seam / rail-seam), never with a shadow. A shadow means the thing floats above the page or is a page on the chart.
 
 ## Shapes
 
-Quiet geometry: 8px controls, 12px cards and buttons, 16px sheets, full round for avatars and the FAB. The irregular "doodle" radius exists only for Bituin-adjacent accents. Borders are 1px; the thick pencil outlines of the old system are gone.
+Corners are gently rounded and tiered by size: 8 px for controls (buttons, inputs, nav items, rows, segments), 10 px for cards and containers (list cards, the constellation, primary 40 px buttons, the New note button), 14 px for floating surfaces (the pen dock). The page sheet is nearly square (4 px) so it reads as paper. Fully round shapes are reserved for chips, tag pills, dots, the avatar and the mobile New note button.
+
+Borders are one pixel: seam for dividers and idle chips, control-line where a border must read as a control. The selected note row is marked with a one-pixel ink line on its left edge inside a green-wash fill; multi-selection uses a one-pixel green inset ring.
 
 ## Components
 
 ### Buttons
-- **Shape:** 12px radius, 40px tall (44px on coarse pointers), 14px Inter 500.
-- **Primary:** Cap Green fill, white text, Rest shadow; hover deepens and lifts to Raise; press scales to 0.98.
-- **Subtle / Outline / Ghost:** Paper with a Line Divider border; transparent with a Line Control border; text-only. **Danger** is Marker Red fill.
+Calm and solid; one green, one gold, everything else quiet.
+- **Shape:** gently rounded (8 px at 32 px tall, 10 px at 40 px tall).
+- **Primary:** tile green with white text, rest shadow; hover deepens to tile-green-deep and lifts to the raise shadow; press scales to 0.98. Disabled is 50% opacity.
+- **New note:** the one star-yellow button, full rail width, 44 px tall, 15 px semibold with a plus; hover brightens 5%, press scales to 0.98. On phones it is a 56 px yellow circle raised out of the tab bar with a 4 px rail-coloured ring.
+- **Subtle / Outline / Ghost:** white with a seam border, transparent with a control-line border, or text-only in ink-muted; all hover to hover-well.
+- **Danger:** marker red with white text; **Danger outline:** red text with a 60% red border, hover marker-wash.
+- **Focus:** the global ballpoint ring (2 px, 2 px offset) on every control.
 
 ### Chips
-- Tags are 8px-radius pills tinted from the tag colour; the task badge is a Paper chip with a Divider border.
+- **Filter chips:** 28 px tall pills, white with a seam border and muted text; active inverts to ink fill with white text.
+- **Tag chips on the rail:** pill outline in rail-seam with rail-muted text and a tabular count; active fills with rail-text and rail-forest text.
 
 ### Cards / Containers
-- **Note row:** transparent until hover (Paper), selected state is the green wash with a Green border; grid tile is Paper with Rest shadow.
-- **Nudge:** Star Gold wash with Star Gold Ink text, Bituin at left, one green action and a quiet "later".
+- **Corner Style:** 10 px.
+- **Background:** chart white on the shelf or chart ground.
+- **Shadow Strategy:** none at rest; grid cards raise on hover (see Elevation).
+- **Border:** one-pixel seam; hover strengthens to control-line.
+- **Internal Padding:** 12 to 16 px.
 
 ### Inputs / Fields
-- 40px tall, 12px radius, Paper fill, Line Divider border; focus shifts to Ballpoint Blue with a 2px soft ring. Placeholders are Ink Faint.
+- **Style:** white field, one-pixel seam border, 8 px corners, 40 px tall (44 px on touch), leading search icon in ink-faint.
+- **Focus:** border turns ballpoint blue with a 2 px ballpoint ring at 20% alpha.
+- **Placeholder:** ink-faint.
 
 ### Navigation
-- Rail items are 8px-radius rows; active is the green wash. Phone tabs are icon over 11px label; the active tab turns green with a hand-drawn squiggle underline. The profile tab opens a menu (Settings, Quiet mode, Back up now).
+- **Rail:** forest green, 12 px padding. Top: app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. Folders list with a coloured dot each; FOLDERS and TAGS use the small-caps label. The week constellation, then Archive, Trash, theme and collapse icon buttons over a rail seam, then the profile row with backup status and the settings gear.
+- **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding; active icons turn star yellow.
 
-### Bituin
-- Two stacked images (eyes open, eyes shut); blink every 6s, gentle bob in resting places, wave and cheer on welcome moments. Frozen in Quiet mode, in pen mode and under reduced motion.
+### Note Row (catalogue row)
+The list is a catalogue, not a card stack. Each row: № number (catalogue type), semibold title, a one-line snippet in body-ui muted, and a meta line (starred star, time, page count with "PDF ·" when imported, Ink, task badge, up to two tags), all in 12 px ink-faint. Rows are separated by a one-pixel seam inset 12 px; hover fills hover-well at 70%; selected fills green wash with the one-pixel ink left edge. Rows are grouped by day under small-caps labels (TODAY, YESTERDAY, THIS WEEK). A compact density drops the snippet and puts the time on the title line.
+
+### Editor Header and Sheet
+- **Crumb bar:** folder dot and name, chevron, note title, save status. On the right, the **Type | Write segment** (a 36 px white segmented control with a seam border; the active half fills tile green), **Record** (white with a red dot; turns marker-wash with a pulsing dot while recording), then star, share and more as 36 px icon toggles (the star toggle uses star-wash when on).
+- **Page bar:** page stepper (1 / 2), Pages strip toggle, zoom stepper, template picker (Blank, Ruled, Grid) and Add page, as white seam-bordered controls.
+- **Sheet:** white, 720 px, 4 px corners and the sheet shadow on tablet and up; display title, a 12 px meta line, then the page. Ruled and Grid templates draw control-line rules on the sheet itself at 35% and 25% alpha so they scale with zoom.
+
+### Pen Dock
+A vertical, 52 px wide floating dock on the editor's right edge (mirrors for left-handed users): white, 14 px corners, seam border, float shadow. Tools (pen, pencil, highlighter, eraser, lasso) are 40 px buttons with 10 px corners; the current tool fills green wash. Below a short seam: the colour swatch (24 px circle with a white inner ring and ink outer ring) that opens the palette, undo and redo, contextual lasso actions, and Clear in ink-faint that turns red on hover. It pops in at 180 ms.
+
+### Week Constellation (signature)
+The study week drawn as seven fixed sky positions (Monday to Sunday) in a 182 x 64 viewBox, inside a rail-well panel with 10 px corners. A Study day is a five-point star-yellow star, radius 5 to 8 by writing time; lit days join with a one-pixel yellow polyline (60% opacity, 95% once the weekly goal is reached); today without a star is a dashed yellow ring; other days are faint 2 px rings in rail-muted. Above, "2 of 4 study days" in semibold tabular and "this week" or "Goal reached"; below, the day letters, today's in full rail-text. A surface tone (white with a seam border) exists for light panels.
+
+### Bituin Nudge
+Bituin speaks in two forms. In the list, a white card (seam border, 10 px corners, 12 px padding) with Bituin at 36 px, a 15 px semibold title, a 13 px muted line and a small primary action plus a ghost "Not now". Elsewhere, a compact forest-green pill with the float shadow and a star-yellow text link. Bituin blinks and bobs in CSS only, and all of its motion stops while pen mode is on.
+
+### Onboarding
+A split screen: a forest-green panel (42%, up to 520 px) with the app icon, wordmark and a 30 px display promise, beside a white panel holding a 400 px column with Bituin waving, a display headline and full-width primary buttons. On phones the green panel shrinks to a header and a step indicator of ink and seam bars appears.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep one solid-green action per view and let everything else stay quiet.
-- **Do** use Star Gold only with Bituin, celebration and favorites.
-- **Do** keep every text and control pair at WCAG AA; check the dark theme too.
-- **Do** give coarse pointers 44px-class targets.
-- **Do** freeze Bituin while writing and in Quiet mode.
+- **Do** take every colour from the `--c-*` tokens (`bg-canvas`, `bg-shelf`, `bg-panel`, `text-ink`, `bg-rail`, `bg-accent`, `bg-gold`) so light and dark swap by variable.
+- **Do** keep exactly one star-yellow button per screen: New note.
+- **Do** lead every note row with its catalogue number (№ 000, tabular, ink-faint).
+- **Do** divide panes and rows with one-pixel seams and keep shadows for the pen dock, menus, dialogs and the page sheet.
+- **Do** set every count, time and number with tabular figures.
+- **Do** give every control a 44 px target on coarse pointers and the ballpoint focus ring everywhere.
+- **Do** use Lucide line icons at 15 to 18 px (20 px in the mobile tab bar), thickening the stroke only for the active state.
+- **Do** mirror the pen dock and the mobile tab bar for left-handed users.
 
 ### Don't:
-- **Don't** use hard offset shadows, thick pencil borders or wobbly radii on controls.
-- **Don't** set UI text in Patrick Hand or Kalam.
-- **Don't** show stat tiles, kickers above headings, or identical icon-title-text card grids as page structure.
-- **Don't** let Bituin appear over the page while the pen is moving.
-- **Don't** use gold as a button or text colour on white.
+- **Don't** use star yellow for anything that is not a star, New note, or the rail's active and profile marks: no yellow badges, hovers, banners or second buttons.
+- **Don't** fill a control with ballpoint blue; blue is ink, links and focus.
+- **Don't** bring back doodle icons, Kalam, Patrick Hand or Inter; Hanken Grotesk is the only face.
+- **Don't** build the library as a grid of grey cards with drop shadows; it is a seamed catalogue on the shelf.
+- **Don't** show a missed study day in red or as a loss; it is a faint point.
+- **Don't** animate Bituin or anything decorative while pen mode is on, and honour reduced motion (animations collapse to 1 ms).
+- **Don't** add per-component `dark:` colour overrides when a token exists.
+- **Don't** put the dot grid inside a sheet, on the rail, in the list or on phones.

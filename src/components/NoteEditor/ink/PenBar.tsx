@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { MousePointer2, Pencil, PenTool, Highlighter, Eraser, Undo2, Redo2, Trash2 } from 'lucide-react'
+import { Copy, Eraser, Highlighter, Lasso, Palette, Pencil, PenLine, Redo2, Trash2, Undo2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { InkPointerMode } from '@/types/ink'
 import { cn } from '@/utils/cn'
@@ -7,29 +7,20 @@ import { usePrefsStore } from '@/store/prefsStore'
 import { Tooltip } from '../../UI/Tooltip'
 
 /* ---------------------------------------------------------------------------
-   PenBar — the primary pen control bar shown in writing mode (replaces the
-   old PenToolbar that duplicated the palette trigger + cluster).
-
-   A pill-shaped "what am I holding" button opens the radial PenPalette in
-   trigger mode; compact undo/redo/clear cluster sits beside it. A delete-
-   selection button appears contextually when select tool is active.
+   PenBar: the pen dock shown in writing mode. On tablet and up a vertical
+   column floating on the page's outer edge (right, or left in left-handed
+   mode); on a phone a row along the bottom. It never scrolls away: the tools one tap apart, the current colour (opens the
+   radial PenPalette for colours, sizes and presets), undo/redo, and the
+   lasso's contextual actions. Clear sits last, apart from the rest.
 --------------------------------------------------------------------------- */
 
-const TOOL_ICONS: Record<InkPointerMode, LucideIcon> = {
-  pen: PenTool,
-  pencil: Pencil,
-  highlighter: Highlighter,
-  eraser: Eraser,
-  select: MousePointer2,
-}
-
-const TOOL_LABELS: Record<InkPointerMode, string> = {
-  pen: 'Marker',
-  pencil: 'Pencil',
-  highlighter: 'Highlighter',
-  eraser: 'Eraser',
-  select: 'Lasso',
-}
+const TOOLS: ReadonlyArray<{ tool: InkPointerMode; icon: LucideIcon; label: string }> = [
+  { tool: 'pen', icon: PenLine, label: 'Marker' },
+  { tool: 'pencil', icon: Pencil, label: 'Pencil' },
+  { tool: 'highlighter', icon: Highlighter, label: 'Highlighter' },
+  { tool: 'eraser', icon: Eraser, label: 'Eraser' },
+  { tool: 'select', icon: Lasso, label: 'Lasso' },
+]
 
 export interface PenBarProps {
   tool: InkPointerMode
@@ -40,9 +31,10 @@ export interface PenBarProps {
   onUndo: () => void
   onRedo: () => void
   onClear: () => void
-  /** Wire this to `onPaletteRequest` anchor to open palette from the pill. */
+  onTool: (tool: InkPointerMode) => void
+  /** Opens the palette anchored at this point. */
   onOpenPalette: (anchor: { x: number; y: number }) => void
-  /** Count of currently selected ink strokes — drives the contextual delete button. */
+  /** Count of currently selected ink strokes: drives the contextual lasso actions. */
   selectionCount: number
   onDeleteSelection?: () => void
   /** Paint the selection in the colour currently chosen in the palette. */
@@ -59,116 +51,105 @@ export function PenBar({
   onUndo,
   onRedo,
   onClear,
+  onTool,
   onOpenPalette,
   selectionCount,
   onDeleteSelection,
   onRecolorSelection,
   onDuplicateSelection,
 }: PenBarProps): ReactNode {
-  const ToolIcon = TOOL_ICONS[tool]
   const leftHanded = usePrefsStore((st) => st.leftHanded)
+  const tipSide = leftHanded ? 'right' : 'left' // tooltips point away from the page
+  const current = TOOLS.find((t) => t.tool === tool)?.label ?? 'Marker'
 
   return (
-    <div className={cn('flex items-center gap-1.5', leftHanded && 'flex-row-reverse')}>
-      {/* Primary pen/eraser control — opens the radial palette in trigger mode */}
-      <Tooltip label={TOOL_LABELS[tool]}>
+    <div
+      role="toolbar"
+      aria-label="Pen tools"
+      aria-orientation="vertical"
+      className="flex items-center gap-1 rounded-surface border border-lineSoft bg-panel p-1.5 shadow-float animate-pen-pop-in md:w-[52px] md:flex-col"
+    >
+      {TOOLS.map(({ tool: t, icon: Icon, label }) => (
+        <Tooltip key={t} label={label} side={tipSide}>
+          <button
+            type="button"
+            onClick={() => onTool(t)}
+            aria-label={label}
+            aria-pressed={tool === t}
+            className={cn(DOCK_BTN, tool === t ? 'bg-selected text-ink' : 'text-muted hover:bg-raise hover:text-ink')}
+          >
+            <Icon size={19} strokeWidth={tool === t ? 2.1 : 1.8} />
+          </button>
+        </Tooltip>
+      ))}
+
+      <hr className={DOCK_RULE} />
+
+      <Tooltip label={`Colour and size: ${presetLabel}`} side={tipSide}>
         <button
           type="button"
-          aria-label={`Open pen palette — ${TOOL_LABELS[tool]}, ${presetLabel}`}
+          aria-label={`Open pen palette — ${current}, ${presetLabel}`}
           onClick={(e) => {
             const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
             onOpenPalette({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
           }}
-          className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-3 py-1.5 text-sm shadow-sm transition-[background-color,border-color] hover:border-accent/60 hover:bg-raise active:scale-[0.98]"
+          className={cn(DOCK_BTN, 'hover:bg-raise')}
         >
-          <ToolIcon className="size-4 text-muted" />
-          <span className="text-[13px] font-medium text-ink">{presetLabel}</span>
           <span
             aria-hidden="true"
-            className="size-2 rounded-full border border-white/60 dark:border-black/30"
+            className="size-6 rounded-full shadow-[inset_0_0_0_2px_rgb(255_255_255/0.85),0_0_0_1.5px_rgb(var(--c-ink))]"
             style={{ backgroundColor: color }}
           />
         </button>
       </Tooltip>
 
-      {/* Undo / redo / clear cluster — compact, faded when inactive */}
-      <span className="flex items-center gap-px rounded-full border border-lineSoft bg-canvas/60 p-px">
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo handwriting"
-          className={cn(
-            'rounded-full p-1.5 transition-colors duration-100',
-            canUndo
-              ? 'text-muted hover:text-ink hover:bg-raise'
-              : 'pointer-events-none opacity-30',
-          )}
-        >
-          <Undo2 className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onRedo}
-          disabled={!canRedo}
-          aria-label="Redo handwriting"
-          className={cn(
-            'rounded-full p-1.5 transition-colors duration-100',
-            canRedo
-              ? 'text-muted hover:text-ink hover:bg-raise'
-              : 'pointer-events-none opacity-30',
-          )}
-        >
-          <Redo2 className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label="Clear handwriting"
-          className="rounded-full p-1.5 text-faint transition-colors duration-100 hover:text-accent hover:bg-raise"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-      </span>
+      <hr className={DOCK_RULE} />
 
-      {/* Contextual lasso actions: appear when the select tool has a selection */}
+      <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo handwriting" className={cn(DOCK_BTN, IDLE)}>
+        <Undo2 size={18} />
+      </button>
+      <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo handwriting" className={cn(DOCK_BTN, IDLE)}>
+        <Redo2 size={18} />
+      </button>
+
       {selectionCount > 0 && (
-        <span className="flex items-center gap-px rounded-full border border-lineSoft bg-canvas/60 p-px text-xs">
-          <button
-            type="button"
-            onClick={onRecolorSelection}
-            aria-label="Recolor selection to the current colour"
-            className="flex items-center gap-1 rounded-full px-2 py-1 text-muted transition-colors hover:bg-raise hover:text-ink"
-          >
-            <span
-              aria-hidden="true"
-              className="size-2 rounded-full border border-white/60 dark:border-black/30"
-              style={{ backgroundColor: color }}
-            />
-            Recolor
-          </button>
-          <button
-            type="button"
-            onClick={onDuplicateSelection}
-            aria-label="Duplicate selection"
-            className="rounded-full px-2 py-1 text-muted transition-colors hover:bg-raise hover:text-ink"
-          >
-            Duplicate
-          </button>
-        </span>
+        <>
+          <hr className={DOCK_RULE} />
+          <Tooltip label="Recolor to the current colour" side={tipSide}>
+            <button type="button" onClick={onRecolorSelection} aria-label="Recolor selection to the current colour" className={cn(DOCK_BTN, IDLE)}>
+              <Palette size={18} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Duplicate" side={tipSide}>
+            <button type="button" onClick={onDuplicateSelection} aria-label="Duplicate selection" className={cn(DOCK_BTN, IDLE)}>
+              <Copy size={18} />
+            </button>
+          </Tooltip>
+          <Tooltip label={`Delete ${selectionCount} stroke${selectionCount === 1 ? '' : 's'}`} side={tipSide}>
+            <button
+              type="button"
+              onClick={onDeleteSelection}
+              aria-label={`Delete ${selectionCount} selected stroke${selectionCount === 1 ? '' : 's'}`}
+              className={cn(DOCK_BTN, 'bg-danger-soft text-danger hover:brightness-95')}
+            >
+              <Trash2 size={18} />
+            </button>
+          </Tooltip>
+        </>
       )}
-      {selectionCount > 0 && (
-        <Tooltip label={`Delete ${selectionCount} stroke${selectionCount === 1 ? '' : 's'}`}>
-          <button
-            type="button"
-            onClick={onDeleteSelection}
-            aria-label={`Delete ${selectionCount} selected stroke${selectionCount === 1 ? '' : 's'}`}
-            className="rounded-full bg-selected p-1.5 text-selected-ink shadow-sm transition-[background-color] hover:bg-accent/20 active:scale-95"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </Tooltip>
-      )}
+
+      <hr className={DOCK_RULE} />
+      <Tooltip label="Clear this page's handwriting" side={tipSide}>
+        <button type="button" onClick={onClear} aria-label="Clear handwriting" className={cn(DOCK_BTN, 'text-faint hover:bg-danger-soft hover:text-danger')}>
+          <Trash2 size={17} />
+        </button>
+      </Tooltip>
     </div>
   )
 }
+
+const DOCK_BTN =
+  'grid size-10 shrink-0 place-items-center rounded-card transition-colors duration-100 active:scale-95 disabled:pointer-events-none disabled:opacity-30'
+const IDLE = 'text-muted hover:bg-raise hover:text-ink'
+/** Divider: vertical between buttons in the phone row, horizontal in the tablet column. */
+const DOCK_RULE = 'mx-1 h-6 w-0 shrink-0 border-0 border-l border-lineSoft md:mx-0 md:my-1 md:h-0 md:w-6 md:border-l-0 md:border-t'

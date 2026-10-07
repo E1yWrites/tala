@@ -34,6 +34,7 @@ import { downloadBackup, importBackupFile, restoreBackup, type BackupFile } from
 import { Button } from '@/components/UI/Button'
 import { cn } from '@/utils/cn'
 import { Avatar } from '@/components/UI/Avatar'
+import { MOD } from '@/utils/keys'
 
 /* ------------------------------ Small pieces ------------------------------ */
 
@@ -55,7 +56,7 @@ function Section({
           <Icon className="size-5" strokeWidth={2.5} />
         </span>
         <div>
-          <h2 className="font-display text-xl leading-snug">{title}</h2>
+          <h2 className="font-bold tracking-[-0.02em] text-xl leading-snug">{title}</h2>
           {description && <p className="mt-0.5 text-xs leading-snug text-muted">{description}</p>}
         </div>
       </header>
@@ -299,7 +300,7 @@ export function SettingsPage(): React.ReactNode {
             <ChevronLeft className="size-4" />
             Back
           </Button>
-          <h1 className="font-display text-2xl">Settings</h1>
+          <h1 className="font-bold tracking-[-0.02em] text-2xl">Settings</h1>
         </header>
 
         {/* Profile */}
@@ -655,8 +656,7 @@ export function SettingsPage(): React.ReactNode {
 
         {/* About */}
         <section className="relative -rotate-[0.5deg] rounded-card border border-lineSoft bg-selected p-5 text-center text-selected-ink shadow-rest sm:p-5">
-          <span aria-hidden="true" className="tape absolute left-1/2 top-[-11px] h-[22px] w-24 -translate-x-1/2" />
-          <p className="font-display text-xl">Tala</p>
+          <p className="font-bold tracking-[-0.02em] text-xl">Tala</p>
           <p className="mt-0.5 text-xs text-selected-ink/60">Version 1.0.1 · Offline-first notes</p>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-selected-ink/70">
             Your notes are stored locally in your browser&rsquo;s IndexedDB. Nothing is uploaded,
@@ -670,13 +670,13 @@ export function SettingsPage(): React.ReactNode {
 }
 
 const SHORTCUTS: [string, string][] = [
-  ['Ctrl N / Alt N', 'New note'],
-  ['Ctrl K', 'Search notes'],
-  ['Ctrl ⇧ F', 'Search notes (alt)'],
-  ['Ctrl ⇧ P', 'Command palette'],
-  ['Ctrl S', 'Force save'],
-  ['Ctrl ⇧ D', 'Toggle dark mode'],
-  ['Ctrl ,', 'Open settings'],
+  [`${MOD} N / Alt N`, 'New note'],
+  [`${MOD} K`, 'Search notes'],
+  [`${MOD} ⇧ F`, 'Search notes (alt)'],
+  [`${MOD} ⇧ P`, 'Command palette'],
+  [`${MOD} S`, 'Force save'],
+  [`${MOD} ⇧ D`, 'Toggle dark mode'],
+  [`${MOD} ,`, 'Open settings'],
   ['/', 'Search in list'],
   ['Esc', 'Close / go back'],
 ]

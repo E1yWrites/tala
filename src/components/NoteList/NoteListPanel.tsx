@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
-  AlignJustify,
   Archive,
   CheckSquare,
   Filter,
   FilterActive,
-  LayoutGrid,
   Menu,
   MoreHorizontal,
   NotebookText,
   Pin,
   Plus,
-  Rows3,
   Search,
   SlidersHorizontal,
   Sort,
@@ -30,7 +27,7 @@ import { useTagStore } from '@/store/tagStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Note, SortKey, ViewDensity, ViewRef } from '@/types/models'
-import { notesForView, sortNotes, viewMeta, searchableText } from '@/utils/noteFilters'
+import { notesForView, sortNotes, viewMeta, searchableText, dayGroupLabels } from '@/utils/noteFilters'
 import { cn } from '@/utils/cn'
 import { Button } from '../UI/Button'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
@@ -127,6 +124,13 @@ export function NoteListPanel({
 
   const hasActiveFilters = filterFavoritesOnly || filterTagIds.length > 0
 
+  // Day headings (Pinned / Today / Yesterday / This week / Earlier) when the
+  // list is in last-edited order; other sorts read better ungrouped.
+  const groupLabels = useMemo(
+    () => (sortKey === 'updated-desc' ? dayGroupLabels(visibleNotes, surface === 'live', Date.now()) : []),
+    [visibleNotes, sortKey, surface],
+  )
+
   /* ------------------------------- Menus ---------------------------------- */
 
   const filterItems: MenuItem[] = [
@@ -167,10 +171,21 @@ export function NoteListPanel({
     onSelect: () => updateSettings({ sortKey: key }),
   }))
 
-  const densities: Array<{ value: ViewDensity; icon: LucideIcon; label: string }> = [
-    { value: 'compact', icon: AlignJustify, label: 'Compact list' },
-    { value: 'comfortable', icon: Rows3, label: 'Comfortable list' },
-    { value: 'grid', icon: LayoutGrid, label: 'Grid' },
+  const densities: Array<{ value: ViewDensity; label: string }> = [
+    { value: 'comfortable', label: 'Comfortable list' },
+    { value: 'compact', label: 'Compact list' },
+    { value: 'grid', label: 'Grid' },
+  ]
+  // Sort and view share one menu so the toolbar fits a 300px list column
+  const sortAndViewItems: MenuItem[] = [
+    ...sortItems,
+    { id: 'sep-view', label: '', type: 'separator', onSelect: () => {} },
+    ...densities.map<MenuItem>(({ value, label }) => ({
+      id: `view-${value}`,
+      label,
+      checked: viewDensity === value,
+      onSelect: () => updateSettings({ viewDensity: value }),
+    })),
   ]
 
   /* ------------------------------ Empty states ---------------------------- */
@@ -295,7 +310,7 @@ export function NoteListPanel({
   return (
     <section
       aria-label={`${meta.title} — note list`}
-      className="flex h-full min-h-0 flex-col bg-canvas lg:border-r lg:border-lineSoft"
+      className="flex h-full min-h-0 flex-col bg-shelf md:border-r md:border-lineSoft"
     >
       {/* Header */}
       <header className="flex items-center gap-2 px-4 pb-2 pt-4">
@@ -310,12 +325,13 @@ export function NoteListPanel({
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-xl leading-snug">{meta.title}</h1>
-          <p className="text-xs text-faint">
-            {hydrated
-              ? `${visibleNotes.length} ${visibleNotes.length === 1 ? 'note' : 'notes'}${meta.description ? ` · ${meta.description}` : ''}`
-              : 'Loading…'}
-          </p>
+          <h1 className="flex items-baseline gap-2 text-[21px] font-bold leading-tight tracking-[-0.02em]">
+            <span className="truncate">{meta.title}</span>
+            {hydrated && <span className="shrink-0 text-[13px] font-medium tabular-nums text-faint">{visibleNotes.length}</span>}
+          </h1>
+          {(meta.description || !hydrated) && (
+            <p className="truncate text-xs text-faint">{hydrated ? meta.description : 'Loading…'}</p>
+          )}
         </div>
         <Tooltip label="New note" side="bottom">
           <button
@@ -324,16 +340,16 @@ export function NoteListPanel({
               openModal({ kind: 'new-note' })
             }
             aria-label="New note"
-            className="btn-primary hidden size-9 shrink-0 rounded-card md:inline-flex"
+            className="btn-primary hidden size-9 shrink-0 rounded-control md:inline-flex [@media(pointer:coarse)]:size-11"
           >
-            <Plus size={20} strokeWidth={2.5} />
+            <Plus size={19} strokeWidth={2.3} />
           </button>
         </Tooltip>
       </header>
 
       {/* Phone: Starred lives inside Notes as a second view of the same list */}
       {(view.kind === 'all' || view.kind === 'favorites') && (
-        <div className="mx-4 mb-1 flex gap-1 rounded-card border border-lineSoft bg-panel p-0.5 md:hidden" role="group" aria-label="Which notes">
+        <div className="mx-4 mb-1 flex gap-1 rounded-control border border-lineSoft bg-panel p-0.5 md:hidden" role="group" aria-label="Which notes">
           {(
             [
               { kind: 'all', label: 'All' },
@@ -362,7 +378,7 @@ export function NoteListPanel({
       <div className="flex flex-col gap-2 px-4 pb-2 pt-1">
         <div className="relative">
           <Search
-            size={18}
+            size={16}
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
           />
@@ -371,9 +387,9 @@ export function NoteListPanel({
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search in view…"
+            placeholder="Search this list"
             aria-label={`Search ${meta.title}`}
-            className="h-10 [@media(pointer:coarse)]:h-11 w-full rounded-card border border-lineSoft bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
+            className="h-10 [@media(pointer:coarse)]:h-11 w-full rounded-control border border-lineSoft bg-panel pl-9 pr-8 text-sm text-ink transition-colors placeholder:text-faint hover:border-line focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20"
           />
           {searchQuery && (
             <button
@@ -405,7 +421,7 @@ export function NoteListPanel({
               />
               <DropdownMenu
                 align="start"
-                items={sortItems}
+                items={sortAndViewItems}
                 trigger={(props) => <ToolbarButton {...props} active={false} label="Sort" Icon={Sort} />}
               />
 
@@ -418,30 +434,10 @@ export function NoteListPanel({
                       aria-label="Select notes"
                       className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint hover:text-ink transition-colors"
                     >
-                      <CheckSquare size={16} strokeWidth={2.5} />
+                      <CheckSquare size={16} strokeWidth={2} />
                     </button>
                   </Tooltip>
                 )}
-                <div className="flex items-center rounded-control border border-lineSoft bg-panel p-0.5">
-                  {densities.map(({ value, icon: Icon, label }) => (
-                    <Tooltip key={value} label={label}>
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ viewDensity: value })}
-                        aria-pressed={viewDensity === value}
-                        aria-label={label}
-                        className={cn(
-                          'grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control transition-colors',
-                          viewDensity === value
-                            ? 'bg-selected text-selected-ink'
-                            : 'text-faint hover:text-ink',
-                        )}
-                      >
-                        <Icon size={16} strokeWidth={2.5} />
-                      </button>
-                    </Tooltip>
-                  ))}
-                </div>
               </div>
             </>
           ) : (
@@ -519,14 +515,14 @@ export function NoteListPanel({
 
       {/* Trash banner */}
       {view.kind === 'trash' && visibleNotes.length > 0 && (
-        <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-card border border-accent/50 bg-accent/[0.06] px-3 py-2">
+        <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-control border border-lineSoft bg-panel px-3 py-2">
           <p className="text-xs leading-snug text-muted">
             Deleted notes stay here until removed permanently.
           </p>
           <Button
             size="sm"
             variant="ghost"
-            className="shrink-0 text-accent"
+            className="shrink-0 text-danger hover:text-danger"
             onClick={() =>
               confirmAction({
                 title: 'Empty trash?',
@@ -552,7 +548,7 @@ export function NoteListPanel({
         {!hydrated ? (
           <div className="flex flex-col gap-2.5 px-3 pb-6 pt-1">
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="rounded-card border border-lineSoft p-3">
+              <div key={i} className="border-b border-lineSoft px-3 py-3">
                 <Skeleton className="h-3.5 w-1/2" />
                 <Skeleton className="mt-2 h-2.5 w-full" />
                 <Skeleton className="mt-1.5 h-2 w-1/3" />
@@ -580,9 +576,14 @@ export function NoteListPanel({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5 px-2.5 pb-8 pt-0.5">
-            {visibleNotes.map((note) => (
+          <div className="flex flex-col px-2.5 pb-8 pt-0.5">
+            {visibleNotes.map((note, i) => (
               <LongPressWrapper key={note.id} note={note} onPreview={showPreview}>
+                {groupLabels[i] && (
+                  <h2 className="px-3 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
+                    {groupLabels[i]}
+                  </h2>
+                )}
                 <NoteRowWithMenu
                   note={note}
                   surface={surface}
@@ -630,13 +631,13 @@ function ToolbarButton({
       {...rest}
       aria-label={label}
       className={cn(
-        'inline-flex h-7 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-control border border-transparent px-2 text-xs transition-colors',
+        'inline-flex h-7 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors',
         active
-          ? 'border-ballpoint/50 bg-ballpoint-soft text-ballpoint'
-          : 'text-muted hover:border-lineSoft hover:bg-panel hover:text-ink',
+          ? 'border-ink bg-ink text-panel'
+          : 'border-lineSoft bg-panel text-muted hover:border-line hover:text-ink',
       )}
     >
-      <Icon size={17} aria-hidden="true" />
+      <Icon size={14} aria-hidden="true" />
       {label}
     </button>
   )
@@ -654,7 +655,7 @@ function NoteRowWithMenu(props: {
     <div className="group relative">
       <NoteRow {...props} />
       {!props.multiSelected && (
-        <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+        <div className="absolute right-1.5 top-1.5 z-10 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
           <DropdownMenu
             items={buildNoteMenu(props.note, { surface: props.surface })}
             trigger={(menuProps) => (
@@ -662,7 +663,7 @@ function NoteRowWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
+                className="grid size-7 [@media(pointer:coarse)]:size-9 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>
@@ -717,7 +718,7 @@ function NoteGridCardWithMenu(props: {
                 {...menuProps}
                 type="button"
                 aria-label="Note options"
-                className="grid size-7 [@media(pointer:coarse)]:size-11 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay [@media(hover:hover)]:shadow-rest"
+                className="grid size-7 [@media(pointer:coarse)]:size-9 place-items-center rounded-control text-faint transition-colors hover:bg-raise hover:text-ink [@media(hover:hover)]:border [@media(hover:hover)]:border-lineSoft [@media(hover:hover)]:bg-overlay"
               >
                 <MoreHorizontal size={16} aria-hidden="true" />
               </button>

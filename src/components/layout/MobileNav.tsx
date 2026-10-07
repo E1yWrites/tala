@@ -12,7 +12,7 @@ import { cn } from '@/utils/cn'
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
- * Phone bottom bar: Notes, Tasks, a big green New note, Search, and the
+ * Phone bottom bar on the green rail: Notes, Tasks, the gold New note, Search, and the
  * profile menu (Settings lives under the picture). Left-handed mode mirrors it.
  */
 export function MobileNav(): React.ReactNode {
@@ -32,7 +32,7 @@ export function MobileNav(): React.ReactNode {
       aria-label="Primary"
       style={{ height: `calc(${MOBILE_NAV_HEIGHT} + env(safe-area-inset-bottom))` }}
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-lineSoft bg-panel pb-[env(safe-area-inset-bottom)] md:hidden',
+        'fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-rail-line bg-rail pb-[env(safe-area-inset-bottom)] text-rail-fg md:hidden',
         leftHanded && 'flex-row-reverse',
       )}
     >
@@ -54,9 +54,9 @@ export function MobileNav(): React.ReactNode {
           type="button"
           onClick={() => openModal({ kind: 'new-note' })}
           aria-label="New note"
-          className="btn-primary -mt-5 size-14 rounded-full shadow-raise ring-4 ring-panel"
+          className="-mt-5 grid size-14 place-items-center rounded-full bg-gold text-gold-fg shadow-raise ring-4 ring-rail transition-transform active:scale-95"
         >
-          <Plus size={28} strokeWidth={2.5} aria-hidden="true" />
+          <Plus size={26} strokeWidth={2.4} aria-hidden="true" />
         </button>
       </div>
 
@@ -84,10 +84,10 @@ export function MobileNav(): React.ReactNode {
               aria-label={`${profile.name || 'Profile'}: settings and more`}
               className={cn(
                 'flex w-full flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
-                activeView.kind === 'settings' ? 'text-accent' : 'text-faint hover:text-muted',
+                activeView.kind === 'settings' ? 'text-rail-fg' : 'text-rail-muted hover:text-rail-fg',
               )}
             >
-              <Avatar src={profile.avatar} name={profile.name} size="xs" />
+              <Avatar src={profile.avatar} name={profile.name} size="xs" className="border-transparent bg-gold font-semibold text-gold-fg" />
               <span className="text-[11px]">You</span>
             </button>
           )}
@@ -115,14 +115,14 @@ function NavTab({
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
-        active ? 'text-accent' : 'text-faint hover:text-muted',
+        active ? 'text-rail-fg' : 'text-rail-muted hover:text-rail-fg',
       )}
     >
-      <Icon size={20} strokeWidth={active ? 2.75 : 2} aria-hidden="true" />
+      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" className={active ? 'text-gold' : undefined} />
       <span
         className={cn(
           'text-[11px] font-medium',
-          active && 'underline decoration-wavy decoration-accent decoration-[1.5px] underline-offset-4',
+          active && 'font-semibold',
         )}
       >
         {label}

@@ -125,7 +125,7 @@ export function TagEditorModal({ noteId }: { noteId: string }): React.ReactNode 
       {/* Suggestions */}
       {suggestions.length > 0 && (
         <>
-          <p className="mt-3 mb-1.5 text-[13px] text-muted underline decoration-wavy decoration-lineSoft/70 underline-offset-4">
+          <p className="mt-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
             Suggestions
           </p>
           <div className="flex flex-wrap gap-1.5">

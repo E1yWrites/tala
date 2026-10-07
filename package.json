@@ -1,7 +1,7 @@
 {
   "name": "tala",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Pagtatala, made simple.",
   "author": "e1yu",
   "license": "MIT",
@@ -16,13 +16,12 @@
     "app:dev": "tauri dev",
     "app:build": "tauri build",
     "test": "vitest run",
-    "test:e2e": "node scripts/pages-e2e.mjs"
+    "test:e2e": "node scripts/pages-e2e.mjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.11.1",
-    "@fontsource-variable/inter": "^5.2.8",
-    "@fontsource/kalam": "^5.3.0",
-    "@fontsource/patrick-hand": "^5.3.0",
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tiptap/core": "^3.30.2",
@@ -40,7 +39,6 @@
     "pdfjs-dist": "^4.10.38",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-doodle-icons": "^1.0.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.15"

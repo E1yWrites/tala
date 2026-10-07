@@ -36,7 +36,7 @@ Lecture halls and desks: pen in hand, slides on screen, patchy or no network. No
 - Name: Tala (Tagalog for "star"). Tagline in `package.json`: "Pagtatala, made simple."
 - Mascot: Bituin, a yellow star with a green cap that reads TALA. Art in `src/assets/bituin/` (`bituin.png`, `bituin-blink.png`, transparent PNG).
 - Voice: English with light Filipino touches. The owner reviews every Filipino line; all Bituin strings live in one file so they can be reviewed together.
-- Binding visual constraints already decided by the owner: clean surfaces with doodle accents only; green means actions, gold means Bituin and celebration, blue means ink and links; Inter for UI text, Patrick Hand and Kalam only for accents.
+- Visual world (owner decision, 2026-10-07 redesign): only Bituin and the name Tala are pinned. The earlier green/gold/blue roles, Inter, Patrick Hand and Kalam were released; the current world is "Planisphere" (the library as a star atlas), documented in DESIGN.md.
 
 ## Evidence on Hand
 

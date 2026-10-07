@@ -10,19 +10,20 @@ import ImageExtension from '@tiptap/extension-image'
 import { Placeholder } from '@tiptap/extensions'
 import {
   ArrowLeft,
-  BookOpen,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  GalleryHorizontal,
+  MoreHorizontal,
+  Minus,
+  PenLine,
+  Type,
   Folder as FolderIcon,
   Hash,
   LoaderCircle,
-  Maximize2,
   Minimize2,
-  PenTool,
   Mic,
-  Pin,
   Plus,
   RotateCcw,
   Share2,
@@ -56,6 +57,7 @@ import type { Note } from '@/types/models'
 import type { InkDoc, InkPointerMode } from '@/types/ink'
 import { INK_PRESETS } from '@/types/ink'
 import { cn } from '@/utils/cn'
+import { folderColor } from '@/utils/folderColor'
 import { formatFull, formatRelative } from '@/utils/dates'
 import { processImageFile } from '@/utils/image'
 import { FavoriteStar } from '../UI/FavoriteStar'
@@ -167,6 +169,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const [penMode, setPenMode] = useState(false)
   // Bituin's corner chip only when no list pane sits beside the editor
   const isPhone = useMediaQuery(BREAKPOINTS.mobile)
+  const leftHanded = usePrefsStore((st) => st.leftHanded)
   // Writing comes first: while pen mode is on, the stylesheet freezes every Bituin animation
   useEffect(() => {
     document.documentElement.toggleAttribute('data-pen', penMode)
@@ -600,53 +603,104 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const currentFolder = folders.find((f) => f.id === note.folderId)
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
+    <div className="relative flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
       {(isPhone || focusMode) && !note.isDeleted && <BituinNudge placement="corner" />}
-      {/* Toolbar row */}
-      <header className="flex items-center gap-1 border-b border-lineSoft px-3 py-2">
+      {/* Header: where you are, then the few controls a lecture needs */}
+      <header className="flex h-[52px] shrink-0 items-center gap-1.5 border-b border-lineSoft bg-panel pl-2 pr-2 md:pl-3 [@media(pointer:coarse)]:h-14">
         <Tooltip label="Back" side="bottom">
           <button
             type="button"
             onClick={() => selectNote(null)}
             aria-label="Back to list"
-            className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
+            className="grid size-9 shrink-0 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
           >
-            <ArrowLeft size={18} strokeWidth={2.5} />
+            <ArrowLeft size={18} />
           </button>
         </Tooltip>
 
-        <SaveStatusChip status={status} autosave={autosaveEnabled} />
+        <nav aria-label="Note location" className="flex min-w-0 flex-1 items-center gap-1 text-[13px] text-muted">
+          {!note.isDeleted ? (
+            <DropdownMenu
+              side="bottom"
+              align="start"
+              items={folderItems}
+              trigger={(props) => (
+                <button
+                  {...props}
+                  type="button"
+                  className="hidden max-w-[150px] shrink-0 items-center gap-1.5 rounded-control px-1.5 py-1 transition-colors hover:bg-raise hover:text-ink sm:inline-flex"
+                >
+                  {currentFolder ? (
+                    <span className="size-2 shrink-0 rounded-full" style={{ background: folderColor(currentFolder.id) }} aria-hidden="true" />
+                  ) : (
+                    <FolderIcon size={13} aria-hidden="true" />
+                  )}
+                  <span className="truncate">{currentFolder ? currentFolder.name : 'No folder'}</span>
+                </button>
+              )}
+            />
+          ) : (
+            <span className="hidden px-1.5 sm:inline">Trash</span>
+          )}
+          <ChevronRight size={14} className="hidden shrink-0 text-faint sm:block" aria-hidden="true" />
+          <span className="min-w-0 truncate font-semibold text-ink">{note.title.trim() || 'Untitled'}</span>
+          <SaveStatusChip status={status} autosave={autosaveEnabled} />
+        </nav>
 
-        {isBgPage && (
-          <span className="ml-1 max-w-[220px] truncate font-display text-lg leading-tight text-ink">
-            {note.title.trim() || note.title || 'Untitled'}
-          </span>
-        )}
-
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
+          {!note.isDeleted && !readingLayout && (
+            <div role="group" aria-label="Input mode" className="flex h-9 overflow-hidden rounded-control border border-lineSoft bg-panel [@media(pointer:coarse)]:h-11">
+              {(
+                [
+                  { on: false, label: 'Type', Icon: Type },
+                  { on: true, label: 'Write', Icon: PenLine },
+                ] as const
+              ).map(({ on, label, Icon }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPenMode(on)}
+                  aria-pressed={penMode === on}
+                  aria-label={label}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 text-[13px] font-semibold transition-colors',
+                    penMode === on ? 'bg-accent text-accent-fg' : 'text-muted hover:text-ink',
+                  )}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  <span className="hidden xl:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {!note.isDeleted && (
-            <HeaderToggle
-              label={note.isPinned ? 'Unpin' : 'Pin'}
-              active={note.isPinned}
-              onClick={() => patchNote(note.id, { isPinned: !note.isPinned })}
-            >
-              <Pin size={HEADER_ICON_SIZE} className={cn(note.isPinned && 'rotate-45')} />
-            </HeaderToggle>
+            <Tooltip label={recordingHere ? 'Recording: open lecture audio' : 'Record the lecture'} side="bottom">
+              <button
+                type="button"
+                onClick={() => setRecordingsOpen((o) => !o)}
+                aria-pressed={recordingsOpen || recordingHere}
+                aria-label={recordingHere ? 'Lecture audio (recording)' : 'Lecture audio'}
+                className={cn(
+                  'inline-flex h-9 items-center gap-2 rounded-control border px-3 text-[13px] font-semibold transition-colors [@media(pointer:coarse)]:h-11',
+                  recordingsOpen || recordingHere
+                    ? 'border-danger/40 bg-danger-soft text-ink'
+                    : 'border-lineSoft bg-panel text-ink hover:border-line',
+                )}
+              >
+                <span aria-hidden="true" className={cn('size-2 rounded-full bg-danger', recordingHere && 'animate-pulse-soft')} />
+                <span className="hidden md:inline">{recordingHere ? 'Recording' : 'Record'}</span>
+                <Mic size={15} aria-hidden="true" className="md:hidden" />
+              </button>
+            </Tooltip>
           )}
           {!note.isDeleted && (
             <HeaderToggle
               label={note.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               active={note.isFavorite}
               tone="gold"
-              onClick={() =>
-                patchNote(note.id, { isFavorite: !note.isFavorite })
-              }
+              onClick={() => patchNote(note.id, { isFavorite: !note.isFavorite })}
             >
-              {note.isFavorite ? (
-                <FavoriteStar size={HEADER_ICON_SIZE} />
-              ) : (
-                <Star size={HEADER_ICON_SIZE} />
-              )}
+              {note.isFavorite ? <FavoriteStar size={HEADER_ICON_SIZE} /> : <Star size={HEADER_ICON_SIZE} />}
             </HeaderToggle>
           )}
           <HeaderToggle
@@ -656,71 +710,45 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           >
             <Share2 size={HEADER_ICON_SIZE} />
           </HeaderToggle>
-          {!note.isDeleted && (
-            <HeaderToggle
-              label={recordingHere ? 'Lecture audio (recording)' : 'Lecture audio'}
-              active={recordingsOpen || recordingHere}
-              onClick={() => setRecordingsOpen((o) => !o)}
-            >
-              <span className="relative grid place-items-center">
-                <Mic size={HEADER_ICON_SIZE} />
-                {recordingHere && (
-                  <span aria-hidden="true" className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-danger" />
-                )}
-              </span>
+          {focusMode && (
+            <HeaderToggle label="Exit distraction-free mode" active onClick={toggleFocusMode}>
+              <Minimize2 size={HEADER_ICON_SIZE} />
             </HeaderToggle>
-          )}
-          {!note.isDeleted && !readingLayout && (
-            <HeaderToggle
-              label={penMode ? 'Exit pen mode' : 'Pen mode'}
-              active={penMode}
-              onClick={() => setPenMode((m) => !m)}
-            >
-              <PenTool size={HEADER_ICON_SIZE} />
-            </HeaderToggle>
-          )}
-          {!note.isDeleted && (
-            <HeaderToggle
-              label={readingLayout ? 'Back to editing' : 'Reading layout'}
-              active={readingLayout}
-              onClick={() => {
-                // Flush pending edits so the reading view shows current content
-                void flushRef.current({ silent: true })
-                toggleReadingLayout()
-              }}
-            >
-              <BookOpen size={HEADER_ICON_SIZE} />
-            </HeaderToggle>
-          )}
-          {!focusMode ? (
-            <span className="hidden md:block">
-              <HeaderToggle label="Distraction-free mode" active={focusMode} onClick={toggleFocusMode}>
-                <Maximize2 size={HEADER_ICON_SIZE} />
-              </HeaderToggle>
-            </span>
-          ) : (
-            <span>
-              <HeaderToggle label="Exit distraction-free mode" active onClick={toggleFocusMode}>
-                <Minimize2 size={HEADER_ICON_SIZE} />
-              </HeaderToggle>
-            </span>
           )}
           <DropdownMenu
-            items={
-              note.isDeleted
+            align="end"
+            items={[
+              ...(!note.isDeleted
+                ? ([
+                    {
+                      id: 'reading-layout',
+                      label: readingLayout ? 'Back to editing' : 'Reading layout',
+                      onSelect: () => {
+                        // Flush pending edits so the reading view shows current content
+                        void flushRef.current({ silent: true })
+                        toggleReadingLayout()
+                      },
+                    },
+                    ...(!focusMode && !isPhone
+                      ? [{ id: 'focus', label: 'Distraction-free mode', onSelect: toggleFocusMode } satisfies MenuItem]
+                      : []),
+                    { id: 'sep-view', label: '', type: 'separator', onSelect: () => {} },
+                  ] satisfies MenuItem[])
+                : []),
+              ...(note.isDeleted
                 ? buildNoteMenu(note, { surface }).filter(
                     (item) => item.id !== 'restore' && item.id !== 'delete-forever',
                   )
-                : buildNoteMenu(note, { surface })
-            }
+                : buildNoteMenu(note, { surface }).filter((item) => item.id !== 'favorite' && item.id !== 'share')),
+            ]}
             trigger={(props) => (
               <button
                 {...props}
                 type="button"
                 aria-label="More options"
-                className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink"
+                className="grid size-9 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink [@media(pointer:coarse)]:size-11"
               >
-                <ChevronDown size={18} strokeWidth={2.5} />
+                <MoreHorizontal size={HEADER_ICON_SIZE} />
               </button>
             )}
           />
@@ -729,9 +757,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
       {/* Banners */}
       {note.isDeleted && (
-        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-accent/50 bg-accent/[0.06] px-3.5 py-2.5">
-          <Trash2 size={14} className="text-accent" aria-hidden="true" />
-          <p className="text-xs text-accent">
+        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-lineSoft bg-panel px-3.5 py-2.5">
+          <Trash2 size={14} className="text-muted" aria-hidden="true" />
+          <p className="text-[13px] text-muted">
             This note is in the trash and is read-only.
           </p>
           <div className="ml-auto flex gap-2">
@@ -749,7 +777,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <Button
               size="sm"
               variant="ghost"
-              className="text-accent"
+              className="text-danger hover:text-danger"
               onClick={() =>
                 confirmAction({
                   title: 'Delete forever?',
@@ -771,29 +799,46 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
       {/* Page navigation */}
       {!note.isDeleted && pages.length > 0 && (
-        <div className="mx-6 mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label="Previous page"
-            disabled={activePageIndex <= 0}
-            onClick={() => setActivePageIndex((i) => Math.max(0, i - 1))}
-          >
-            <ChevronLeft size={14} />
-          </Button>
-          <div className="text-center text-xs tabular-nums whitespace-nowrap text-faint md:w-32">
-            Page {activePageIndex + 1} of {pages.length}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-b border-lineSoft bg-panel/60 px-3 py-1.5 md:px-4">
+          <div className="flex items-center rounded-control border border-lineSoft bg-panel" role="group" aria-label="Page">
+            <button
+              type="button"
+              aria-label="Previous page"
+              disabled={activePageIndex <= 0}
+              onClick={() => setActivePageIndex((i) => Math.max(0, i - 1))}
+              className={PAGE_BTN}
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="px-1.5 text-xs font-medium tabular-nums whitespace-nowrap text-muted">
+              <span aria-hidden="true">
+                {activePageIndex + 1} / {pages.length}
+              </span>
+              <span className="sr-only">
+                Page {activePageIndex + 1} of {pages.length}
+              </span>
+            </span>
+            <button
+              type="button"
+              aria-label="Next page"
+              disabled={activePageIndex >= pages.length - 1}
+              onClick={() => setActivePageIndex((i) => Math.min(pages.length - 1, i + 1))}
+              className={PAGE_BTN}
+            >
+              <ChevronRight size={15} />
+            </button>
           </div>
           <Button
             size="sm"
             variant="ghost"
-            aria-label="Next page"
-            disabled={activePageIndex >= pages.length - 1}
-            onClick={() => setActivePageIndex((i) => Math.min(pages.length - 1, i + 1))}
+            aria-pressed={showStrip}
+            onClick={() => setShowStrip((v) => !v)}
+            className={cn(showStrip && 'bg-selected text-ink')}
           >
-            <ChevronRight size={14} />
+            <GalleryHorizontal size={15} aria-hidden="true" />
+            Pages
           </Button>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
             {zoomLevel > 1 && (
               <Button
                 size="sm"
@@ -805,35 +850,34 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 Fit
               </Button>
             )}
-            <div className="hidden items-center md:flex" role="group" aria-label="Zoom">
-              <Button
-                size="sm"
-                variant="ghost"
+            <div className="hidden items-center rounded-control border border-lineSoft bg-panel md:flex" role="group" aria-label="Zoom">
+              <button
+                type="button"
                 aria-label="Zoom out"
                 disabled={zoomLevel <= 1}
                 onClick={() => zoomRef.current?.zoomBy(1 / 1.25)}
+                className={PAGE_BTN}
               >
-                −
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
+                <Minus size={14} />
+              </button>
+              <button
+                type="button"
                 aria-label="Fit page to width"
-                className="w-12 tabular-nums"
+                className="h-8 w-12 text-xs font-medium tabular-nums text-muted transition-colors hover:text-ink disabled:hover:text-muted"
                 disabled={zoomLevel <= 1}
                 onClick={() => zoomRef.current?.reset()}
               >
                 {Math.round(zoomLevel * 100)}%
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
+              </button>
+              <button
+                type="button"
                 aria-label="Zoom in"
                 disabled={zoomLevel >= 4}
                 onClick={() => zoomRef.current?.zoomBy(1.25)}
+                className={PAGE_BTN}
               >
-                +
-              </Button>
+                <Plus size={14} />
+              </button>
             </div>
             <DropdownMenu
               align="end"
@@ -895,15 +939,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             />
             <Button
               size="sm"
-              variant="ghost"
-              aria-pressed={showStrip}
-              onClick={() => setShowStrip((v) => !v)}
-            >
-              Pages
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
+              variant="subtle"
               onClick={() => {
                 addPage(note.id)
                 setActivePageIndex(pages.length)
@@ -929,9 +965,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       {/* Scrollable document */}
       <div
         ref={scrollRef}
-        className="editor-scroll min-h-0 flex-1 overflow-y-auto"
-        data-template={activePage?.template ?? 'blank'}
-        style={{ '--editor-template-rule': `${28 * zoomLevel}px` } as CSSProperties}
+        // No horizontal padding, in any mode: ink scales with the column's width,
+        // so the column must be exactly as wide in Type and Write (and as before).
+        className="editor-scroll min-h-0 flex-1 overflow-y-auto bg-panel md:bg-canvas md:py-6"
         onPaste={onPasteOrDrop}
         onDrop={onPasteOrDrop}
         onClick={(e) => {
@@ -957,7 +993,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           onZoomChange={setZoomLevel}
           className={cn(
             'relative mx-auto w-full max-w-[720px] px-6 pb-24 md:px-10',
-            !isBgPage && 'pt-6',
+            !isBgPage && `editor-sheet tpl-${activePage?.template ?? 'blank'} min-h-[70vh] bg-panel pt-6 md:rounded-[4px] md:shadow-sheet`,
           )}
           style={
             {
@@ -974,33 +1010,27 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 page={activePage}
                 label={`Page ${activePageIndex + 1} of PDF`}
               />
-              {penMode && !note.isDeleted && (
-                <div className="mt-3">
-                  <PenBar
-                    tool={penTool}
-                    color={inkPrefs.color}
-                    presetLabel={INK_PRESETS[inkPrefs.preset].label}
-                    canUndo={inkHistory.canUndo}
-                    canRedo={inkHistory.canRedo}
-                    onUndo={() => inkLayerRef.current?.undo()}
-                    onRedo={() => inkLayerRef.current?.redo()}
-                    onClear={() => {
-                      inkLayerRef.current?.clearAll()
-                      toast.success('Handwriting cleared')
-                    }}
-                    onOpenPalette={(anchor) => setPenPalette({ open: true, anchor, mode: 'trigger' })}
-                    selectionCount={selectionCount}
-                    onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
-                    onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
-                    onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
-                  />
-                </div>
-              )}
             </>
           ) : (
             <>
+          {/* Title */}
+          <input
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                editor?.commands.focus('start')
+              }
+            }}
+            placeholder="Untitled note"
+            aria-label="Note title"
+            disabled={note.isDeleted}
+            className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-0.025em] placeholder:text-faint/60 disabled:cursor-default"
+          />
+
           {/* Meta row */}
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div className="mb-3 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <time
               dateTime={new Date(note.updatedAt).toISOString()}
               title={formatFull(note.updatedAt)}
@@ -1022,9 +1052,13 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   <button
                     {...props}
                     type="button"
-                    className="inline-flex h-6 items-center gap-1 rounded-control border border-transparent px-1.5 text-xs text-faint transition-colors hover:border-ballpoint/40 hover:bg-ballpoint-soft/50 hover:text-ballpoint"
+                    className="-ml-1.5 inline-flex h-6 items-center gap-1.5 rounded-control px-1.5 text-xs text-muted transition-colors hover:bg-raise hover:text-ink"
                   >
-                    <FolderIcon size={11} aria-hidden="true" />
+                    {currentFolder ? (
+                      <span className="size-2 rounded-full" style={{ background: folderColor(currentFolder.id) }} aria-hidden="true" />
+                    ) : (
+                      <FolderIcon size={12} aria-hidden="true" />
+                    )}
                     {currentFolder ? currentFolder.name : 'Set folder'}
                   </button>
                 )}
@@ -1046,7 +1080,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                     type="button"
                     onClick={() => openModal({ kind: 'tag-editor', noteId: note.id })}
                     aria-label="Edit tags"
-                    className="grid size-[19px] place-items-center rounded-control border border-lineSoft text-faint transition-colors hover:border-accent hover:text-accent"
+                    className="grid size-6 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink"
                   >
                     <Plus size={11} />
                   </button>
@@ -1055,49 +1089,19 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             )}
           </div>
 
-          {/* Title — the marker-written heading */}
-          <input
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                editor?.commands.focus('start')
-              }
-            }}
-            placeholder="Enter note title…"
-            aria-label="Note title"
-            disabled={note.isDeleted}
-            className="w-full bg-transparent font-display text-[30px] leading-tight placeholder:text-faint/70 disabled:cursor-default"
-          />
-
-          {/* Toolbar row — swaps to the writing (pen) control while pen mode is on */}
+          {/* Formatting toolbar for typing; writing tools live in the pen dock.
+              The row keeps its fixed height in Write mode too: ink is positioned
+              from the top of the column, so the text must start at the same
+              offset in both modes: 176px from the column top, where pre-redesign
+              notes drew their ink (scripts/pages-e2e.mjs checks the two modes match). */}
           {editor && !note.isDeleted && !readingLayout && (
-            <div className="sticky top-0 z-40 -mx-1 mt-4 mb-4 bg-gradient-to-b from-canvas via-canvas to-transparent pb-2 pt-1">
-              {penMode ? (
-                <PenBar
-                  tool={penTool}
-                  color={inkPrefs.color}
-                  presetLabel={INK_PRESETS[inkPrefs.preset].label}
-                  canUndo={inkHistory.canUndo}
-                  canRedo={inkHistory.canRedo}
-                  onUndo={() => inkLayerRef.current?.undo()}
-                  onRedo={() => inkLayerRef.current?.redo()}
-                  onClear={() => {
-                    inkLayerRef.current?.clearAll()
-                    toast.success('Handwriting cleared')
-                  }}
-                  onOpenPalette={(anchor) =>
-                    setPenPalette({ open: true, anchor, mode: 'trigger' })
-                  }
-                  selectionCount={selectionCount}
-                  onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
-                  onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
-                  onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
-                />
-              ) : (
-                <EditorToolbar editor={editor} />
+            <div
+              className={cn(
+                '-mx-1 mb-[13.5px] flex h-14 items-center',
+                !penMode && 'sticky top-0 z-40 bg-panel/95 backdrop-blur-[2px]',
               )}
+            >
+              {!penMode && <EditorToolbar editor={editor} />}
             </div>
           )}
 
@@ -1135,6 +1139,42 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           )}
         </ZoomColumn>
       </div>
+
+      {/* Pen dock: floats on the page's outer edge, never scrolls away */}
+      {penMode && !note.isDeleted && !readingLayout && (
+        <div
+          className={cn(
+            // Tablet and up: a column on the page's outer edge (clear of the text inset).
+            // Phone: a row along the bottom, so it never covers the writing column.
+            'pointer-events-none absolute z-40 flex',
+            'inset-x-2 bottom-3 justify-center',
+            'md:inset-x-auto md:bottom-6 md:top-[112px] md:items-center',
+            leftHanded ? 'md:left-2' : 'md:right-2',
+          )}
+        >
+          <div className="pointer-events-auto max-w-full overflow-x-auto no-scrollbar md:max-h-full md:overflow-y-auto">
+            <PenBar
+              tool={penTool}
+              color={inkPrefs.color}
+              presetLabel={INK_PRESETS[inkPrefs.preset].label}
+              canUndo={inkHistory.canUndo}
+              canRedo={inkHistory.canRedo}
+              onUndo={() => inkLayerRef.current?.undo()}
+              onRedo={() => inkLayerRef.current?.redo()}
+              onClear={() => {
+                inkLayerRef.current?.clearAll()
+                toast.success('Handwriting cleared')
+              }}
+              onTool={(t) => updatePenPrefs({ tool: t })}
+              onOpenPalette={(anchor) => setPenPalette({ open: true, anchor, mode: 'trigger' })}
+              selectionCount={selectionCount}
+              onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
+              onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
+              onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Radial pen palette — hoisted once (portal) so right-click and
           pill-click both share the same open/close lifecycle. */}
@@ -1200,8 +1240,10 @@ function SaveStatusChip({
   )
 }
 
-const HEADER_ICON_SIZE = 22
-const HEADER_ICON_CONTAINER = 'grid size-10 place-items-center'
+const HEADER_ICON_SIZE = 18
+const HEADER_ICON_CONTAINER = 'grid place-items-center'
+const PAGE_BTN =
+  'grid size-8 place-items-center text-muted transition-colors hover:text-ink disabled:pointer-events-none disabled:opacity-30 [@media(pointer:coarse)]:size-10'
 
 function HeaderToggle({
   label,
@@ -1224,7 +1266,7 @@ function HeaderToggle({
         aria-pressed={active}
         aria-label={label}
         className={cn(
-          'grid size-10 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 active:scale-95 [@media(pointer:coarse)]:size-11',
+          'grid size-9 place-items-center rounded-control transition-[background-color,border-color,color,transform] duration-100 active:scale-95 [@media(pointer:coarse)]:size-11',
           active
             ? tone === 'gold'
               ? 'bg-gold-soft text-gold-ink'

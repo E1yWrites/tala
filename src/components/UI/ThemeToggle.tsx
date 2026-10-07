@@ -13,7 +13,7 @@ const THEME_ORDER: ThemeMode[] = ['light', 'dark', 'system']
  *
  * Animation is CSS-transition based (~500ms) and disabled under reduced motion.
  */
-export function ThemeToggle(): React.ReactNode {
+export function ThemeToggle({ className }: { className?: string }): React.ReactNode {
   const { settings, setTheme } = useSettingsStore()
   const systemDark = useSystemDark()
   const [transitioning, setTransitioning] = useState(false)
@@ -49,11 +49,12 @@ export function ThemeToggle(): React.ReactNode {
       aria-label={`Theme: ${label}. Click to switch.`}
       className={cn(
         'grid size-9 shrink-0 place-items-center rounded-control text-muted transition-colors hover:bg-raise hover:text-ink',
+        className,
       )}
     >
       <span className="grid size-full place-items-center overflow-visible" aria-hidden="true">
         {settings.theme === 'system' ? (
-          <Monitor size={26} />
+          <Monitor size={18} />
         ) : (
           <svg
             viewBox="0 0 32 32"
@@ -61,7 +62,7 @@ export function ThemeToggle(): React.ReactNode {
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="size-[22px]"
+            className="size-[19px]"
           >
             {/* Sun disc — visible when light, fades/scales when dark */}
             <circle
@@ -74,7 +75,7 @@ export function ThemeToggle(): React.ReactNode {
                 resolvedDark ? 'scale-0 opacity-0' : 'scale-100 opacity-100',
               )}
               style={{ transformOrigin: 'center', stroke: 'currentColor' }}
-              fill="rgb(var(--c-accent))"
+              fill="rgb(var(--c-gold))"
             />
             {/* Sun rays — retract in dark mode */}
             <g
@@ -101,7 +102,7 @@ export function ThemeToggle(): React.ReactNode {
                 resolvedDark ? 'scale-100 opacity-100' : 'scale-75 opacity-0',
               )}
               style={{ transformOrigin: 'center', stroke: 'currentColor' }}
-              fill="rgb(var(--c-accent))"
+              fill="rgb(var(--c-gold))"
             />
             {/* Stars — fade in during dark mode */}
             {[
