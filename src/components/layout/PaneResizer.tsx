@@ -82,7 +82,7 @@ export function PaneResizer({
     >
       <span
         aria-hidden="true"
-        className="h-full w-0.5 transition-colors group-hover:bg-gold/70 group-focus-visible:bg-gold group-active:bg-gold"
+        className="h-full w-0.5 transition-colors group-hover:bg-line group-active:bg-accent group-focus-visible:w-[3px] group-focus-visible:bg-ballpoint"
       />
     </div>
   )

@@ -140,6 +140,8 @@ const textTops = await page.evaluate(() =>
   [...document.querySelectorAll('[data-page-id]')].map((el) => Math.round(el.querySelector('.ProseMirror').getBoundingClientRect().top - el.getBoundingClientRect().top)),
 )
 check('typed text starts at the same height on every page (where its ink was drawn)', textTops[0] === textTops[1], JSON.stringify(textTops))
+const shownToolbars = await page.evaluate(() => [...document.querySelectorAll('[data-toolbar]')].filter((el) => getComputedStyle(el).visibility === 'visible').length)
+check('one formatting toolbar on screen at a time', shownToolbars === 1, `${shownToolbars}`)
 await page.click('button[aria-label="Previous page"]')
 await wait(500)
 let t = await pageText(page, 0)

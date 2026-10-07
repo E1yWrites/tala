@@ -57,6 +57,8 @@ export interface PageSheetProps {
   index: number
   /** Mount the page's content (it is on or near the screen). */
   near: boolean
+  /** The page in view: its formatting toolbar shows even before you type in it. */
+  current: boolean
   readOnly: boolean
   penMode: boolean
   readingLayout: boolean
@@ -97,6 +99,7 @@ export const PageSheet = memo(function PageSheet(props: PageSheetProps): ReactNo
       data-page-id={id}
       aria-label={`Page ${index + 1}`}
       role="group"
+      data-current={props.current || undefined}
       className={cn(
         'relative grid grid-cols-1',
         !bg && `editor-sheet tpl-${page.template} min-h-[70vh] bg-panel md:rounded-[4px] md:shadow-sheet`,
@@ -125,6 +128,7 @@ export const PageSheet = memo(function PageSheet(props: PageSheetProps): ReactNo
           onPaletteRequest={props.onPalette}
           recording={props.recording}
           onStrokeTap={props.onStrokeTap}
+          label={`Handwriting on page ${index + 1}`}
         />
       )}
     </div>
@@ -213,9 +217,11 @@ function TypedPage({
       {/* Formatting toolbar for typing; writing tools live in the pen dock.
           The row keeps its fixed height in Write mode too, so the text starts
           at the same offset in both modes: 176px from the page top, where
-          pre-redesign notes drew their ink (scripts/pages-e2e.mjs checks it). */}
+          pre-redesign notes drew their ink (scripts/pages-e2e.mjs checks it).
+          index.css shows one toolbar at a time (`.page-stack [data-toolbar]`). */}
       {editor && !readOnly && !readingLayout && (
         <div
+          data-toolbar
           className={cn(
             '-mx-1 mb-[13.5px] flex h-14 items-center',
             !penMode && 'sticky top-0 z-40 bg-panel/95 backdrop-blur-[2px]',
