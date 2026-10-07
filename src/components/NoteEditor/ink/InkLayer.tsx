@@ -282,6 +282,29 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return () => ro.disconnect()
   }, [])
 
+  // iPadOS gives a Pencil drag to its own gestures (Scribble, text selection,
+  // the magnifier, scrolling) unless the touch is cancelled; WebKit then fires
+  // pointercancel and the stroke ends early. Pointer events still arrive after
+  // preventDefault, so drawing is unaffected; fingers are left to scroll/pinch.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || !active) return
+    const onTouch = (e: TouchEvent): void => {
+      for (const t of Array.from(e.changedTouches)) {
+        if ((t as Touch & { touchType?: string }).touchType === 'stylus') {
+          e.preventDefault()
+          return
+        }
+      }
+    }
+    el.addEventListener('touchstart', onTouch, { passive: false })
+    el.addEventListener('touchmove', onTouch, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouch)
+      el.removeEventListener('touchmove', onTouch)
+    }
+  }, [active])
+
   // A pending draw/UI frame must not fire after unmount/deactivation.
   useEffect(
     () => () => {
@@ -321,17 +344,22 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const strokes = erasingStrokes ?? effDoc?.strokes ?? EMPTY_STROKES
 
   // Size the wet canvas to the SVG's CSS box (crisp at the settled zoom); never mid-stroke.
+  // An inactive layer releases its backing store: iOS blanks canvases once their
+  // total memory passes a cap, and several pages can be mounted at once.
   const wetCssW = box.w
   const wetCssH = Math.round(dispViewH * dispScale)
   useEffect(() => {
     const c = wetRef.current
-    if (!c || wetCssW === 0 || wetCssH === 0 || gestureRef.current?.kind === 'draw') return
-    const { w, h } = wetCanvasSize(wetCssW, wetCssH, window.devicePixelRatio || 1, zoom)
+    if (!c || gestureRef.current?.kind === 'draw') return
+    const { w, h } =
+      active && wetCssW > 0 && wetCssH > 0
+        ? wetCanvasSize(wetCssW, wetCssH, window.devicePixelRatio || 1, zoom)
+        : { w: 0, h: 0 }
     if (c.width !== w || c.height !== h) {
       c.width = w
       c.height = h
     }
-  }, [wetCssW, wetCssH, zoom])
+  }, [active, wetCssW, wetCssH, zoom])
 
   /* ------------------------------ History ops ------------------------------ */
 
@@ -828,11 +856,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     liveBuiltLenRef.current = 0
     liveBuiltAtRef.current = -1e9
     wetDrawn.current = 0
-    try {
-      latencyT0.current = localStorage.getItem('tala:inkdebug') ? e.nativeEvent.timeStamp : 0
-    } catch {
-      latencyT0.current = 0
-    }
+    latencyT0.current = inkDebug() ? e.nativeEvent.timeStamp : 0
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
@@ -1096,7 +1120,18 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           aria-label="Handwriting canvas"          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={(e) => {
+            // WebKit cancels when the OS claims the pointer; the stroke so far is kept
+            if (inkDebug()) {
+              const g = gestureRef.current
+              console.log(
+                `[tala:ink] pointercancel: ${e.pointerType} during ${g?.kind ?? 'no gesture'}` +
+                  (g?.kind === 'draw' ? ` after ${g.pts.length} points` : '') +
+                  `, ${touchIds.current.length} finger(s) down`,
+              )
+            }
+            onPointerUp(e)
+          }}
           onPointerLeave={() => {
             if (gestureRef.current) return
             uiPendingRef.current.cursor = null
@@ -1170,6 +1205,15 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     </div>
   )
 })
+
+/** `localStorage['tala:inkdebug']`: log input latency and cancelled pointers. */
+function inkDebug(): boolean {
+  try {
+    return !!localStorage.getItem('tala:inkdebug')
+  } catch {
+    return false
+  }
+}
 
 function findTopmostStroke(strokes: InkStroke[], x: number, y: number): InkStroke | null {
   for (let i = strokes.length - 1; i >= 0; i--) {

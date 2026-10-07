@@ -475,6 +475,9 @@
 .ink-layer[data-active] {
   pointer-events: auto;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ink-layer svg {

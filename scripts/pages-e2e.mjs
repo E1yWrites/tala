@@ -442,6 +442,20 @@ const wetAfter = await page.evaluate(() => {
   return n
 })
 check('the wet canvas hands over to the committed SVG path', wetAfter === 0 && (await page.locator('svg.ink-svg path').count()) >= 1)
+// iPadOS Scribble/selection/scroll must not claim the Pencil: stylus touches are cancelled, fingers are not
+const touchPrevented = await page.evaluate(() => {
+  const svg = document.querySelector('.ink-layer svg')
+  const fire = (touchType) => {
+    const t = new Touch({ identifier: 1, target: svg, clientX: 10, clientY: 10 })
+    // Chromium has no Touch.touchType (WebKit only), so stamp it on as iPadOS would report it
+    Object.defineProperty(t, 'touchType', { value: touchType })
+    const e = new TouchEvent('touchstart', { touches: [t], changedTouches: [t], cancelable: true, bubbles: true })
+    svg.dispatchEvent(e)
+    return e.defaultPrevented
+  }
+  return { stylus: fire('stylus'), finger: fire('direct') }
+})
+check('a stylus touch on the ink layer is kept from the OS, a finger is not', touchPrevented.stylus && !touchPrevented.finger, JSON.stringify(touchPrevented))
 const inkRows = () =>
   page.evaluate(
     () =>
