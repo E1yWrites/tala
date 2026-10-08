@@ -495,13 +495,15 @@ function commitPages(
   )
 }
 
-export function addPage(noteId: string, template: PageRecord['template'] = 'blank', atIndex?: number): PageRecord {
+/** A new page copies the page above it (size and template); under a PDF page it is a blank A4. */
+export function addPage(noteId: string, template?: PageRecord['template'], atIndex?: number): PageRecord {
   const prev = getPages(noteId)
   const index = Math.min(atIndex ?? prev.length, prev.length)
   const sibling = prev[Math.max(0, index - 1)]
+  const underPdf = !!(sibling?.pdfPage || sibling?.backgroundBlobId)
   const page: PageRecord = {
     ...newPage(noteId, createId(), index),
-    template,
+    template: template ?? (sibling && !underPdf ? sibling.template : 'blank'),
     size: sibling?.size?.kind !== 'pdf' && sibling?.size ? sibling.size : PAGE_SIZES.a4,
   }
   const next = [...prev]

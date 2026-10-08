@@ -58,6 +58,18 @@ describe('prefsStore', () => {
     expect(s.inkPrefs.pencil.doubleTap).toBe('eraser')
   })
 
+  it('remembers the last page per note, forgetting the least recently viewed', async () => {
+    stubStorage({ 'tala:prefs': JSON.stringify({ version: 1, state: { lastPages: { a: 'p1', b: 7 } } }) })
+    const store = await freshStore()
+    expect(store.getState().lastPages).toEqual({ a: 'p1' })
+    for (let i = 0; i < 100; i++) store.getState().setLastPage(`n${i}`, 'p')
+    store.getState().setLastPage('n0', 'p2') // viewed again: now the newest
+    const kept = store.getState().lastPages
+    expect(Object.keys(kept)).toHaveLength(100)
+    expect(kept.a).toBeUndefined()
+    expect(kept.n0).toBe('p2')
+  })
+
   it('clamps pane widths and treats junk as the default', async () => {
     stubStorage({
       'tala:prefs': JSON.stringify({ version: 1, state: { sidebarWidth: 9999, listWidth: 'wide' } }),

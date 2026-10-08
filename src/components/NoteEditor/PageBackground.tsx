@@ -31,6 +31,12 @@ export function PageBackground({
   )
 }
 
+/** Stand-in for a page scrolled away from the screen: the same box, nothing drawn. */
+export function PageFrame({ page }: { page: PageRecord }): React.ReactNode {
+  const { w, h } = pageSize(page)
+  return <div className={FRAME} style={{ aspectRatio: `${w} / ${h}` }} />
+}
+
 function StoredImage({ blobId, label }: { blobId: string | undefined; label: string }): React.ReactNode {
   const url = useBlobUrl(blobId)
   return url ? <img src={url} alt={label} className={FRAME} /> : <div className={`${FRAME} aspect-[595/842]`} />

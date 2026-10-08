@@ -9,7 +9,7 @@ import { lassoPath, strokesInLasso } from '@/canvas/lasso'
 import { classifyShape, shapeToPoints } from '@/canvas/snapShape'
 
 /** True while the user is typing in a text field. */
-function isTypingTarget(target: EventTarget | null): boolean {
+export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   return (
     target.tagName === 'INPUT' ||
@@ -31,7 +31,7 @@ import type { InkDoc, InkEraserMode, InkPointerMode, InkPoint, InkStroke } from 
 import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, sizesForTool } from '@/types/ink'
 
 /* ---------------------------------------------------------------------------
-   The handwriting canvas: an SVG overlay covering the note's content column.
+   The handwriting canvas: an SVG overlay covering one page of the note.
    Committed strokes are one <path> each (memoized); the in-progress stroke is
    mutated directly inside requestAnimationFrame so drawing never re-renders
    React. Coordinates are captured in "capture space" (the content-column width
@@ -88,22 +88,22 @@ export interface InkPrefsSnapshot {
 }
 
 export interface InkLayerHandle {
-  undo: () => void
-  redo: () => void
-  clearAll: () => void
   deleteSelection: () => void
   recolorSelection: (color: string) => void
   duplicateSelection: () => void
+  clearSelection: () => void
 }
 
 interface InkLayerProps {
   ink: InkDoc | null
-  /** Page id: keys the undo history. */
-  historyKey: string
-  onChange: (ink: InkDoc) => void
+  /** A committed change; `before` is what undo restores (the note keeps the history). */
+  onCommit: (ink: InkDoc, before: InkStroke[]) => void
   active: boolean
+  /** Keep a full-size wet-ink canvas. Only the page being written on has one (iOS caps canvas memory). */
+  wet: boolean
+  /** A gesture started here: the page wants the wet canvas. */
+  onEngage?: () => void
   prefs: InkPrefsSnapshot
-  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void
   /**
    * Right-click / secondary-click on the canvas while pen mode is active.
    * The browser menu is suppressed here — and only here, since the svg mounts
@@ -112,33 +112,10 @@ interface InkLayerProps {
   onPaletteRequest?: (clientX: number, clientY: number) => void
   /** Called when the ink selection size changes (contextual selection actions). */
   onSelectionChange?: (count: number) => void
-  /** E / V shortcuts — desktop keyboard tool switching (mirrors the palette). */
-  onToolShortcut?: (tool: InkPointerMode) => void
   /** A lecture is being recorded for this note: new strokes get a timestamp. */
   recording?: boolean
   /** Select-tool tap on a timestamped stroke: jump the lecture audio to when it was written. */
   onStrokeTap?: (ts: number) => void
-}
-
-interface InkOp {
-  before: InkStroke[]
-  after: InkStroke[]
-}
-
-/** Undo/redo per page lives outside the component so a page switch (which remounts
- *  the layer) no longer throws the history away. */
-const histories = new Map<string, { undo: InkOp[]; redo: InkOp[] }>()
-// An import/restore replaced the data: old ops would resurrect stale strokes
-if (typeof window !== 'undefined')
-  window.addEventListener('tala:external-sync', (e) => {
-    if ((e as CustomEvent).detail !== 'restore') return
-    for (const h of histories.values()) h.undo.length = h.redo.length = 0
-  })
-
-function historyFor(pageId: string): { undo: InkOp[]; redo: InkOp[] } {
-  let h = histories.get(pageId)
-  if (!h) histories.set(pageId, (h = { undo: [], redo: [] }))
-  return h
 }
 
 type Gesture =
@@ -171,14 +148,13 @@ const EMPTY_STROKES: InkStroke[] = []
 export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLayer(
   {
     ink,
-    historyKey,
-    onChange,
+    onCommit,
     active,
+    wet,
+    onEngage,
     prefs,
-    onHistoryChange,
     onPaletteRequest,
     onSelectionChange,
-    onToolShortcut,
     recording,
     onStrokeTap,
   },
@@ -204,8 +180,6 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   /** Live-rebuild throttle bookkeeping (see renderLive). */
   const liveBuiltLenRef = useRef(0)
   const liveBuiltAtRef = useRef(-1e9)
-  const undoStack = useRef(historyFor(historyKey).undo)
-  const redoStack = useRef(historyFor(historyKey).redo)
   const touchIds = useRef<number[]>([])
   const lastNativeRef = useRef<Pt | null>(null)
   /** Active Apple Pencil pointer id — while set, touch contacts are treated as
@@ -282,6 +256,29 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     return () => ro.disconnect()
   }, [])
 
+  // iPadOS gives a Pencil drag to its own gestures (Scribble, text selection,
+  // the magnifier, scrolling) unless the touch is cancelled; WebKit then fires
+  // pointercancel and the stroke ends early. Pointer events still arrive after
+  // preventDefault, so drawing is unaffected; fingers are left to scroll/pinch.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || !active) return
+    const onTouch = (e: TouchEvent): void => {
+      for (const t of Array.from(e.changedTouches)) {
+        if ((t as Touch & { touchType?: string }).touchType === 'stylus') {
+          e.preventDefault()
+          return
+        }
+      }
+    }
+    el.addEventListener('touchstart', onTouch, { passive: false })
+    el.addEventListener('touchmove', onTouch, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouch)
+      el.removeEventListener('touchmove', onTouch)
+    }
+  }, [active])
+
   // A pending draw/UI frame must not fire after unmount/deactivation.
   useEffect(
     () => () => {
@@ -320,35 +317,26 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   const scale = dispScale * zoom
   const strokes = erasingStrokes ?? effDoc?.strokes ?? EMPTY_STROKES
 
-  // Size the wet canvas to the SVG's CSS box (crisp at the settled zoom); never mid-stroke.
+  // Size the wet canvas to the SVG's CSS box (crisp at the settled zoom); never
+  // resize one in use mid-stroke (an empty one may be sized: the stroke so far
+  // is repainted onto it). Other layers release their backing store: iOS blanks
+  // canvases once their total memory passes a cap, and several pages are mounted.
   const wetCssW = box.w
   const wetCssH = Math.round(dispViewH * dispScale)
   useEffect(() => {
     const c = wetRef.current
-    if (!c || wetCssW === 0 || wetCssH === 0 || gestureRef.current?.kind === 'draw') return
-    const { w, h } = wetCanvasSize(wetCssW, wetCssH, window.devicePixelRatio || 1, zoom)
+    if (!c || (gestureRef.current?.kind === 'draw' && c.width > 0)) return
+    const { w, h } =
+      active && wet && wetCssW > 0 && wetCssH > 0
+        ? wetCanvasSize(wetCssW, wetCssH, window.devicePixelRatio || 1, zoom)
+        : { w: 0, h: 0 }
     if (c.width !== w || c.height !== h) {
       c.width = w
       c.height = h
     }
-  }, [wetCssW, wetCssH, zoom])
+  }, [active, wet, wetCssW, wetCssH, zoom])
 
-  /* ------------------------------ History ops ------------------------------ */
-
-  const notifyHistory = useCallback(() => {
-    onHistoryChange?.(undoStack.current.length > 0, redoStack.current.length > 0)
-  }, [onHistoryChange])
-
-  useEffect(notifyHistory, [notifyHistory])
-
-  // The module-level history was cleared by a restore; refresh the undo/redo buttons
-  useEffect(() => {
-    const onSync = (e: Event): void => {
-      if ((e as CustomEvent).detail === 'restore') notifyHistory()
-    }
-    window.addEventListener('tala:external-sync', onSync)
-    return () => window.removeEventListener('tala:external-sync', onSync)
-  }, [notifyHistory])
+  /* -------------------------------- Commits -------------------------------- */
 
   const commit = useCallback(
     (nextStrokes: InkStroke[], before: InkStroke[], growToY1?: number) => {
@@ -365,45 +353,10 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
         visibleCaptureH,
         480,
       )
-      undoStack.current.push({ before, after: nextStrokes })
-      if (undoStack.current.length > 100) undoStack.current.shift()
-      redoStack.current.length = 0
-      onChange({ ...doc, height, strokes: nextStrokes })
-      notifyHistory()
+      onCommit({ ...doc, height, strokes: nextStrokes }, before)
     },
-    [box.h, box.w, notifyHistory, onChange],
+    [box.h, box.w, onCommit],
   )
-
-  const applyStrokes = useCallback(
-    (nextStrokes: InkStroke[]) => {
-      const doc = inkRef.current
-      if (!doc) return
-      onChange({ ...doc, strokes: nextStrokes })
-    },
-    [onChange],
-  )
-
-  const undo = useCallback(() => {
-    const op = undoStack.current.pop()
-    if (!op) return
-    redoStack.current.push(op)
-    applyStrokes(op.before)
-    notifyHistory()
-  }, [applyStrokes, notifyHistory])
-
-  const redo = useCallback(() => {
-    const op = redoStack.current.pop()
-    if (!op) return
-    undoStack.current.push(op)
-    applyStrokes(op.after)
-    notifyHistory()
-  }, [applyStrokes, notifyHistory])
-
-  const clearAll = useCallback(() => {
-    const doc = inkRef.current
-    if (!doc || doc.strokes.length === 0) return
-    commit([], doc.strokes)
-  }, [commit])
 
   const deleteSelection = useCallback(() => {
     const doc = inkRef.current
@@ -444,10 +397,12 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     setSelected(new Set(copies.map((c) => c.id)))
   }, [commit, selected])
 
+  const clearSelection = useCallback(() => setSelected(new Set()), [])
+
   useImperativeHandle(
     ref,
-    () => ({ undo, redo, clearAll, deleteSelection, recolorSelection, duplicateSelection }),
-    [undo, redo, clearAll, deleteSelection, recolorSelection, duplicateSelection],
+    () => ({ deleteSelection, recolorSelection, duplicateSelection, clearSelection }),
+    [deleteSelection, recolorSelection, duplicateSelection, clearSelection],
   )
 
   /* --------------------------- Coordinate mapping -------------------------- */
@@ -750,6 +705,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    onEngage?.()
 
     // Track Apple Pencil — while active, touch contacts are palm noise.
     if (e.pointerType === 'pen') {
@@ -828,11 +784,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     liveBuiltLenRef.current = 0
     liveBuiltAtRef.current = -1e9
     wetDrawn.current = 0
-    try {
-      latencyT0.current = localStorage.getItem('tala:inkdebug') ? e.nativeEvent.timeStamp : 0
-    } catch {
-      latencyT0.current = 0
-    }
+    latencyT0.current = inkDebug() ? e.nativeEvent.timeStamp : 0
     gestureRef.current = {
       kind: 'draw',
       pts: [p],
@@ -1003,55 +955,20 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent): void => {
-      // Never steal keys while the user is typing text or a dialog is up —
-      // otherwise Ctrl+Z would undo ink AND text (tiptap runs first), and
-      // Backspace in the title field would delete strokes.
+      // Never steal keys while the user is typing text or a dialog is up:
+      // Backspace in the title field must not delete strokes. Undo/redo and
+      // the tool keys are the note's (NoteEditor), since several pages are mounted.
       if (isTypingTarget(e.target)) return
       const ui = useUIStore.getState()
       if (ui.modalStack.length > 0 || ui.sidebarDrawerOpen) return
-      const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'z') {
-        if (e.shiftKey) {
-          if (redoStack.current.length > 0) {
-            e.preventDefault()
-            redo()
-          }
-        } else if (undoStack.current.length > 0) {
-          e.preventDefault()
-          undo()
-        }
-        return
-      }
-      if (mod && e.key.toLowerCase() === 'y') {
-        if (redoStack.current.length > 0) {
-          e.preventDefault()
-          redo()
-        }
-        return
-      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected.size > 0) {
         e.preventDefault()
         deleteSelection()
-        return
-      }
-      if (e.key === 'Escape') {
-        setSelected(new Set())
-        return
-      }
-      if (mod) return
-      // Desktop tool shortcuts — mirror the palette so mouse users never need
-      // to reach for it mid-stroke.
-      if (e.key.toLowerCase() === 'e' && onToolShortcut) {
-        e.preventDefault()
-        onToolShortcut('eraser')
-      } else if (e.key.toLowerCase() === 'v' && onToolShortcut) {
-        e.preventDefault()
-        onToolShortcut('select')
-      }
+      } else if (e.key === 'Escape') setSelected(new Set())
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [active, deleteSelection, onToolShortcut, redo, selected.size, undo])
+  }, [active, deleteSelection, selected.size])
 
   /* Drop stale selection ids when strokes change externally (undo etc.) */
   useEffect(() => {
@@ -1096,7 +1013,18 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           aria-label="Handwriting canvas"          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={(e) => {
+            // WebKit cancels when the OS claims the pointer; the stroke so far is kept
+            if (inkDebug()) {
+              const g = gestureRef.current
+              console.log(
+                `[tala:ink] pointercancel: ${e.pointerType} during ${g?.kind ?? 'no gesture'}` +
+                  (g?.kind === 'draw' ? ` after ${g.pts.length} points` : '') +
+                  `, ${touchIds.current.length} finger(s) down`,
+              )
+            }
+            onPointerUp(e)
+          }}
           onPointerLeave={() => {
             if (gestureRef.current) return
             uiPendingRef.current.cursor = null
@@ -1170,6 +1098,15 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     </div>
   )
 })
+
+/** `localStorage['tala:inkdebug']`: log input latency and cancelled pointers. */
+function inkDebug(): boolean {
+  try {
+    return !!localStorage.getItem('tala:inkdebug')
+  } catch {
+    return false
+  }
+}
 
 function findTopmostStroke(strokes: InkStroke[], x: number, y: number): InkStroke | null {
   for (let i = strokes.length - 1; i >= 0; i--) {

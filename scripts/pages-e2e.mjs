@@ -1,6 +1,7 @@
 /* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
  * PDF import and on-demand render (also offline), a .tala backup round trip that
- * carries the PDF, the Tasks view, ink tools (zoom, wet ink, lasso, page strip, PDF
+ * carries the PDF, continuous scroll (pages mount near the screen, insert between
+ * pages, reopen where you left off), the Tasks view, ink tools (zoom, wet ink, lasso, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -77,6 +78,10 @@ const newNote = async (p) => {
   await wait(400)
 }
 const editorText = async (p) => (await p.textContent('.ProseMirror')) ?? ''
+/** Every page sits in one scroll; these reach page `i` (0-based). */
+const pageSlot = (p, i) => p.locator('[data-page-id]').nth(i)
+const pageText = async (p, i) => (await pageSlot(p, i).locator('.ProseMirror').textContent()) ?? ''
+const counter = (p) => p.textContent('[role="group"][aria-label="Page"] .sr-only')
 const searchHits = async (p, q) => {
   await p.keyboard.press('Control+k')
   await wait(350)
@@ -92,15 +97,15 @@ const openFromSearch = async (p, q) => {
   await wait(600)
   return n
 }
-/** True when the first PDF canvas has any dark (text) pixel. */
-const canvasHasInk = (p) =>
-  p.evaluate(() => {
-    const c = document.querySelector('canvas[role="img"]')
+/** True when the `i`th mounted PDF canvas has any dark (text) pixel. */
+const canvasHasInk = (p, i = 0) =>
+  p.evaluate((i) => {
+    const c = document.querySelectorAll('canvas[role="img"]')[i]
     if (!c || c.width === 0) return false
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
     for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 0 && d[i] < 100 && d[i + 1] < 100) return true
     return false
-  })
+  }, i)
 
 // A fake microphone, so lecture recording runs for real in headless Chromium
 const browser = await chromium.launch({
@@ -126,13 +131,18 @@ await page.keyboard.type('PAGEONE-ALPHA')
 await wait(900)
 await page.locator('button:has-text("Add page")').first().click()
 await wait(500)
-check('new page starts empty', !(await editorText(page)).includes('PAGEONE-ALPHA'))
-await page.click('.ProseMirror')
+check('new page starts empty, below page 1 in the same scroll', (await page.locator('[data-page-id]').count()) === 2 && !(await pageText(page, 1)).includes('PAGEONE-ALPHA'))
+check('Add page scrolls to the new page', (await counter(page)) === 'Page 2 of 2', await counter(page))
+await pageSlot(page, 1).locator('.ProseMirror').click()
 await page.keyboard.type('PAGETWO-BETA')
 await wait(900)
+const textTops = await page.evaluate(() =>
+  [...document.querySelectorAll('[data-page-id]')].map((el) => Math.round(el.querySelector('.ProseMirror').getBoundingClientRect().top - el.getBoundingClientRect().top)),
+)
+check('typed text starts at the same height on every page (where its ink was drawn)', textTops[0] === textTops[1], JSON.stringify(textTops))
 await page.click('button[aria-label="Previous page"]')
 await wait(500)
-let t = await editorText(page)
+let t = await pageText(page, 0)
 check('page 1 keeps only its own text', t.includes('PAGEONE-ALPHA') && !t.includes('PAGETWO-BETA'))
 
 await page.reload({ waitUntil: 'networkidle' })
@@ -142,7 +152,7 @@ t = await editorText(page)
 check('reopened note shows page 1', t.includes('PAGEONE-ALPHA'))
 await page.click('button[aria-label="Next page"]')
 await wait(400)
-check('page 2 text survives reload', (await editorText(page)).includes('PAGETWO-BETA'))
+check('page 2 text survives reload', (await pageText(page, 1)).includes('PAGETWO-BETA'))
 
 /* ---- 2. PDF import, render on demand, offline ------------------------------- */
 await newNote(page)
@@ -155,7 +165,7 @@ check('PDF page 1 has visible text pixels', await canvasHasInk(page))
 check('PDF note lists 2 pages', (await page.textContent('body'))?.includes('Page 1 of 2') ?? false)
 await page.click('button[aria-label="Next page"]')
 await wait(1000)
-check('PDF page 2 renders', await canvasHasInk(page))
+check('PDF page 2 renders', await canvasHasInk(page, 1))
 await page.click('button:has-text("Pages")')
 await wait(1500)
 check('PDF pages get real thumbnails in the strip', (await page.locator('[aria-label="Pages"] img').count()) === 2)
@@ -163,6 +173,42 @@ await page.click('button:has-text("Pages")')
 await wait(400)
 check('PDF text layer is searchable', (await searchHits(page, 'quartz-lecture-two')) > 0)
 await page.keyboard.press('Escape')
+
+/* ---- 2b. Continuous scroll: a long PDF, pages added in between ----------------- */
+await newNote(page)
+await page.setInputFiles('input[type="file"][accept*="pdf"]', {
+  name: 'long.pdf',
+  mimeType: 'application/pdf',
+  buffer: makePdf(Array.from({ length: 8 }, (_, i) => `LONG-SLIDE-${i + 1}`)),
+})
+await page.waitForSelector('canvas[role="img"]', { timeout: 20000 }).catch(() => {})
+await wait(1200)
+const mounted = () => page.evaluate(() => document.querySelectorAll('canvas[role="img"]').length)
+check('only pages near the screen are rendered', (await page.locator('[data-page-id]').count()) === 8 && (await mounted()) <= 5, `${await mounted()} of 8`)
+await page.evaluate(() => {
+  const sc = document.querySelector('.editor-scroll')
+  sc.scrollTop = sc.scrollHeight
+})
+await wait(800)
+check('scrolling to the end shows the last page', (await counter(page)) === 'Page 8 of 8' && (await canvasHasInk(page, (await mounted()) - 1)), await counter(page))
+await page.click('button[aria-label="Previous page"]')
+await page.click('button[aria-label="Previous page"]')
+await wait(500)
+check('Previous scrolls to the page above', (await counter(page)) === 'Page 6 of 8', await counter(page))
+await page.click('button[aria-label="Insert a page after page 6"]')
+await wait(700)
+const inserted = await page.evaluate(() => {
+  const slot = document.querySelectorAll('[data-page-id]')[6]
+  return { typed: !!slot?.querySelector('.ProseMirror'), slots: document.querySelectorAll('[data-page-id]').length }
+})
+check('"+" inserts a blank page between PDF pages and scrolls to it', inserted.typed && inserted.slots === 9 && (await counter(page)) === 'Page 7 of 9', `${JSON.stringify(inserted)} ${await counter(page)}`)
+await pageSlot(page, 6).locator('.ProseMirror').click()
+await page.keyboard.type('BETWEEN-SLIDES')
+await wait(900)
+await openFromSearch(page, 'pagetwo-beta') // another note, so this one really closes
+await openFromSearch(page, 'long-slide-1')
+await wait(900)
+check('a note reopens on the page you left it at', (await counter(page)) === 'Page 7 of 9' && (await pageText(page, 6)).includes('BETWEEN-SLIDES'), await counter(page))
 
 // Service worker must hold the pdf.js worker, then PDF import works with no network
 await page.evaluate(() => navigator.serviceWorker.ready)
@@ -199,7 +245,7 @@ const zip = await JSZip.loadAsync(await readFile(file))
 const names = Object.keys(zip.files)
 check('backup is a .tala zip with blobs', names.includes('backup.json') && names.some((n) => n.startsWith('blobs/') && !n.endsWith('/')), `${names.length} entries`)
 const backup = JSON.parse(await zip.file('backup.json').async('string'))
-check('backup is v3 with pdf rows', backup.version === 3 && backup.pdfs.length === 2 && backup.pages.some((p) => p.pdfPage === 2))
+check('backup is v3 with pdf rows', backup.version === 3 && backup.pdfs.length === 3 && backup.pages.some((p) => p.pdfPage === 2))
 
 await page.setInputFiles('input[type="file"][accept*=".tala"]', file)
 await wait(500)
@@ -442,6 +488,20 @@ const wetAfter = await page.evaluate(() => {
   return n
 })
 check('the wet canvas hands over to the committed SVG path', wetAfter === 0 && (await page.locator('svg.ink-svg path').count()) >= 1)
+// iPadOS Scribble/selection/scroll must not claim the Pencil: stylus touches are cancelled, fingers are not
+const touchPrevented = await page.evaluate(() => {
+  const svg = document.querySelector('.ink-layer svg')
+  const fire = (touchType) => {
+    const t = new Touch({ identifier: 1, target: svg, clientX: 10, clientY: 10 })
+    // Chromium has no Touch.touchType (WebKit only), so stamp it on as iPadOS would report it
+    Object.defineProperty(t, 'touchType', { value: touchType })
+    const e = new TouchEvent('touchstart', { touches: [t], changedTouches: [t], cancelable: true, bubbles: true })
+    svg.dispatchEvent(e)
+    return e.defaultPrevented
+  }
+  return { stylus: fire('stylus'), finger: fire('direct') }
+})
+check('a stylus touch on the ink layer is kept from the OS, a finger is not', touchPrevented.stylus && !touchPrevented.finger, JSON.stringify(touchPrevented))
 const inkRows = () =>
   page.evaluate(
     () =>
@@ -491,18 +551,27 @@ await page.click('button[aria-label="Undo handwriting"]')
 await wait(900)
 check('Undo removes the copy', (await countStrokes()) === before)
 
-// History survives a page switch
+// Undo covers the whole note: a stroke on page 2 is undone from page 1
 await page.click('button:has-text("Add page")')
-await wait(500)
+await wait(600)
+await page.keyboard.press('v') // back to the pen
+const p2 = await pageSlot(page, 1).boundingBox()
+await draw(p2.x + 150, p2.y + 260, 80, 30)
+await wait(900)
+const page2Id = await pageSlot(page, 1).getAttribute('data-page-id')
+const strokesOn = async (id) => (await inkRows()).find((r) => r.noteId === id)?.doc.strokes.length ?? 0
+check('a stroke lands on the page under the pen', (await strokesOn(page2Id)) === 1)
 await page.click('button[aria-label="Previous page"]')
 await wait(600)
-check('undo history survives a page switch', await page.locator('button[aria-label="Redo handwriting"]').isEnabled())
+await page.click('button[aria-label="Undo handwriting"]')
+await wait(900)
+check('Undo reaches a change on another page', (await strokesOn(page2Id)) === 0)
 
 // Page strip: thumbnails and drag reorder
 await page.click('button:has-text("Add page")')
 await wait(400)
 await page.click('button[aria-label="Type"]')
-await page.click('.ProseMirror')
+await pageSlot(page, 2).locator('.ProseMirror').click()
 await page.keyboard.type('INK-PAGE-THREE')
 await wait(900)
 await page.click('button:has-text("Pages")')

@@ -410,6 +410,8 @@
 .editor-scroll {
   container: editor / inline-size;
   overscroll-behavior: none;
+  /* NoteEditor keeps the view still when a page above it changes height */
+  overflow-anchor: none;
   /* one finger scrolls; two fingers are handled by ZoomColumn (pinch zoom) */
   touch-action: pan-x pan-y;
 }
@@ -466,8 +468,7 @@
 
 .ink-layer {
   position: absolute;
-  inset-inline: 0;
-  top: 0;
+  inset: 0;
   z-index: 30;
   pointer-events: none;
 }
@@ -475,6 +476,9 @@
 .ink-layer[data-active] {
   pointer-events: auto;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ink-layer svg {
