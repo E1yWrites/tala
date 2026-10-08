@@ -24,6 +24,7 @@ import {
   saveInk,
   savePageContent,
   saveTitle,
+  setTemplate,
   trashNotes,
 } from './notes'
 import { keepSafetyCopy, settleSafetyCopy } from './safety'
@@ -151,6 +152,22 @@ describe('pages', () => {
     const rows = await db.pages.where('noteId').equals(n.id).sortBy('index')
     expect(rows.map((p) => p.index)).toEqual([0, 1, 2])
     expect(rows[0]!.template).toBe('ruled')
+  })
+
+  it('a new page copies the page above it, and is a blank A4 under a PDF page', async () => {
+    const n = createNote()
+    setTemplate(n.id, n.id, 'grid')
+    expect(addPage(n.id).template).toBe('grid')
+    const pdf = await createPdfNote({
+      title: 'slides',
+      folderId: null,
+      pdf: new Blob(['%PDF-fake'], { type: 'application/pdf' }),
+      pages: [{ w: 960, h: 540, text: 'one' }],
+    })
+    const inserted = addPage(pdf.id, undefined, 1)
+    expect(inserted.template).toBe('blank')
+    expect(inserted.size?.kind).toBe('a4')
+    expect(pagesOf(pdf.id).map((p) => p.id)).toEqual([pdf.id, inserted.id])
   })
 })
 

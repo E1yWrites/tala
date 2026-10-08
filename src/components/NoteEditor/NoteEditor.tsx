@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
-import { Extension, InputRule } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import ImageExtension from '@tiptap/extension-image'
-import { Placeholder } from '@tiptap/extensions'
 import {
   ArrowLeft,
   Check,
@@ -54,25 +47,23 @@ import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Note } from '@/types/models'
-import type { InkDoc, InkPointerMode } from '@/types/ink'
+import type { InkDoc, InkPointerMode, InkStroke } from '@/types/ink'
 import { INK_PRESETS } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { folderColor } from '@/utils/folderColor'
 import { formatFull, formatRelative } from '@/utils/dates'
-import { processImageFile } from '@/utils/image'
 import { FavoriteStar } from '../UI/FavoriteStar'
 import { TagChip } from '../UI/TagChip'
 import { Tooltip } from '../UI/Tooltip'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { Button } from '../UI/Button'
-import { EditorToolbar } from './EditorToolbar'
-import { ReadingView } from './ReadingView'
-import { InkLayer } from './ink/InkLayer'
+import { isTypingTarget } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
 import { PenBar } from './ink/PenBar'
-import { PageBackground } from './PageBackground'
+import { PageSheet, pageHeights } from './PageSheet'
 import { ZoomColumn } from '@/canvas/ZoomColumn'
 import { PageStrip } from '@/canvas/PageStrip'
+import { inkHistoryState, recordInk, stepInk } from '@/canvas/inkHistory'
 import { RecordingsPanel } from './Recordings'
 import type { RecordingsHandle } from './Recordings'
 import { useRecorderStore } from '@/library/recorder'
@@ -84,27 +75,8 @@ import { PenPalette } from './ink/PenPalette'
 import type { PenPaletteState } from './ink/PenPalette'
 import { buildNoteMenu, confirmAction, deleteForeverAndPrune } from '../NoteList/noteActions'
 
-/* ------------------------- Markdown-style shortcuts ------------------------ */
-
-/** `[ ] ` / `[x] ` at the start of a line creates a checklist item. */
-const TaskSyntaxInput = Extension.create({
-  name: 'taskSyntaxInput',
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /^\[([ xX])\]\s$/,
-        handler: ({ chain, range, match }) => {
-          const checked = match[1]?.toLowerCase() === 'x'
-          chain()
-            .deleteRange(range)
-            .toggleTaskList()
-            .updateAttributes('taskItem', { checked })
-            .run()
-        },
-      }),
-    ]
-  },
-})
+/** Pages mounted on each side of the one in view; the rest are sized boxes. */
+const NEAR_PAGES = 2
 
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved'
 
@@ -121,8 +93,8 @@ function templateLabel(t: 'blank' | 'ruled' | 'grid'): string {
 
 interface PendingPatch {
   title?: string
-  /** Typed text of the page that was being edited. */
-  page?: { id: string; doc: JSONContent }
+  /** Typed text per page id (several pages are open at once). */
+  pages?: Record<string, JSONContent>
 }
 
 export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
@@ -142,30 +114,40 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   /* --------------------------------- Pages --------------------------------- */
 
   const pages = useNotePages(noteId)
-  const [activePageIndex, setActivePageIndex] = useState(0)
-  const activePage = pages[activePageIndex] ?? pages[0]
-  const activePageId = activePage?.id ?? noteId
-  /** PDF-imported page: its sheet is the page, no typed content. */
-  const isBgPage = !!(activePage?.pdfPage || activePage?.backgroundBlobId)
+  const pagesRef = useRef(pages)
+  pagesRef.current = pages
+  /** The page in view: the counter, the page menu and Clear act on it. */
+  const [current, setCurrent] = useState(() => {
+    const want = useUIStore.getState().pendingPageId ?? usePrefsStore.getState().lastPages[noteId]
+    return Math.max(0, pages.findIndex((p) => p.id === want))
+  })
+  const activePage = pages[Math.min(current, pages.length - 1)]
+  /** Scroll this page to the top of the view once rendered (an index into the next `pages`). */
+  const [target, setTarget] = useState<{ index: number } | null>(() => (current > 0 ? { index: current } : null))
+  const goToPage = useCallback((index: number) => setTarget({ index }), [])
+  const setLastPage = usePrefsStore((s) => s.setLastPage)
 
-  // Open on page 1, or on the page Tasks pointed at
+  // Open on the page Tasks pointed at, else where you left off
   useEffect(() => {
-    const ui = useUIStore.getState()
-    const target = ui.pendingPageId ? pages.findIndex((p) => p.id === ui.pendingPageId) : -1
-    setActivePageIndex(Math.max(0, target))
-    if (ui.pendingPageId) ui.clearPendingPage()
-  }, [noteId]) // eslint-disable-line react-hooks/exhaustive-deps
+    useUIStore.getState().clearPendingPage()
+  }, [])
+  useEffect(() => {
+    if (activePage) setLastPage(noteId, activePage.id)
+  }, [activePage, noteId, setLastPage])
 
-  const onDuplicatePage = useCallback(() => {
-    if (!activePage || !note) return
-    const copy = duplicatePage(note.id, activePage.id)
-    if (copy) setActivePageIndex(copy.index)
-  }, [activePage, note])
+  const insertPage = useCallback(
+    (at: number) => {
+      addPage(noteId, undefined, at)
+      goToPage(at)
+    },
+    [goToPage, noteId],
+  )
 
   /* --------------------------------- Pen mode ------------------------------ */
 
   const inkPrefs = usePrefsStore((s) => s.inkPrefs)
   const setInkPrefs = usePrefsStore((s) => s.setInkPrefs)
+  const inkDocs = useNoteStore((s) => s.inkDocs)
   const [penMode, setPenMode] = useState(false)
   // Bituin's corner chip only when no list pane sits beside the editor
   const isPhone = useMediaQuery(BREAKPOINTS.mobile)
@@ -176,12 +158,18 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     return () => document.documentElement.removeAttribute('data-pen')
   }, [penMode])
   const [penTool, setPenTool] = useState<InkPointerMode>(inkPrefs.tool)
-  const [inkHistory, setInkHistory] = useState({ canUndo: false, canRedo: false })
+  const [inkHistory, setInkHistory] = useState(() => inkHistoryState(noteId))
   /** Radial palette state — null = closed; cursor mode when opened by right-click. */
   const [penPalette, setPenPalette] = useState<PenPaletteState | null>(null)
   /** Count of selected ink strokes — drives the contextual delete button in PenBar. */
   const [selectionCount, setSelectionCount] = useState(0)
-  const inkLayerRef = useRef<InkLayerHandle>(null)
+  /** Mounted ink layers by page id; a selection lives on one page at a time. */
+  const inkHandles = useRef(new Map<string, InkLayerHandle>())
+  const selectionRef = useRef<{ pageId: string; count: number } | null>(null)
+  /** The page last written on keeps the wet-ink canvas until another page is scrolled into view. */
+  const [engagedPageId, setEngagedPageId] = useState<string | null>(null)
+  useEffect(() => setEngagedPageId(null), [current])
+  const wetPageId = engagedPageId ?? activePage?.id
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const zoomRef = useRef<ZoomHandle>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -196,16 +184,79 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const penModeRef = useRef(penMode)
   penModeRef.current = penMode
 
-  /** Ink commits hit the store instantly; IndexedDB write is debounced in
-   *  the store and force-flushed when this editor unmounts or the note swaps. */
-  const handleInkChange = useCallback(
-    (doc: InkDoc) => {
-      if (!note) return
-      saveInk(note.id, activePageId, doc)
+  const refreshInkHistory = useCallback(() => {
+    const next = inkHistoryState(noteId)
+    setInkHistory((prev) => (prev.canUndo === next.canUndo && prev.canRedo === next.canRedo ? prev : next))
+  }, [noteId])
+
+  /** Ink commits hit the store instantly; the library writes them and debounces the note touch-up. */
+  const handleInk = useCallback(
+    (pageId: string, doc: InkDoc, before: InkStroke[]) => {
+      recordInk(noteId, { pageId, before, after: doc.strokes })
+      saveInk(noteId, pageId, doc)
       noteWriting()
+      refreshInkHistory()
     },
-    [activePageId, note],
+    [noteId, refreshInkHistory],
   )
+
+  /** Undo/redo the note's last handwriting change, on whichever page it was. */
+  const stepInkHistory = useCallback(
+    (dir: 'undo' | 'redo') => {
+      const docs = (): Record<string, InkDoc> => useNoteStore.getState().inkDocs
+      const op = stepInk(noteId, dir, (id) => !!docs()[id])
+      const doc = op && docs()[op.pageId]
+      if (op && doc) saveInk(noteId, op.pageId, { ...doc, strokes: dir === 'undo' ? op.before : op.after })
+      refreshInkHistory()
+    },
+    [noteId, refreshInkHistory],
+  )
+
+  // A restore cleared every history; refresh the undo/redo buttons
+  useEffect(() => {
+    window.addEventListener('tala:external-sync', refreshInkHistory)
+    return () => window.removeEventListener('tala:external-sync', refreshInkHistory)
+  }, [refreshInkHistory])
+
+  /** Clear the page in view. */
+  const clearPageInk = (): void => {
+    const doc = activePage && inkDocs[activePage.id]
+    if (!activePage || !doc || doc.strokes.length === 0) return
+    handleInk(activePage.id, { ...doc, strokes: [] }, doc.strokes)
+    toast.success('Handwriting cleared')
+  }
+
+  const selectedLayer = (): InkLayerHandle | undefined => {
+    const sel = selectionRef.current
+    return sel ? inkHandles.current.get(sel.pageId) : undefined
+  }
+
+  const setSelection = (next: { pageId: string; count: number } | null): void => {
+    selectionRef.current = next
+    setSelectionCount(next?.count ?? 0)
+  }
+
+  /** Selecting on one page drops the selection on another. */
+  const handleSelection = useCallback((pageId: string, count: number) => {
+    const prev = selectionRef.current
+    if (count > 0) {
+      if (prev && prev.pageId !== pageId) inkHandles.current.get(prev.pageId)?.clearSelection()
+      setSelection({ pageId, count })
+    } else if (prev?.pageId === pageId) setSelection(null)
+  }, [])
+
+  const handleInkHandle = useCallback((pageId: string, handle: InkLayerHandle | null) => {
+    if (handle) inkHandles.current.set(pageId, handle)
+    else {
+      inkHandles.current.delete(pageId)
+      // scrolled away with strokes selected: the PenBar must not act on a page that is gone
+      if (selectionRef.current?.pageId === pageId) setSelection(null)
+    }
+  }, [])
+
+  const handleStrokeTap = useCallback((ts: number) => {
+    void recordingsRef.current?.seekToTime(ts).then((ok) => ok && setRecordingsOpen(true))
+  }, [])
 
   // A Session lasts while this note is open; Bituin wraps it up when it closes
   useEffect(() => {
@@ -220,8 +271,6 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }
   }, [])
 
-  const inkDocs = useNoteStore((s) => s.inkDocs)
-
   /** Stable prefs object — InkLayer's effects depend on its identity. */
   const inkLayerPrefs = useMemo(
     () => ({
@@ -233,13 +282,6 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }),
     [penTool, inkPrefs.color, inkPrefs.sizeIdx, inkPrefs.eraserMode, inkPrefs.pencil.hover],
   )
-
-  /** Only fires when the undo/redo availability actually flips. */
-  const handleInkHistory = useCallback((canUndo: boolean, canRedo: boolean) => {
-    setInkHistory((prev) =>
-      prev.canUndo === canUndo && prev.canRedo === canRedo ? prev : { canUndo, canRedo },
-    )
-  }, [])
 
   const handlePaletteRequest = useCallback((x: number, y: number) => {
     setPenPalette({ open: true, anchor: { x, y }, mode: 'cursor' })
@@ -283,18 +325,33 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     [setInkPrefs],
   )
 
-  // Escape exits pen mode — but never steals Esc from modals or the drawer
+  // Pen mode keys: Escape leaves it, Ctrl+Z/Y undo and redo handwriting across
+  // pages, E/V toggle the eraser/lasso. Never while typing text or a dialog is up.
   useEffect(() => {
     if (!penMode) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
       const ui = useUIStore.getState()
       if (ui.modalStack.length > 0 || ui.sidebarDrawerOpen) return
-      setPenMode(false)
+      if (e.key === 'Escape') {
+        setPenMode(false)
+        return
+      }
+      if (isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && (key === 'z' || key === 'y')) {
+        const dir = key === 'y' || e.shiftKey ? 'redo' : 'undo'
+        const state = inkHistoryState(noteId)
+        if (dir === 'undo' ? !state.canUndo : !state.canRedo) return
+        e.preventDefault()
+        stepInkHistory(dir)
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (key === 'e' || key === 'v')) {
+        e.preventDefault()
+        handleToolShortcut(key === 'e' ? 'eraser' : 'select')
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [penMode])
+  }, [handleToolShortcut, noteId, penMode, stepInkHistory])
 
   // Leaving pen mode dismisses the radial palette with it
   useEffect(() => {
@@ -322,7 +379,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       const prefs = usePrefsStore.getState().inkPrefs
       const action = kind === 'doubletap' ? prefs.pencil.doubleTap : prefs.pencil.squeeze
       if (action === 'undo') {
-        inkLayerRef.current?.undo()
+        stepInkHistory('undo')
         return
       }
       if (action === 'palette') {
@@ -338,7 +395,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }
     window.addEventListener('tala:pencil', onPencil)
     return () => window.removeEventListener('tala:pencil', onPencil)
-  }, [updatePenPrefs])
+  }, [stepInkHistory, updatePenPrefs])
 
   const [title, setTitle] = useState(note?.title ?? '')
   const [syncKey, setSyncKey] = useState(0)
@@ -375,13 +432,15 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     setStatus('saving')
     const saves: Array<Promise<SaveResult>> = []
     if (patch.title !== undefined) saves.push(saveTitle(id, patch.title))
-    if (patch.page) saves.push(savePageContent(id, patch.page.id, patch.page.doc))
+    for (const [pageId, doc] of Object.entries(patch.pages ?? {})) saves.push(savePageContent(id, pageId, doc))
     const results = await Promise.all(saves)
     // Brief pause so the "Saving…" state is perceivable on fast devices
     await new Promise((r) => setTimeout(r, 150))
     if (results.includes('failed')) {
       // The library rolled back and told the user; keep the edit so the next save retries it
-      pendingRef.current = { ...patch, ...pendingRef.current }
+      const newer = pendingRef.current
+      pendingRef.current = { ...patch, ...newer }
+      if (patch.pages || newer.pages) pendingRef.current.pages = { ...patch.pages, ...newer.pages }
       setStatus('dirty')
       return 'failed'
     }
@@ -418,12 +477,20 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }
   }, [noteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Leaving a page: land its edits before the editor is recreated for the next one
-  useEffect(() => {
-    return () => {
-      void flushRef.current({ silent: true })
-    }
-  }, [activePageId])
+  /** A page's typed text changed (each page has its own editor). */
+  const handleText = useCallback(
+    (pageId: string, doc: JSONContent) => {
+      ;(pendingRef.current.pages ??= {})[pageId] = doc
+      markDirty()
+      noteWriting()
+    },
+    [markDirty],
+  )
+
+  /** A page scrolled out: save its text now, so remounting it shows what was typed. */
+  const handleLeave = useCallback((pageId: string) => {
+    if (pendingRef.current.pages?.[pageId]) void flushRef.current({ silent: true })
+  }, [])
 
   // Ctrl+S force save (event dispatched by global hotkeys)
   useEffect(() => {
@@ -482,46 +549,6 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     }
   }, [])
 
-  /* -------------------------------- Editor -------------------------------- */
-
-  const editor = useEditor(
-    {
-      extensions: [
-        StarterKit.configure({
-          heading: { levels: [1, 2, 3] },
-          link: { openOnClick: false, autolink: true },
-        }),
-        Underline,
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        ImageExtension,
-        TaskSyntaxInput,
-        Placeholder.configure({
-          placeholder:
-            'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',
-        }),
-      ],
-      content: activePage?.content ?? '',
-      editable: !note?.isDeleted,
-      autofocus: false,
-      onUpdate: ({ editor: ed }) => {
-        pendingRef.current.page = { id: activePageId, doc: ed.getJSON() }
-        markDirty()
-        noteWriting()
-      },
-    },
-    // One editor per page: switching pages recreates it with that page's text
-    [noteId, activePageId, syncKey],
-  )
-
-  /* `editable` only applies at editor creation — keep it in sync afterwards
-     (restore from trash must re-enable typing; trashing while open must lock). */
-  useEffect(() => {
-    // emitUpdate=false: setEditable fires `update` by default, which made merely
-    // opening a note autosave it (bumping updatedAt and wiping a PDF page's text layer)
-    editor?.setEditable(!note?.isDeleted, false)
-  }, [editor, note?.isDeleted])
-
   /* If the open note disappears (deleted forever elsewhere), close it. */
   useEffect(() => {
     if (!note) selectNote(null)
@@ -543,29 +570,91 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
     markDirty()
   }
 
-  const insertImages = async (files: File[]): Promise<void> => {
-    if (!editor) return
-    for (const file of files.slice(0, 4)) {
-      try {
-        const src = await processImageFile(file)
-        editor.chain().focus().setImage({ src }).run()
-      } catch (err) {
-        console.warn('[tala] image skipped', file.name, err)
-        toast.error(`Could not add ${file.name}`)
+  /* ---------------------------- Continuous scroll -------------------------- */
+
+  const slots = useRef(new Map<string, HTMLElement>())
+  /** Each slot's height as last seen, to tell how much a page above the view grew. */
+  const slotHeights = useRef(new WeakMap<Element, number>())
+  const resizeObs = useRef<ResizeObserver | null>(null)
+
+  // A page above the view changing height (mounting, an image loading) would
+  // push what you are looking at; scroll by the same amount so it stays put.
+  // (The scroller turns native scroll anchoring off so the two never stack.)
+  useEffect(() => {
+    const ro = new ResizeObserver((entries) => {
+      const sc = scrollRef.current
+      for (const { target: el } of entries) {
+        const h = (el as HTMLElement).offsetHeight
+        const prev = slotHeights.current.get(el)
+        slotHeights.current.set(el, h)
+        const id = (el as HTMLElement).dataset.pageId
+        if (id) pageHeights.set(id, h)
+        if (!sc || prev === undefined || prev === h || h === 0) continue
+        const r = el.getBoundingClientRect()
+        const grew = (h - prev) * (r.height / h)
+        if (r.bottom - grew <= sc.getBoundingClientRect().top + 1) sc.scrollTop += grew
+      }
+    })
+    resizeObs.current = ro
+    for (const el of slots.current.values()) ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const slotRef = useCallback((pageId: string, el: HTMLElement | null) => {
+    const old = slots.current.get(pageId)
+    if (old && old !== el) resizeObs.current?.unobserve(old)
+    if (el) {
+      slots.current.set(pageId, el)
+      resizeObs.current?.observe(el)
+    } else slots.current.delete(pageId)
+  }, [])
+
+  /** The page in view: the last one whose top is above the middle of the scroller. */
+  const measureCurrent = useCallback(() => {
+    const sc = scrollRef.current
+    const list = pagesRef.current
+    if (!sc || list.length === 0) return
+    let i = 0
+    if (sc.scrollTop <= 0) i = 0
+    else if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2) i = list.length - 1
+    else {
+      const probe = sc.getBoundingClientRect().top + sc.clientHeight / 2
+      let hi = list.length - 1
+      while (i < hi) {
+        const mid = (i + hi + 1) >> 1
+        const top = slots.current.get(list[mid]!.id)?.getBoundingClientRect().top ?? Infinity
+        if (top <= probe) i = mid
+        else hi = mid - 1
       }
     }
-  }
+    setCurrent(i)
+  }, [])
 
-  const onPasteOrDrop = (e: React.ClipboardEvent | React.DragEvent): void => {
-    const dt =
-      'clipboardData' in e
-        ? (e as React.ClipboardEvent).clipboardData
-        : (e as React.DragEvent).dataTransfer
-    const files = Array.from(dt?.files ?? []).filter((f) => f.type.startsWith('image/'))
-    if (files.length === 0) return
-    e.preventDefault()
-    void insertImages(files)
+  const scrollFrame = useRef<number | null>(null)
+  const onScroll = (): void => {
+    if (scrollFrame.current === null)
+      scrollFrame.current = requestAnimationFrame(() => {
+        scrollFrame.current = null
+        measureCurrent()
+      })
   }
+  useEffect(() => () => {
+    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current)
+  }, [])
+
+  // Pages added, moved or deleted: bring the target page to the top, then re-read the page in view
+  useLayoutEffect(() => {
+    const sc = scrollRef.current
+    if (target) {
+      const id = pages[Math.min(target.index, pages.length - 1)]?.id
+      const el = id ? slots.current.get(id) : undefined
+      if (sc && el) sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 8
+      setTarget(null)
+      setCurrent(Math.min(target.index, pages.length - 1))
+      return
+    }
+    if (current > pages.length - 1) measureCurrent()
+  }, [pages, target]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ------------------------------ Sub-renderers --------------------------- */
 
@@ -601,6 +690,87 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   ]
 
   const currentFolder = folders.find((f) => f.id === note.folderId)
+
+  /** Page 1's head: title, edit date, folder and tags. */
+  const titleBlock = (focusText: () => void): React.ReactNode => (
+    <>
+      {/* Title */}
+      <input
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            focusText()
+          }
+        }}
+        placeholder="Untitled note"
+        aria-label="Note title"
+        disabled={note.isDeleted}
+        className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-0.025em] placeholder:text-faint/60 disabled:cursor-default"
+      />
+
+      {/* Meta row */}
+      <div className="mb-3 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <time
+          dateTime={new Date(note.updatedAt).toISOString()}
+          title={formatFull(note.updatedAt)}
+          className="text-xs tabular-nums text-faint"
+        >
+          Edited {formatRelative(note.updatedAt)}
+        </time>
+        {note.isArchived && !note.isDeleted && (
+          <span className="rounded-control border border-lineSoft bg-raise px-1.5 py-px text-[11px] text-muted">
+            Archived
+          </span>
+        )}
+        {!note.isDeleted && (
+          <DropdownMenu
+            side="bottom"
+            align="start"
+            items={folderItems}
+            trigger={(props) => (
+              <button
+                {...props}
+                type="button"
+                className="-ml-1.5 inline-flex h-6 items-center gap-1.5 rounded-control px-1.5 text-xs text-muted transition-colors hover:bg-raise hover:text-ink"
+              >
+                {currentFolder ? (
+                  <span className="size-2 rounded-full" style={{ background: folderColor(currentFolder.id) }} aria-hidden="true" />
+                ) : (
+                  <FolderIcon size={12} aria-hidden="true" />
+                )}
+                {currentFolder ? currentFolder.name : 'Set folder'}
+              </button>
+            )}
+          />
+        )}
+        {!note.isDeleted && (
+          <span className="flex flex-wrap items-center gap-1">
+            {tagObjects.map((tag) => (
+              <TagChip
+                key={tag.id}
+                tag={tag}
+                onRemove={() =>
+                  patchNote(note.id, { tagIds: note.tagIds.filter((t) => t !== tag.id) })
+                }
+              />
+            ))}
+            <Tooltip label="Edit tags">
+              <button
+                type="button"
+                onClick={() => openModal({ kind: 'tag-editor', noteId: note.id })}
+                aria-label="Edit tags"
+                className="grid size-6 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink"
+              >
+                <Plus size={11} />
+              </button>
+            </Tooltip>
+          </span>
+        )}
+      </div>
+    </>
+  )
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-canvas animate-editor-in">
@@ -804,25 +974,25 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             <button
               type="button"
               aria-label="Previous page"
-              disabled={activePageIndex <= 0}
-              onClick={() => setActivePageIndex((i) => Math.max(0, i - 1))}
+              disabled={current <= 0}
+              onClick={() => goToPage(current - 1)}
               className={PAGE_BTN}
             >
               <ChevronLeft size={15} />
             </button>
             <span className="px-1.5 text-xs font-medium tabular-nums whitespace-nowrap text-muted">
               <span aria-hidden="true">
-                {activePageIndex + 1} / {pages.length}
+                {current + 1} / {pages.length}
               </span>
               <span className="sr-only">
-                Page {activePageIndex + 1} of {pages.length}
+                Page {current + 1} of {pages.length}
               </span>
             </span>
             <button
               type="button"
               aria-label="Next page"
-              disabled={activePageIndex >= pages.length - 1}
-              onClick={() => setActivePageIndex((i) => Math.min(pages.length - 1, i + 1))}
+              disabled={current >= pages.length - 1}
+              onClick={() => goToPage(current + 1)}
               className={PAGE_BTN}
             >
               <ChevronRight size={15} />
@@ -889,46 +1059,39 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   onSelect: () => setTemplate(note.id, activePage.id, t),
                 })),
                 { id: 'sep1', label: '', type: 'separator', onSelect: () => {} },
-                {
-                  id: 'add-page',
-                  label: 'Add page',
-                  onSelect: () => {
-                    addPage(note.id)
-                    setActivePageIndex(pages.length)
-                  },
-                },
+                { id: 'insert-before', label: 'Insert page before', onSelect: () => insertPage(current) },
+                { id: 'insert-after', label: 'Insert page after', onSelect: () => insertPage(current + 1) },
                 {
                   id: 'move-page-earlier',
                   label: 'Move page earlier',
-                  disabled: activePageIndex <= 0,
+                  disabled: current <= 0,
                   onSelect: () => {
-                    movePage(note.id, activePage.id, activePageIndex - 1)
-                    setActivePageIndex(activePageIndex - 1)
+                    movePage(note.id, activePage.id, current - 1)
+                    goToPage(current - 1)
                   },
                 },
                 {
                   id: 'move-page-later',
                   label: 'Move page later',
-                  disabled: activePageIndex >= pages.length - 1,
+                  disabled: current >= pages.length - 1,
                   onSelect: () => {
-                    movePage(note.id, activePage.id, activePageIndex + 1)
-                    setActivePageIndex(activePageIndex + 1)
+                    movePage(note.id, activePage.id, current + 1)
+                    goToPage(current + 1)
                   },
                 },
                 {
                   id: 'duplicate-page',
                   label: 'Duplicate page',
-                  onSelect: onDuplicatePage,
+                  onSelect: () => {
+                    const copy = duplicatePage(note.id, activePage.id)
+                    if (copy) goToPage(copy.index)
+                  },
                 },
                 {
                   id: 'delete-page',
                   label: 'Delete page',
                   disabled: pages.length <= 1,
-                  onSelect: () => {
-                    if (pages.length <= 1) return
-                    deletePage(note.id, activePage.id)
-                    setActivePageIndex((i) => Math.max(0, i - 1))
-                  },
+                  onSelect: () => deletePage(note.id, activePage.id),
                 },
               ]}
               trigger={(triggerProps) => (
@@ -937,14 +1100,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 </Button>
               )}
             />
-            <Button
-              size="sm"
-              variant="subtle"
-              onClick={() => {
-                addPage(note.id)
-                setActivePageIndex(pages.length)
-              }}
-            >
+            <Button size="sm" variant="subtle" onClick={() => insertPage(pages.length)}>
               <Plus size={14} />
               <span className="hidden sm:inline">Add page</span>
               <span className="sr-only sm:hidden">Add page</span>
@@ -954,22 +1110,16 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
       )}
       <RecordingsPanel ref={recordingsRef} noteId={note.id} open={recordingsOpen} readOnly={note.isDeleted} />
       {!note.isDeleted && showStrip && pages.length > 0 && (
-        <PageStrip
-          noteId={note.id}
-          pages={pages}
-          activeIndex={activePageIndex}
-          onSelect={setActivePageIndex}
-        />
+        <PageStrip noteId={note.id} pages={pages} activeIndex={current} onSelect={goToPage} />
       )}
 
-      {/* Scrollable document */}
+      {/* Scrollable document: every page, one under the other */}
       <div
         ref={scrollRef}
         // No horizontal padding, in any mode: ink scales with the column's width,
         // so the column must be exactly as wide in Type and Write (and as before).
         className="editor-scroll min-h-0 flex-1 overflow-y-auto bg-panel md:bg-canvas md:py-6"
-        onPaste={onPasteOrDrop}
-        onDrop={onPasteOrDrop}
+        onScroll={onScroll}
         onClick={(e) => {
           // tiptap renders links inert (openOnClick:false) — give them a way
           // out of the app. Under Tauri the opener plugin handles it; on the
@@ -991,10 +1141,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           scrollRef={scrollRef}
           maxWidth={720}
           onZoomChange={setZoomLevel}
-          className={cn(
-            'relative mx-auto w-full max-w-[720px] px-6 pb-24 md:px-10',
-            !isBgPage && `editor-sheet tpl-${activePage?.template ?? 'blank'} min-h-[70vh] bg-panel pt-6 md:rounded-[4px] md:shadow-sheet`,
-          )}
+          className="relative mx-auto w-full max-w-[720px] pb-24"
           style={
             {
               '--editor-font-size': `${fontSize}px`,
@@ -1002,141 +1149,52 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
             } as CSSProperties
           }
         >
-          {isBgPage && activePage ? (
-            <>
-              {/* PDF page rendered as the page background */}
-              <PageBackground
+          {pages.map((pg, i) => (
+            <Fragment key={pg.id}>
+              <PageSheet
                 noteId={note.id}
-                page={activePage}
-                label={`Page ${activePageIndex + 1} of PDF`}
+                page={pg}
+                index={i}
+                near={Math.abs(i - current) <= NEAR_PAGES}
+                readOnly={note.isDeleted}
+                penMode={penMode}
+                readingLayout={readingLayout}
+                syncKey={syncKey}
+                ink={inkDocs[pg.id] ?? null}
+                wet={pg.id === wetPageId}
+                inkPrefs={inkLayerPrefs}
+                recording={recordingHere}
+                head={i === 0 ? titleBlock : undefined}
+                slotRef={slotRef}
+                onText={handleText}
+                onLeave={handleLeave}
+                onInk={handleInk}
+                onInkHandle={handleInkHandle}
+                onEngage={setEngagedPageId}
+                onSelection={handleSelection}
+                onPalette={handlePaletteRequest}
+                onStrokeTap={handleStrokeTap}
               />
-            </>
-          ) : (
-            <>
-          {/* Title */}
-          <input
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                editor?.commands.focus('start')
-              }
-            }}
-            placeholder="Untitled note"
-            aria-label="Note title"
-            disabled={note.isDeleted}
-            className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-0.025em] placeholder:text-faint/60 disabled:cursor-default"
-          />
-
-          {/* Meta row */}
-          <div className="mb-3 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <time
-              dateTime={new Date(note.updatedAt).toISOString()}
-              title={formatFull(note.updatedAt)}
-              className="text-xs tabular-nums text-faint"
-            >
-              Edited {formatRelative(note.updatedAt)}
-            </time>
-            {note.isArchived && !note.isDeleted && (
-              <span className="rounded-control border border-lineSoft bg-raise px-1.5 py-px text-[11px] text-muted">
-                Archived
-              </span>
-            )}
-            {!note.isDeleted && (
-              <DropdownMenu
-                side="bottom"
-                align="start"
-                items={folderItems}
-                trigger={(props) => (
-                  <button
-                    {...props}
-                    type="button"
-                    className="-ml-1.5 inline-flex h-6 items-center gap-1.5 rounded-control px-1.5 text-xs text-muted transition-colors hover:bg-raise hover:text-ink"
-                  >
-                    {currentFolder ? (
-                      <span className="size-2 rounded-full" style={{ background: folderColor(currentFolder.id) }} aria-hidden="true" />
-                    ) : (
-                      <FolderIcon size={12} aria-hidden="true" />
-                    )}
-                    {currentFolder ? currentFolder.name : 'Set folder'}
-                  </button>
-                )}
-              />
-            )}
-            {!note.isDeleted && (
-              <span className="flex flex-wrap items-center gap-1">
-                {tagObjects.map((tag) => (
-                  <TagChip
-                    key={tag.id}
-                    tag={tag}
-                    onRemove={() =>
-                      patchNote(note.id, { tagIds: note.tagIds.filter((t) => t !== tag.id) })
-                    }
-                  />
-                ))}
-                <Tooltip label="Edit tags">
-                  <button
-                    type="button"
-                    onClick={() => openModal({ kind: 'tag-editor', noteId: note.id })}
-                    aria-label="Edit tags"
-                    className="grid size-6 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink"
-                  >
-                    <Plus size={11} />
-                  </button>
-                </Tooltip>
-              </span>
-            )}
-          </div>
-
-          {/* Formatting toolbar for typing; writing tools live in the pen dock.
-              The row keeps its fixed height in Write mode too: ink is positioned
-              from the top of the column, so the text must start at the same
-              offset in both modes: 176px from the column top, where pre-redesign
-              notes drew their ink (scripts/pages-e2e.mjs checks the two modes match). */}
-          {editor && !note.isDeleted && !readingLayout && (
-            <div
-              className={cn(
-                '-mx-1 mb-[13.5px] flex h-14 items-center',
-                !penMode && 'sticky top-0 z-40 bg-panel/95 backdrop-blur-[2px]',
+              {note.isDeleted ? (
+                <div className="h-6" />
+              ) : (
+                <div className="flex h-12 items-center gap-3 px-6 md:h-14">
+                  <span className="h-px flex-1 bg-lineSoft md:bg-transparent" />
+                  <Tooltip label={i === pages.length - 1 ? 'Add page' : 'Insert page'}>
+                    <button
+                      type="button"
+                      onClick={() => insertPage(i + 1)}
+                      aria-label={i === pages.length - 1 ? 'Add a page at the end' : `Insert a page after page ${i + 1}`}
+                      className="grid size-8 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink [@media(pointer:coarse)]:size-10"
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </Tooltip>
+                  <span className="h-px flex-1 bg-lineSoft md:bg-transparent" />
+                </div>
               )}
-            >
-              {!penMode && <EditorToolbar editor={editor} />}
-            </div>
-          )}
-
-          {/* Content — editor stays mounted (hidden) so state/undo survive the toggle */}
-          {readingLayout ? (
-            <ReadingView noteId={note.id} doc={activePage?.content ?? null} />
-          ) : (
-            <EditorContent
-              editor={editor}
-              className={cn('[&_.tiptap]:min-h-[45vh]', note.isDeleted && 'opacity-80')}
-            />
-          )}
-            </>
-          )}
-
-          {/* Handwriting overlay — above the typed content, active only in pen mode */}
-          {!readingLayout && !note.isDeleted && (
-            <InkLayer
-              key={activePageId}
-              ref={inkLayerRef}
-              ink={inkDocs[activePageId] ?? null}
-              historyKey={activePageId}
-              onChange={handleInkChange}
-              active={penMode}
-              prefs={inkLayerPrefs}
-              onHistoryChange={handleInkHistory}
-              onSelectionChange={setSelectionCount}
-              onPaletteRequest={handlePaletteRequest}
-              onToolShortcut={handleToolShortcut}
-              recording={recordingHere}
-              onStrokeTap={(ts) => {
-                void recordingsRef.current?.seekToTime(ts).then((ok) => ok && setRecordingsOpen(true))
-              }}
-            />
-          )}
+            </Fragment>
+          ))}
         </ZoomColumn>
       </div>
 
@@ -1159,18 +1217,15 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               presetLabel={INK_PRESETS[inkPrefs.preset].label}
               canUndo={inkHistory.canUndo}
               canRedo={inkHistory.canRedo}
-              onUndo={() => inkLayerRef.current?.undo()}
-              onRedo={() => inkLayerRef.current?.redo()}
-              onClear={() => {
-                inkLayerRef.current?.clearAll()
-                toast.success('Handwriting cleared')
-              }}
+              onUndo={() => stepInkHistory('undo')}
+              onRedo={() => stepInkHistory('redo')}
+              onClear={clearPageInk}
               onTool={(t) => updatePenPrefs({ tool: t })}
               onOpenPalette={(anchor) => setPenPalette({ open: true, anchor, mode: 'trigger' })}
               selectionCount={selectionCount}
-              onDeleteSelection={() => inkLayerRef.current?.deleteSelection()}
-              onRecolorSelection={() => inkLayerRef.current?.recolorSelection(inkPrefs.color)}
-              onDuplicateSelection={() => inkLayerRef.current?.duplicateSelection()}
+              onDeleteSelection={() => selectedLayer()?.deleteSelection()}
+              onRecolorSelection={() => selectedLayer()?.recolorSelection(inkPrefs.color)}
+              onDuplicateSelection={() => selectedLayer()?.duplicateSelection()}
             />
           </div>
         </div>
@@ -1193,12 +1248,9 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
         onPrefs={updatePenPrefs}
         canUndo={inkHistory.canUndo}
         canRedo={inkHistory.canRedo}
-        onUndo={() => inkLayerRef.current?.undo()}
-        onRedo={() => inkLayerRef.current?.redo()}
-        onClear={() => {
-          inkLayerRef.current?.clearAll()
-          toast.success('Handwriting cleared')
-        }}
+        onUndo={() => stepInkHistory('undo')}
+        onRedo={() => stepInkHistory('redo')}
+        onClear={clearPageInk}
         onClose={() => setPenPalette(null)}
       />
     </div>
