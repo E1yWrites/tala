@@ -733,7 +733,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               <button
                 {...props}
                 type="button"
-                className="-ml-1.5 inline-flex h-6 items-center gap-1.5 rounded-control px-1.5 text-xs text-muted transition-colors hover:bg-raise hover:text-ink"
+                className="-ml-1.5 inline-flex h-6 items-center gap-1.5 rounded-control px-1.5 text-xs text-muted transition-colors hover:bg-raise hover:text-ink relative after:absolute after:-inset-2.5 after:content-['']"
               >
                 {currentFolder ? (
                   <span className="size-2 rounded-full" style={{ background: folderColor(currentFolder.id) }} aria-hidden="true" />
@@ -761,7 +761,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 type="button"
                 onClick={() => openModal({ kind: 'tag-editor', noteId: note.id })}
                 aria-label="Edit tags"
-                className="grid size-6 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink"
+                className="grid size-6 place-items-center rounded-full border border-dashed border-line text-faint transition-colors hover:border-ink hover:text-ink relative after:absolute after:-inset-2.5 after:content-['']"
               >
                 <Plus size={11} />
               </button>
@@ -833,7 +833,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                   aria-pressed={penMode === on}
                   aria-label={label}
                   className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 text-[13px] font-semibold transition-colors',
+                    'inline-flex items-center justify-center gap-1.5 px-2.5 text-[13px] font-semibold transition-colors [@media(pointer:coarse)]:min-w-11',
                     penMode === on ? 'bg-accent text-accent-fg' : 'text-muted hover:text-ink',
                   )}
                 >
@@ -1033,7 +1033,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               <button
                 type="button"
                 aria-label="Fit page to width"
-                className="h-8 w-12 text-xs font-medium tabular-nums text-muted transition-colors hover:text-ink disabled:hover:text-muted"
+                className="h-8 w-12 text-xs font-medium tabular-nums text-muted transition-colors hover:text-ink disabled:hover:text-muted [@media(pointer:coarse)]:h-10"
                 disabled={zoomLevel <= 1}
                 onClick={() => zoomRef.current?.reset()}
               >
@@ -1141,7 +1141,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
           scrollRef={scrollRef}
           maxWidth={720}
           onZoomChange={setZoomLevel}
-          className="relative mx-auto w-full max-w-[720px] pb-24"
+          className="page-stack relative mx-auto w-full max-w-[720px] pb-24"
           style={
             {
               '--editor-font-size': `${fontSize}px`,
@@ -1156,6 +1156,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
                 page={pg}
                 index={i}
                 near={Math.abs(i - current) <= NEAR_PAGES}
+                current={i === current}
                 readOnly={note.isDeleted}
                 penMode={penMode}
                 readingLayout={readingLayout}

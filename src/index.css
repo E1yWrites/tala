@@ -407,6 +407,19 @@
 
 /* Editor pane as a size container — content layout (auto-column lists,
    reading grids) reacts to available width regardless of sidebar width. */
+/* One formatting toolbar on screen: the page being typed in, else the page in
+   view. Hidden rows keep their height, so text never moves under its ink.
+   (Two rules: a browser without :has() drops only the second.) */
+.page-stack [data-toolbar] {
+  visibility: hidden;
+}
+.page-stack [data-page-id]:focus-within [data-toolbar] {
+  visibility: visible;
+}
+.page-stack:not(:has([data-page-id]:focus-within)) [data-current] [data-toolbar] {
+  visibility: visible;
+}
+
 .editor-scroll {
   container: editor / inline-size;
   overscroll-behavior: none;

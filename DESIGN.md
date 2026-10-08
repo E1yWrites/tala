@@ -310,7 +310,7 @@ Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folde
 ## Layout
 
 Navigation is a responsive three-pane atlas:
-- **Desktop and tablet landscape (1024 px and up):** a 232 px rail, a note list pane (300 px, 360 px from 1280 px) on the shelf colour, and the editor filling the rest. The rail can be hidden.
+- **Desktop and tablet landscape (1024 px and up):** a 232 px rail, a note list pane (300 px, 360 px from 1280 px) on the shelf colour, and the editor filling the rest. Both columns resize from a drag handle on their right edge (rail 180 to 360 px, dragging under 140 px hides it; list 260 to 480 px); the handle is a 2 px line that turns control-line on hover, tile green while dragging and a 3 px ballpoint line on keyboard focus. The rail can be hidden; a "Show sidebar" button then leads every view's header, where the rail's "Hide sidebar" button sat.
 - **Tablet portrait (768 to 1023 px):** the rail becomes a 256 px drawer over a scrim; list and editor remain.
 - **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, a raised star-yellow New note button, Tasks, You), which mirrors for left-handed users.
 
@@ -367,7 +367,7 @@ Calm and solid; one green, one gold, everything else quiet.
 - **Placeholder:** ink-faint.
 
 ### Navigation
-- **Rail:** forest green, 12 px padding. Top: app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. Folders list with a coloured dot each; FOLDERS and TAGS use the small-caps label. The week constellation, then Archive, Trash, theme and collapse icon buttons over a rail seam, then the profile row with backup status and the settings gear.
+- **Rail:** forest green, 12 px padding. Top: the Hide sidebar button, app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. Folders list with a coloured dot each; FOLDERS and TAGS use the small-caps label. The week constellation, then Archive, Trash and theme icon buttons over a rail seam, then the profile row with backup status and the settings gear.
 - **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding; active icons turn star yellow.
 
 ### Note Row (catalogue row)
@@ -375,8 +375,9 @@ The list is a catalogue, not a card stack. Each row: № number (catalogue type)
 
 ### Editor Header and Sheet
 - **Crumb bar:** folder dot and name, chevron, note title, save status. On the right, the **Type | Write segment** (a 36 px white segmented control with a seam border; the active half fills tile green), **Record** (white with a red dot; turns marker-wash with a pulsing dot while recording), then star, share and more as 36 px icon toggles (the star toggle uses star-wash when on).
-- **Page bar:** page stepper (1 / 2), Pages strip toggle, zoom stepper, template picker (Blank, Ruled, Grid) and Add page, as white seam-bordered controls.
-- **Sheet:** white, 720 px, 4 px corners and the sheet shadow on tablet and up; display title, a 12 px meta line, then the page. Ruled and Grid templates draw control-line rules on the sheet itself at 35% and 25% alpha so they scale with zoom.
+- **Page bar:** page stepper (the page in view, 1 / 2), Pages strip toggle, zoom stepper, template picker (Blank, Ruled, Grid) and Add page, as white seam-bordered controls.
+- **Sheets:** every page of a note in one scroll, one sheet under the other. Between sheets, and after the last, a 32 px dashed round "+" (control-line border, ink-faint icon) inserts a page there; on phones it sits on a seam line, since sheets have no shadow there. PDF pages are the PDF on the chart ground, inset by the sheet's side padding.
+- **Sheet:** white, 720 px, 4 px corners and the sheet shadow on tablet and up; display title, a 12 px meta line, then the page. Later pages open with a quiet "Page N" in 12 px ink-faint, in a head of the same height, so text starts at the same depth on every page. One formatting toolbar shows at a time: the page being typed in, else the page in view. Ruled and Grid templates draw control-line rules on the sheet itself at 35% and 25% alpha so they scale with zoom.
 
 ### Pen Dock
 A vertical, 52 px wide floating dock on the editor's right edge (mirrors for left-handed users): white, 14 px corners, seam border, float shadow. Tools (pen, pencil, highlighter, eraser, lasso) are 40 px buttons with 10 px corners; the current tool fills green wash. Below a short seam: the colour swatch (24 px circle with a white inner ring and ink outer ring) that opens the palette, undo and redo, contextual lasso actions, and Clear in ink-faint that turns red on hover. It pops in at 180 ms.

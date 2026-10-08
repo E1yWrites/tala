@@ -116,6 +116,8 @@ interface InkLayerProps {
   recording?: boolean
   /** Select-tool tap on a timestamped stroke: jump the lecture audio to when it was written. */
   onStrokeTap?: (ts: number) => void
+  /** Accessible name; several pages' canvases are on screen at once. */
+  label?: string
 }
 
 type Gesture =
@@ -157,6 +159,7 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     onSelectionChange,
     recording,
     onStrokeTap,
+    label = 'Handwriting canvas',
   },
   ref,
 ) {
@@ -1010,7 +1013,8 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
           height={dispViewH * dispScale}
           viewBox={`0 0 ${displayDoc.width} ${Math.max(displayDoc.height, box.h / (dispScale || 1))}`}
           role="application"
-          aria-label="Handwriting canvas"          onPointerDown={onPointerDown}
+          aria-label={label}
+          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={(e) => {
