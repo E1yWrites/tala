@@ -28,6 +28,7 @@ import { MAX_WEEKLY_GOAL } from '@/coach/study'
 import { setWeeklyGoal, useStudyStore } from '@/library/study'
 import { getEngine, indexAllInk, unindexedPages } from '@/library/inkText'
 import { isPersisted } from '@/library/storage'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 import { formatRelative } from '@/utils/dates'
 import { wipe } from '@/library/snapshot'
 import { downloadBackup, importBackupFile, restoreBackup, type BackupFile } from '@/utils/exportImport'
@@ -291,6 +292,7 @@ export function SettingsPage(): React.ReactNode {
       <div className="w-full max-w-[47rem] space-y-4 px-5 py-6 pb-16 sm:px-10 sm:py-8">
         {/* Header */}
         <header className="flex items-center gap-2">
+          <SidebarToggle className="-ml-2" />
           <Button
             variant="ghost"
             size="sm"

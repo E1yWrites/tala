@@ -144,8 +144,20 @@ function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
   }
 }
 
+/** Draggable pane widths (px). The list's default is responsive (300, 360 from xl), so null means "default". */
+export const PANE_WIDTHS = {
+  sidebar: { min: 180, max: 360, default: 232, snapBelow: 140 },
+  list: { min: 260, max: 480 },
+} as const
+
+function paneWidth(v: unknown, range: { min: number; max: number }): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(range.max, Math.max(range.min, v))) : null
+}
+
 interface PrefsState {
   sidebarCollapsed: boolean
+  sidebarWidth: number
+  listWidth: number | null
   /** Structured "Reading layout" for the note editor (cards + collapsible sections). */
   readingLayout: boolean
   /** Pen mode prefs: last tool/color/thickness. */
@@ -158,6 +170,8 @@ interface PrefsState {
   handwritingSearch: boolean
   coach: CoachPrefs
   toggleSidebar: () => void
+  setSidebarWidth: (w: number) => void
+  setListWidth: (w: number | null) => void
   toggleReadingLayout: () => void
   toggleQuietMode: () => void
   setLeftHanded: (on: boolean) => void
@@ -208,6 +222,8 @@ export const usePrefsStore = create<PrefsState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
+      sidebarWidth: PANE_WIDTHS.sidebar.default,
+      listWidth: null,
       readingLayout: false,
       inkPrefs: DEFAULT_INK_PREFS,
       quietMode: false,
@@ -215,6 +231,8 @@ export const usePrefsStore = create<PrefsState>()(
       handwritingSearch: false,
       coach: DEFAULT_COACH_PREFS,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      setSidebarWidth: (w) => set({ sidebarWidth: paneWidth(w, PANE_WIDTHS.sidebar) ?? PANE_WIDTHS.sidebar.default }),
+      setListWidth: (w) => set({ listWidth: paneWidth(w, PANE_WIDTHS.list) }),
       toggleReadingLayout: () => set((s) => ({ readingLayout: !s.readingLayout })),
       toggleQuietMode: () => set((s) => ({ quietMode: !s.quietMode })),
       setLeftHanded: (on) => set({ leftHanded: on }),
@@ -226,8 +244,10 @@ export const usePrefsStore = create<PrefsState>()(
       name: 'tala:prefs',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
-      partialize: ({ sidebarCollapsed, readingLayout, inkPrefs, quietMode, leftHanded, handwritingSearch, coach }) => ({
+      partialize: ({ sidebarCollapsed, sidebarWidth, listWidth, readingLayout, inkPrefs, quietMode, leftHanded, handwritingSearch, coach }) => ({
         sidebarCollapsed,
+        sidebarWidth,
+        listWidth,
         readingLayout,
         inkPrefs,
         quietMode,
@@ -241,6 +261,8 @@ export const usePrefsStore = create<PrefsState>()(
         return {
           ...current,
           sidebarCollapsed: p.sidebarCollapsed === true,
+          sidebarWidth: paneWidth(p.sidebarWidth, PANE_WIDTHS.sidebar) ?? PANE_WIDTHS.sidebar.default,
+          listWidth: paneWidth(p.listWidth, PANE_WIDTHS.list),
           readingLayout: p.readingLayout === true,
           inkPrefs: sanitizeInkPrefs(p.inkPrefs),
           quietMode: p.quietMode === true,
