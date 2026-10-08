@@ -24,7 +24,6 @@ npm run app:build    # Tauri installers → src-tauri/target/release/bundle/
 - The PWA service worker precaches `**/*.{js,mjs,css,html,ico,png,svg,woff,woff2}`; keep `mjs` in that glob or the pdf.js worker is not cached and PDF import fails offline. `vite.config.js`, `vite.config.d.ts` and `*.tsbuildinfo` are untracked and gitignored: if `vite.config.js` reappears (tsc emitting `tsconfig.node.json`), delete it, because Vite loads `.js` before `.ts` and the PWA plugin would silently vanish.
 - `lucide-react` is aliased to `src/lib/lucideShim.tsx`, which re-exports lucide and adds a few app-specific names (`StarFilled`, `PinFilled`, `Sort`, ...). Keep importing from `lucide-react` as usual.
 - `@/` → `src/`. Tailwind colors are RGB-triplet CSS variables defined in `src/index.css` (`darkMode: 'class'`, toggled on `<html>` by `applyThemeToDom` in `settingsStore.ts`), so prefer the semantic tokens (`bg-canvas`, `text-ink`, …) over per-component `dark:` overrides.
-- `README.md` is partly stale: its architecture section says repositories are the only code touching IndexedDB (it is `src/library/` now, see below), and it predates pages/ink/PDF.
 
 ## Architecture
 
