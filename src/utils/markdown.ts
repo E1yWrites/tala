@@ -1,6 +1,8 @@
 import type { JSONContent } from '@tiptap/core'
 import type { Note, PageRecord } from '@/types/models'
+import { toast } from 'sonner'
 import { docToPlainText } from './doc'
+import { isNative, shareFile } from './native'
 
 /* ---------------------------------------------------------------------------
    Markdown / JSON / plain-text conversion for import & export.
@@ -139,7 +141,15 @@ export function sanitizeFilename(title: string): string {
   return base || 'untitled-note'
 }
 
+/** Saves a file: a download in a browser, the share sheet in the iOS app (which has no downloads). */
 export function downloadBlob(filename: string, blob: Blob): void {
+  if (isNative()) {
+    shareFile(filename, blob).catch((err) => {
+      console.error('[tala] could not share', filename, err)
+      toast.error(`Could not save ${filename}`)
+    })
+    return
+  }
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

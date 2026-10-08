@@ -213,6 +213,32 @@
   gap: 4px;
 }
 .tiptap li p { margin: 0; }
+
+/* What a typed line became (entryLines.ts): a quiet tag after the text, never part of it. */
+.entry-chip {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0 0.5em;
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-weight: 600;
+  line-height: 1.7;
+  vertical-align: 0.12em;
+  white-space: nowrap;
+  user-select: none;
+  background: rgb(var(--c-accent-soft));
+  color: rgb(var(--c-accent-strong));
+}
+.entry-chip-event { background: rgb(var(--c-ballpoint-soft)); color: rgb(var(--c-ballpoint)); }
+.entry-chip-money { background: rgb(var(--c-gold-soft)); color: rgb(var(--c-gold-ink)); }
+.entry-chip-suggest {
+  background: transparent;
+  color: rgb(var(--c-faint));
+  border: 1px dashed rgb(var(--c-line));
+  cursor: pointer;
+}
+.entry-chip-suggest:hover { color: rgb(var(--c-ink)); border-style: solid; }
+.tiptap[contenteditable='false'] .entry-chip-suggest { display: none; }
 .tiptap li > p { margin: 0; }
 .tiptap ul > li::marker { color: rgb(var(--c-muted)); }
 .tiptap ol > li::marker { color: rgb(var(--c-muted)); font-variant-numeric: tabular-nums; }
@@ -540,6 +566,20 @@
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
+
+/* A hand-drawn entry's label (InkLayer entryMarks), haloed so it reads over ruled paper. */
+.ink-entry {
+  font-family: 'Hanken Grotesk Variable', system-ui, sans-serif;
+  font-weight: 600;
+  fill: rgb(var(--c-accent-strong));
+  stroke: rgb(var(--c-panel));
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+  user-select: none;
+}
+.ink-entry-event { fill: rgb(var(--c-ballpoint)); }
+.ink-entry-money { fill: rgb(var(--c-gold-ink)); }
 
 .ink-selection {
   fill: transparent;

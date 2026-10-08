@@ -32,6 +32,9 @@ export interface CreateNoteInput {
   content?: JSONContent | null
   folderId?: string | null
   tagIds?: string[]
+  /** A journal note for this month (`YYYY-MM`); its first page logs `day`. */
+  journal?: string
+  day?: string
 }
 
 /** `scratch`: kept in memory only. `gone`: the note or page no longer exists. */
@@ -216,6 +219,7 @@ function newNote(input: CreateNoteInput): Note {
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
+    ...(input.journal ? { journal: input.journal } : {}),
   }
 }
 
@@ -238,7 +242,8 @@ function removeNoteFromStores(ids: string[]): void {
 /** New note with its first page. Stays in memory until it earns content (templates and titles save at once). */
 export function createNote(input: CreateNoteInput = {}): Note {
   const note = newNote(input)
-  addNoteToStores(note, [newPage(note.id, note.id, 0, input.content ?? null)])
+  const page = newPage(note.id, note.id, 0, input.content ?? null)
+  addNoteToStores(note, [input.day ? { ...page, day: input.day } : page])
   void commit(note.id, 'save note', async () => {}, () => removeNoteFromStores([note.id]))
   return note
 }
@@ -330,6 +335,7 @@ export function duplicateNote(id: string): Note | undefined {
     createdAt: now,
     updatedAt: now,
   }
+  delete copy.journal // a month has one journal; the copy is an ordinary note
   // The legacy page (id === note id) keeps that rule for the copy; the rest get fresh ids.
   const idMap = new Map(getPages(id).map((p) => [p.id, p.id === id ? copy.id : createId()]))
   const pages = getPages(id).map((p) => ({ ...structuredClone(p), id: idMap.get(p.id)!, noteId: copy.id }))
@@ -495,8 +501,8 @@ function commitPages(
   )
 }
 
-/** A new page copies the page above it (size and template); under a PDF page it is a blank A4. */
-export function addPage(noteId: string, template?: PageRecord['template'], atIndex?: number): PageRecord {
+/** A new page copies the page above it (size and template); under a PDF page it is a blank A4. `day` makes it a journal day. */
+export function addPage(noteId: string, template?: PageRecord['template'], atIndex?: number, day?: string): PageRecord {
   const prev = getPages(noteId)
   const index = Math.min(atIndex ?? prev.length, prev.length)
   const sibling = prev[Math.max(0, index - 1)]
@@ -505,6 +511,7 @@ export function addPage(noteId: string, template?: PageRecord['template'], atInd
     ...newPage(noteId, createId(), index),
     template: template ?? (sibling && !underPdf ? sibling.template : 'blank'),
     size: sibling?.size?.kind !== 'pdf' && sibling?.size ? sibling.size : PAGE_SIZES.a4,
+    ...(day ? { day } : {}),
   }
   const next = [...prev]
   next.splice(index, 0, page)

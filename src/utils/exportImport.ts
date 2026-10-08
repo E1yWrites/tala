@@ -10,12 +10,15 @@ import type {
   RecordingRecord,
   Tag,
 } from '@/types/models'
+import type { InkDoc, InkEntry } from '@/types/ink'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import { sanitizeDoc } from '@/utils/doc'
 import JSZip from 'jszip'
 import { toast } from 'sonner'
 import { BITUIN } from '@/coach/copy'
 import { detectEnv } from '@/coach/env'
+import { downloadBlob } from '@/utils/markdown'
+import { shareFile } from '@/utils/native'
 import { usePrefsStore } from '@/store/prefsStore'
 import { flush } from '@/library/notes'
 import { dump, restore, type Snapshot } from '@/library/snapshot'
@@ -43,8 +46,24 @@ export interface BackupFile {
   blobData?: BlobRecord[]
 }
 
-/** The JSON half of a backup. Blob bytes travel as separate zip entries. */
-function snapshotToBackup(s: Snapshot): BackupFile {
+/** A parsed backup as library rows, ready for `restore()`. */
+export function backupToSnapshot(backup: BackupFile): Partial<Snapshot> {
+  return {
+    notes: backup.notes,
+    folders: backup.folders,
+    tags: backup.tags,
+    settings: backup.settings ? [backup.settings] : [],
+    inkDocs: backup.inkDocs,
+    pages: backup.pages,
+    pdfs: backup.pdfs,
+    blobs: backup.blobData,
+    recordings: backup.recordings,
+    meta: backup.meta,
+  }
+}
+
+/** The JSON half of a backup. Blob bytes travel as separate zip entries (or files, in the mirror). */
+export function snapshotToBackup(s: Snapshot): BackupFile {
   return {
     app: 'tala',
     version: 3,
@@ -98,7 +117,11 @@ export async function downloadBackup(): Promise<void> {
 
   let shared = false
   const { platform } = detectEnv()
-  if (platform === 'ios' || platform === 'android') {
+  if (platform === 'capacitor') {
+    // The app has no downloads: the share sheet is the only way out (Files, AirDrop, a chat)
+    if (!(await shareFile(name, blob))) return
+    shared = true
+  } else if (platform === 'ios' || platform === 'android') {
     const file = new File([blob], name, { type: 'application/octet-stream' })
     if (navigator.canShare?.({ files: [file] })) {
       try {
@@ -111,16 +134,7 @@ export async function downloadBackup(): Promise<void> {
       }
     }
   }
-  if (!shared) {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  if (!shared) downloadBlob(name, blob)
   usePrefsStore.getState().setCoach({ lastBackupAt: Date.now(), backupSnoozeUntil: 0 })
   toast.success(shared ? BITUIN.reaction.backupShared : BITUIN.reaction.backupDone)
 }
@@ -284,6 +298,7 @@ function normalizePage(raw: unknown): PageRecord | null {
   if (typeof raw.pdfPage === 'number' && raw.pdfPage >= 1) page.pdfPage = Math.floor(raw.pdfPage)
   if (isStr(raw.backgroundBlobId)) page.backgroundBlobId = raw.backgroundBlobId
   if (typeof raw.background === 'string' && raw.background.length > 0) page.background = raw.background
+  if (typeof raw.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.day)) page.day = raw.day
   return page
 }
 
@@ -346,7 +361,16 @@ function sanitizeInkDoc(rec: unknown): Note['ink'] {
   if (!isObj(rec)) return null
   const doc = rec.doc
   if (!isObj(doc) || !Array.isArray((doc as { strokes?: unknown }).strokes)) return null
-  return doc as unknown as Note['ink']
+  const entries = (doc as { entries?: unknown }).entries
+  if (entries === undefined) return doc as unknown as Note['ink']
+  // Hand-drawn entries: keep only well-formed ones
+  const ok = Array.isArray(entries)
+    ? entries.filter(
+        (e): e is InkEntry =>
+          isObj(e) && isStr(e.id) && isStr(e.line) && isStr(e.at) && Array.isArray(e.strokeIds) && e.strokeIds.every(isStr),
+      )
+    : []
+  return { ...(doc as unknown as InkDoc), entries: ok }
 }
 
 function isStorableRecord(v: unknown): v is Folder | Tag {
@@ -386,6 +410,7 @@ function normalizeNote(raw: unknown): Note | null {
     deletedAt: typeof raw.deletedAt === 'number' ? raw.deletedAt : null,
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, num(raw.createdAt, Date.now())),
+    ...(typeof raw.journal === 'string' && /^\d{4}-\d{2}$/.test(raw.journal) ? { journal: raw.journal } : {}),
   }
 }
 
@@ -399,21 +424,7 @@ export async function restoreBackup(
   backup: BackupFile,
   mode: 'merge' | 'replace',
 ): Promise<{ notes: number; folders: number; tags: number }> {
-  await restore(
-    {
-      notes: backup.notes,
-      folders: backup.folders,
-      tags: backup.tags,
-      settings: backup.settings ? [backup.settings] : [],
-      inkDocs: backup.inkDocs,
-      pages: backup.pages,
-      pdfs: backup.pdfs,
-      blobs: backup.blobData,
-      recordings: backup.recordings,
-      meta: backup.meta,
-    },
-    mode,
-  )
+  await restore(backupToSnapshot(backup), mode)
   // Dynamic: boot -> safety -> this module would otherwise be an import cycle
   const { hydrateAll } = await import('@/library/boot')
   await hydrateAll()

@@ -12,9 +12,10 @@ import { Bituin } from '@/coach/Bituin'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
 import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { QuickCapture } from '@/components/QuickCapture'
 
 /**
- * Home: a greeting from Bituin, any nudge and the tasks still open. The rail
+ * Home: a greeting from Bituin, a line for today's journal, any nudge and the tasks still open. The rail
  * shows the week; the editor pane beside it shows the notes to pick up again.
  */
 export function HomePage(): React.ReactNode {
@@ -47,6 +48,8 @@ export function HomePage(): React.ReactNode {
             <Search size={17} />
           </button>
         </header>
+
+        <QuickCapture />
 
         <BituinNudge placement="card" className="" />
 

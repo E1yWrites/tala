@@ -105,11 +105,14 @@ export async function restore(data: Partial<Snapshot>, mode: 'merge' | 'replace'
 }
 
 /**
- * Deletes everything, including the pre-upgrade safety copy (an erase must
- * not leave the old notes behind). `db.delete()` blocks forever while another
+ * Deletes everything, including the pre-upgrade safety copy and the iOS app's
+ * library mirror (an erase must not leave the old notes behind). `db.delete()` blocks forever while another
  * tab holds a connection, so race a timeout: the caller reloads either way.
  */
 export async function wipe(): Promise<void> {
+  // The app's on-device copy first, and fully: if it outlived the erase, the
+  // next boot would see empty storage and put the notes back (dynamic: mirror imports this module)
+  await import('./mirror').then((m) => m.deleteMirror()).catch((err) => console.error('[tala] could not delete the on-device copy', err))
   const timeout = new Promise<void>((resolve) => setTimeout(resolve, 6000))
   const erase = Promise.all([db.delete(), Dexie.delete(SAFETY_DB)]).then(() => undefined, () => undefined)
   await Promise.race([erase, timeout])

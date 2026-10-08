@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/core'
 import { usePageStore } from '@/store/pageStore'
 import type { Note, PageRecord } from '@/types/models'
-import { docToPlainText } from '@/utils/doc'
+import { scanLines } from '@/entries/scan'
 import { savePageContent, type SaveResult } from './notes'
 
 /** A checklist item somewhere in the library. A Task lives in a Page's typed text. */
@@ -16,34 +16,12 @@ export interface TaskRef {
   checked: boolean
 }
 
-/** The item's own text, not its nested sub-tasks'. */
-const ownText = (item: JSONContent): string =>
-  (item.content ?? [])
-    .filter((c) => c.type !== 'taskList')
-    .map((c) => docToPlainText(c))
-    .join(' ')
-    .trim()
-
-function collect(node: JSONContent, path: number[], out: Array<{ path: number[]; text: string; checked: boolean }>): void {
-  if (node.type === 'taskItem') {
-    out.push({ path, text: ownText(node), checked: node.attrs?.checked === true })
-  }
-  ;(node.content ?? []).forEach((child, i) => collect(child, [...path, i], out))
-}
-
 /** Every task on every page of the live (not trashed, not archived) notes, in note then page order. */
 export function listTasks(notes: Note[], pagesByNote: Record<string, PageRecord[]>): TaskRef[] {
-  const refs: TaskRef[] = []
-  for (const note of notes) {
-    if (note.isDeleted || note.isArchived) continue
-    ;(pagesByNote[note.id] ?? []).forEach((page, pageIndex) => {
-      if (!page.content) return
-      const found: Array<{ path: number[]; text: string; checked: boolean }> = []
-      collect(page.content, [], found)
-      for (const f of found) refs.push({ noteId: note.id, pageId: page.id, pageNumber: pageIndex + 1, ...f })
-    })
-  }
-  return refs
+  // ponytail: hand-drawn tasks aren't listed until ticking one can rewrite its ink entry
+  return scanLines(notes, pagesByNote).flatMap(({ noteId, pageId, pageNumber, path, text, task, archived }) =>
+    task && !archived ? [{ noteId, pageId, pageNumber, path, text, checked: task.checked }] : [],
+  )
 }
 
 /** Ticks or unticks a task by rewriting its page's text. Open editors are told to resync. */

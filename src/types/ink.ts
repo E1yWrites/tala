@@ -87,4 +87,15 @@ export interface InkDoc {
   /** Capture-space height; grows as the user writes further down. */
   height: number
   strokes: InkStroke[]
+  /** Handwriting turned into entries with the lasso: `line` is the typed form ("P150 lunch gcash"). */
+  entries?: InkEntry[]
+}
+
+/** An entry drawn by hand. It lives while any of its strokes do (so undo brings it back). */
+export interface InkEntry {
+  id: string
+  strokeIds: string[]
+  line: string
+  /** The day it was written, `YYYY-MM-DD`. */
+  at: string
 }

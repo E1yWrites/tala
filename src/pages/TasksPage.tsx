@@ -8,6 +8,7 @@ import { displayTitle } from '@/utils/noteFilters'
 import { cn } from '@/utils/cn'
 import { EmptyState } from '@/components/UI/EmptyState'
 import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { QuickCapture } from '@/components/QuickCapture'
 
 /** Every checklist item in the Library, grouped by note. Tick here or open the page it lives on. */
 export function TasksPage(): React.ReactNode {
@@ -40,6 +41,8 @@ export function TasksPage(): React.ReactNode {
           </p>
         </div>
       </header>
+
+      <QuickCapture className="mx-4 mb-2" />
 
       {tasks.length === 0 ? (
         <EmptyState

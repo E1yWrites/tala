@@ -1,7 +1,8 @@
 /* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, continuous scroll (pages mount near the screen, insert between
- * pages, reopen where you left off), the Tasks view, ink tools (zoom, wet ink, lasso, page strip, PDF
+ * pages, reopen where you left off), the Tasks view, the journal (quick capture, entry chips,
+ * suggestions), ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -421,6 +422,44 @@ await page.click('section[aria-label="Tasks"] button:has-text("TASK-ALPHA")')
 await wait(700)
 check('the note shows the task ticked', (await page.locator('.ProseMirror li[data-checked="true"]').count()) > 0)
 
+/* ---- 6a. Pagtatala: quick capture writes today's journal page; lines become entries -- */
+await page.click('nav >> text=Tasks')
+await wait(500)
+const capture = 'input[aria-label="Write a line in today’s journal page"]'
+await page.fill(capture, 'P150 lunch gcash')
+check('capture previews what the line becomes', ((await page.locator('form .entry-chip-money').textContent()) ?? '').includes('₱150'))
+await page.keyboard.press('Enter')
+await wait(400)
+await page.fill(capture, '[ ] JOURNAL-TASK due fri')
+await page.keyboard.press('Enter')
+await wait(600)
+check('a captured task shows in Tasks', (await page.locator('section[aria-label="Tasks"] >> text=JOURNAL-TASK').count()) > 0)
+await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
+await wait(900)
+const month = await page.evaluate(() => new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date()))
+check('the journal is this month’s note', (await page.locator(`text=${month}`).count()) > 0, month)
+check('captured lines carry their chips', (await page.locator('.ProseMirror .entry-chip-money').count()) === 1 && (await page.locator('.ProseMirror .entry-chip-task').count()) === 1)
+check('entry lines are pinned to their day', (await page.locator('.ProseMirror p[data-at]').count()) >= 2)
+await page.locator('.ProseMirror').last().click()
+await page.keyboard.press('Control+End')
+await page.keyboard.press('Enter')
+await page.keyboard.type('85 jeep')
+await wait(400)
+check('an unmarked look-alike gets a suggestion on a journal page', (await page.locator('.ProseMirror .entry-chip-suggest').count()) === 1)
+await page.click('.ProseMirror .entry-chip-suggest')
+await wait(400)
+check('accepting the suggestion marks the line', (await editorText(page)).includes('P85 jeep') && (await page.locator('.ProseMirror .entry-chip-money').count()) === 2)
+await newNote(page)
+await page.locator('text=Blank note').first().click()
+await wait(600)
+await page.click('.ProseMirror')
+await page.keyboard.type('150 students attended')
+await page.keyboard.press('Enter')
+await page.keyboard.type('@ fri 2pm dentist')
+await wait(500)
+check('ordinary notes get no suggestions', (await page.locator('.ProseMirror .entry-chip-suggest').count()) === 0)
+check('a marked event line gets its chip anywhere', (await page.locator('.ProseMirror .entry-chip-event').count()) === 1)
+
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)
 await page.locator('text=Blank note').first().click()
@@ -552,6 +591,19 @@ check('Duplicate adds a copy', (await countStrokes()) === before + 1)
 await page.click('button[aria-label="Undo handwriting"]')
 await wait(900)
 check('Undo removes the copy', (await countStrokes()) === before)
+
+// Lasso → Turn into: the handwriting becomes an expense without being read
+await page.mouse.move(ax - 20, ay - 25)
+await page.mouse.down()
+for (const [x, y] of [[ax + 100, ay - 25], [ax + 100, ay + 65], [ax - 20, ay + 65], [ax - 20, ay - 15]]) await page.mouse.move(x, y, { steps: 4 })
+await page.mouse.up()
+await wait(300)
+await page.click('button[aria-label="Turn selected handwriting into an entry"]')
+await page.fill('input[aria-label="What it says"]', '85 jeep')
+await page.click('button:has-text("Save")')
+await wait(900)
+check('a lassoed line becomes an entry, labelled beside it', ((await page.locator('svg.ink-svg text.ink-entry').first().textContent()) ?? '').includes('₱85'))
+check('…and is stored on the ink doc', (await inkRows()).some((r) => r.doc.entries?.[0]?.line === 'P85 jeep'))
 
 // Undo covers the whole note: a stroke on page 2 is undone from page 1
 await page.click('button:has-text("Add page")')

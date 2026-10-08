@@ -7,6 +7,7 @@ import { useZoom } from '@/canvas/ZoomColumn'
 import { paintWetSegments, wetCanvasSize } from '@/canvas/wetInk'
 import { lassoPath, strokesInLasso } from '@/canvas/lasso'
 import { classifyShape, shapeToPoints } from '@/canvas/snapShape'
+import { entryLabel, parseTyped } from '@/entries/parse'
 
 /** True while the user is typing in a text field. */
 export function isTypingTarget(target: EventTarget | null): boolean {
@@ -92,6 +93,8 @@ export interface InkLayerHandle {
   recolorSelection: (color: string) => void
   duplicateSelection: () => void
   clearSelection: () => void
+  /** Makes the selected handwriting an entry: `line` is its typed form ("P150 lunch"), `at` the day it counts from. */
+  addEntry: (line: string, at: string) => void
 }
 
 interface InkLayerProps {
@@ -402,10 +405,22 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
   const clearSelection = useCallback(() => setSelected(new Set()), [])
 
+  const addEntry = useCallback(
+    (line: string, at: string) => {
+      const doc = inkRef.current
+      if (!doc || selected.size === 0) return
+      const entry = { id: createId(), strokeIds: [...selected], line, at }
+      // Same strokes: `before === strokes` tells the note there is nothing to undo
+      onCommit({ ...doc, entries: [...(doc.entries ?? []), entry] }, doc.strokes)
+      setSelected(new Set())
+    },
+    [onCommit, selected],
+  )
+
   useImperativeHandle(
     ref,
-    () => ({ deleteSelection, recolorSelection, duplicateSelection, clearSelection }),
-    [deleteSelection, recolorSelection, duplicateSelection, clearSelection],
+    () => ({ deleteSelection, recolorSelection, duplicateSelection, clearSelection, addEntry }),
+    [deleteSelection, recolorSelection, duplicateSelection, clearSelection, addEntry],
   )
 
   /* --------------------------- Coordinate mapping -------------------------- */
@@ -642,6 +657,21 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
     }
     return bb
   }, [selected, strokes])
+
+  /** Hand-drawn entries: what each became, beside the handwriting that still carries it. */
+  const entryMarks = useMemo(() => {
+    const entries = effDoc?.entries
+    if (!entries?.length) return []
+    const byId = new Map(strokes.map((st) => [st.id, st]))
+    return entries.flatMap((e) => {
+      const live = e.strokeIds.map((id) => byId.get(id)).filter((st): st is InkStroke => !!st)
+      const parsed = live.length ? parseTyped(e.line, e.at) : null
+      const label = parsed ? entryLabel(parsed) || e.line : ''
+      if (!parsed || !label) return []
+      const bb = live.map(strokeBBox).reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }))
+      return [{ id: e.id, kind: parsed.kind, label, bb }]
+    })
+  }, [effDoc?.entries, strokes])
 
   const finishSelectMove = useCallback(
     (g: Gesture & { kind: 'select-move' }): void => {
@@ -1058,6 +1088,24 @@ export const InkLayer = forwardRef<InkLayerHandle, InkLayerProps>(function InkLa
 
           {/* Predicted-input ghost tip (pen only) — visual latency compensation */}
           <circle ref={liveTipRef} r={0} className="ink-live-tip" fill={prefs.color} />
+
+          {entryMarks.map((m) => {
+            const px = 1 / (scale || 1)
+            // Right of the handwriting, or under it when the margin is too narrow
+            const right = m.bb.x1 + 140 * px < (displayDoc?.width ?? 0)
+            return (
+              <text
+                key={m.id}
+                x={right ? m.bb.x1 + 8 * px : m.bb.x0}
+                y={right ? m.bb.y0 + 12 * px : m.bb.y1 + 14 * px}
+                fontSize={11 * px}
+                strokeWidth={3 * px}
+                className={`ink-entry ink-entry-${m.kind}`}
+              >
+                {m.label}
+              </text>
+            )
+          })}
 
           {lasso && <path d={lassoPath(lasso)} className="ink-marquee" vectorEffect="non-scaling-stroke" />}
 

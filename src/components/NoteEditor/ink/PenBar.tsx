@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Copy, Eraser, Highlighter, Lasso, Palette, Pencil, PenLine, Redo2, Trash2, Undo2 } from 'lucide-react'
+import { Copy, Eraser, Highlighter, Lasso, ListPlus, Palette, Pencil, PenLine, Redo2, Trash2, Undo2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { InkPointerMode } from '@/types/ink'
 import { cn } from '@/utils/cn'
@@ -40,6 +40,8 @@ export interface PenBarProps {
   /** Paint the selection in the colour currently chosen in the palette. */
   onRecolorSelection?: () => void
   onDuplicateSelection?: () => void
+  /** Turn the selected handwriting into an entry (expense, task, event, tick). */
+  onEntrySelection?: () => void
 }
 
 export function PenBar({
@@ -57,6 +59,7 @@ export function PenBar({
   onDeleteSelection,
   onRecolorSelection,
   onDuplicateSelection,
+  onEntrySelection,
 }: PenBarProps): ReactNode {
   const leftHanded = usePrefsStore((st) => st.leftHanded)
   const tipSide = leftHanded ? 'right' : 'left' // tooltips point away from the page
@@ -115,6 +118,11 @@ export function PenBar({
       {selectionCount > 0 && (
         <>
           <hr className={DOCK_RULE} />
+          <Tooltip label="Turn into an entry (₱, task, event)" side={tipSide}>
+            <button type="button" onClick={onEntrySelection} aria-label="Turn selected handwriting into an entry" className={cn(DOCK_BTN, IDLE)}>
+              <ListPlus size={18} />
+            </button>
+          </Tooltip>
           <Tooltip label="Recolor to the current colour" side={tipSide}>
             <button type="button" onClick={onRecolorSelection} aria-label="Recolor selection to the current colour" className={cn(DOCK_BTN, IDLE)}>
               <Palette size={18} />

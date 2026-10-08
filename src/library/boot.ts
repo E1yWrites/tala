@@ -15,6 +15,7 @@ import { requestPersistence } from './storage'
 import { interruptStale, formatDuration } from './recordings'
 import { loadStudy } from './study'
 import { startInkIndexer } from './inkText'
+import { restoreIfEvicted, startMirror } from './mirror'
 import { toast } from 'sonner'
 
 /**
@@ -112,7 +113,14 @@ let bootPromise: Promise<void> | null = null
 export function bootApp(): Promise<void> {
   bootPromise ??= (async () => {
     const copied = await keepSafetyCopy()
+    // App Store app: iOS may have cleared the webview's storage while Tala was closed
+    const recovered = await restoreIfEvicted().catch((err) => {
+      console.error('[tala] could not restore the on-device copy', err)
+      return false
+    })
     await load()
+    if (recovered) toast.success('Your notes were restored from Tala’s copy on this device.')
+    startMirror()
     await settleSafetyCopy(copied)
     await announceInterruptedRecordings()
     void requestPersistence()

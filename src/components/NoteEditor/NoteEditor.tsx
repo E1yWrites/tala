@@ -60,6 +60,9 @@ import { Button } from '../UI/Button'
 import { isTypingTarget } from './ink/InkLayer'
 import type { InkLayerHandle } from './ink/InkLayer'
 import { PenBar } from './ink/PenBar'
+import { InkEntryDialog } from './ink/InkEntryDialog'
+import { dayKey } from '@/coach/study'
+import { formatLongDay } from '@/entries/parse'
 import { PageSheet, pageHeights } from './PageSheet'
 import { ZoomColumn } from '@/canvas/ZoomColumn'
 import { PageStrip } from '@/canvas/PageStrip'
@@ -163,6 +166,7 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   const [penPalette, setPenPalette] = useState<PenPaletteState | null>(null)
   /** Count of selected ink strokes — drives the contextual delete button in PenBar. */
   const [selectionCount, setSelectionCount] = useState(0)
+  const [entryDialog, setEntryDialog] = useState(false)
   /** Mounted ink layers by page id; a selection lives on one page at a time. */
   const inkHandles = useRef(new Map<string, InkLayerHandle>())
   const selectionRef = useRef<{ pageId: string; count: number } | null>(null)
@@ -192,7 +196,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
   /** Ink commits hit the store instantly; the library writes them and debounces the note touch-up. */
   const handleInk = useCallback(
     (pageId: string, doc: InkDoc, before: InkStroke[]) => {
-      recordInk(noteId, { pageId, before, after: doc.strokes })
+      // Strokes untouched (an entry was added): nothing for undo to step through
+      if (before !== doc.strokes) recordInk(noteId, { pageId, before, after: doc.strokes })
       saveInk(noteId, pageId, doc)
       noteWriting()
       refreshInkHistory()
@@ -712,6 +717,8 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
 
       {/* Meta row */}
       <div className="mb-3 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* A journal's first page is a day too; later pages say theirs in place of "Page N" */}
+        {pages[0]?.day && <span className="text-xs font-semibold text-muted">{formatLongDay(pages[0].day)}</span>}
         <time
           dateTime={new Date(note.updatedAt).toISOString()}
           title={formatFull(note.updatedAt)}
@@ -1227,9 +1234,22 @@ export function NoteEditor({ noteId }: { noteId: string }): React.ReactNode {
               onDeleteSelection={() => selectedLayer()?.deleteSelection()}
               onRecolorSelection={() => selectedLayer()?.recolorSelection(inkPrefs.color)}
               onDuplicateSelection={() => selectedLayer()?.duplicateSelection()}
+              onEntrySelection={() => setEntryDialog(true)}
             />
           </div>
         </div>
+      )}
+
+      {entryDialog && (
+        <InkEntryDialog
+          onClose={() => setEntryDialog(false)}
+          onSave={(line) => {
+            const pageId = selectionRef.current?.pageId
+            const day = pages.find((p) => p.id === pageId)?.day ?? dayKey(Date.now())
+            selectedLayer()?.addEntry(line, day)
+            setEntryDialog(false)
+          }}
+        />
       )}
 
       {/* Radial pen palette — hoisted once (portal) so right-click and

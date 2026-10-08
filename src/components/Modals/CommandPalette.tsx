@@ -9,6 +9,7 @@ import {
   Import,
   Moon,
   Notebook,
+  PenLine,
   Pin,
   Settings,
   Bookmark,
@@ -23,6 +24,7 @@ import { downloadBackup } from '@/utils/exportImport'
 import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
 import { shortcut } from '@/utils/keys'
+import { captureLine, previewLine } from '@/components/QuickCapture'
 
 interface CommandEntry {
   id: string
@@ -118,12 +120,28 @@ export function CommandPalette(): React.ReactNode {
   )
 
   const filtered = useMemo(() => {
-    return commands
+    const matches = commands
       .map((c) => ({ c, score: fuzzyScore(query.trim(), c.label) }))
       .filter((x) => x.score >= 0)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.c)
-  }, [commands, query])
+    const line = query.trim()
+    if (!line) return matches
+    // Anything typed can be written down; it leads only when it reads as an entry,
+    // so "settings" + Enter still opens Settings
+    const preview = previewLine(line)
+    const log: CommandEntry = {
+      id: 'log',
+      label: `Write in today’s page: “${line}”`,
+      hint: preview?.label,
+      icon: PenLine,
+      run: () => {
+        closeAllModals()
+        captureLine(line)
+      },
+    }
+    return preview ? [log, ...matches] : [...matches, log]
+  }, [commands, query, closeAllModals])
 
   useEffect(() => setActiveIdx(0), [query])
 

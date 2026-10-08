@@ -23,6 +23,8 @@ export interface Note {
   deletedAt: number | null
   createdAt: number
   updatedAt: number
+  /** A journal note: the month it logs, `YYYY-MM`. Its pages are that month's days. */
+  journal?: string
 }
 
 /** Handwriting stored out-of-line (v2+), keyed by its owning note. */
@@ -61,6 +63,8 @@ export interface PageRecord {
   backgroundBlobId?: string
   /** Pre-v4 data-URL background; the v4 upgrade moves it into `blobs`. */
   background?: string | null
+  /** A journal page: the day it logs, `YYYY-MM-DD`. Entries on it count from this day. */
+  day?: string
   createdAt: number
   updatedAt: number
 }
