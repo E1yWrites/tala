@@ -14,8 +14,8 @@ import type { DayKey, Repeat, When } from './dates'
 */
 
 export type Entry =
-  | { kind: 'task'; text: string; when?: When; due?: When }
-  | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number }
+  | { kind: 'task'; text: string; when?: When; due?: When; remind?: number }
+  | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; remind?: number }
   | { kind: 'money'; flow: 'out' | 'in' | 'move'; amount: number; account?: string; to?: string; text: string; day: DayKey }
   | { kind: 'tick'; name: string; count: number; day: DayKey }
 
@@ -43,18 +43,40 @@ function amountOf(token: string): number | undefined {
 
 const words = (s: string): string[] => s.split(/\s+/).filter(Boolean)
 
+const REMIND = /^!(?:(\d+)([mhd]))?$/
+const UNIT_MIN = { m: 1, h: 60, d: 1440 } as const
+
+/** `!` (at the time) or `!15m` / `!2h` / `!1d` (that long before): minutes before, and the other words. */
+function takeRemind(ws: string[]): [string[], number | undefined] {
+  let remind: number | undefined
+  const rest = ws.filter((w) => {
+    const m = remind === undefined ? REMIND.exec(w) : null
+    if (m) remind = m[1] ? Number(m[1]) * UNIT_MIN[m[2] as keyof typeof UNIT_MIN] : 0
+    return !m
+  })
+  return [rest, remind]
+}
+
 /** A typed line (a paragraph, or a checklist item's own text when `task`). */
 export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFAULT_CONTEXT, task = false): Entry | null {
   const line = text.trim()
   if (task) {
     const d = readDates(line, pinned)
-    return { kind: 'task', text: d.rest, ...(d.when?.day || d.when?.time ? { when: d.when } : {}), ...(d.due ? { due: d.due } : {}) }
+    const [rest, remind] = takeRemind(words(d.rest))
+    return {
+      kind: 'task',
+      text: rest.join(' '),
+      ...(d.when?.day || d.when?.time ? { when: d.when } : {}),
+      ...(d.due ? { due: d.due } : {}),
+      ...(remind !== undefined ? { remind } : {}),
+    }
   }
 
   if (/^@\s/.test(line)) {
     const d = readDates(line.slice(2), pinned, { event: true })
     let amount: number | undefined
-    const rest = words(d.rest).filter((w) => {
+    const [ws, remind] = takeRemind(words(d.rest))
+    const rest = ws.filter((w) => {
       const a = amount === undefined ? amountOf(w) : undefined
       if (a !== undefined) amount = a
       return a === undefined
@@ -67,6 +89,7 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFA
       ...(when ? { when } : {}),
       ...(repeat ? { repeat } : {}),
       ...(amount !== undefined ? { amount } : {}),
+      ...(remind !== undefined ? { remind } : {}),
     }
   }
 
@@ -186,7 +209,16 @@ function formatRepeat(r: Repeat): string {
   } else if (r.unit === 'month' && r.on?.length) {
     s = `every ${r.on.map((d) => (d === -1 ? 'last day' : ordinal(d))).join(' & ')}`
   }
-  return r.until ? `${s} until ${formatDay(r.until)}` : s
+  if (r.until) s += ` until ${formatDay(r.until)}`
+  if (r.skip?.length) s += `, not ${r.skip.map(formatDay).join(', ')}`
+  return s
+}
+
+/** "remind 15m before", "remind at the time". */
+export function formatRemind(min: number): string {
+  if (min === 0) return 'remind at the time'
+  const [n, u] = min % 1440 === 0 ? [min / 1440, 'd'] : min % 60 === 0 ? [min / 60, 'h'] : [min, 'm']
+  return `remind ${n}${u} before`
 }
 
 const ordinal = (n: number): string => {
@@ -198,9 +230,20 @@ const ordinal = (n: number): string => {
 export function entryLabel(e: Entry): string {
   switch (e.kind) {
     case 'task':
-      return [...formatWhen(e.when), ...(e.due ? [`due ${formatWhen(e.due).join(' ')}`] : [])].join(' · ')
+      return [
+        ...formatWhen(e.when),
+        ...(e.due ? [`due ${formatWhen(e.due).join(' ')}`] : []),
+        ...(e.remind !== undefined ? [formatRemind(e.remind)] : []),
+      ].join(' · ')
     case 'event':
-      return [...(e.repeat ? [formatRepeat(e.repeat)] : []), ...formatWhen(e.when), ...(e.amount ? [formatPeso(e.amount)] : [])].join(' · ') || 'Event'
+      return (
+        [
+          ...(e.repeat ? [formatRepeat(e.repeat)] : []),
+          ...formatWhen(e.when),
+          ...(e.amount ? [formatPeso(e.amount)] : []),
+          ...(e.remind !== undefined ? [formatRemind(e.remind)] : []),
+        ].join(' · ') || 'Event'
+      )
     case 'money': {
       if (e.flow === 'move') return `${formatPeso(e.amount)} ${titleCase(e.account!)} → ${titleCase(e.to!)}`
       return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [titleCase(e.account)] : [])].join(' · ')

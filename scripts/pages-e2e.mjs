@@ -460,6 +460,36 @@ await wait(500)
 check('ordinary notes get no suggestions', (await page.locator('.ProseMirror .entry-chip-suggest').count()) === 0)
 check('a marked event line gets its chip anywhere', (await page.locator('.ProseMirror .entry-chip-event').count()) === 1)
 
+/* ---- 6a2. Agenda: Today and Upcoming read the lines; Skip and Done write lines -- */
+await page.click('nav >> text=Today')
+await wait(400)
+for (const l of ['@ 11:59pm AGENDA-LATE !30m', '@ daily 6am AGENDA-GYM', '@ AGENDA-HAIRCUT every ~1d kahapon']) {
+  await page.fill(capture, l)
+  await page.keyboard.press('Enter')
+  await wait(250)
+}
+await wait(600)
+const today = page.locator('section[aria-label="Today"]')
+check('Today lists what the lines put on today', (await today.locator('text=AGENDA-LATE').count()) === 1 && (await today.locator('text=AGENDA-GYM').count()) === 1)
+check('a due-again item done yesterday, every day, is due today', ((await today.locator('li:has-text("AGENDA-HAIRCUT")').textContent()) ?? '').includes('due today'))
+check('a reminder shows its bell', (await today.locator('li:has-text("AGENDA-LATE") [aria-label="reminder set"]').count()) === 1)
+await page.click('nav >> text=Upcoming')
+await wait(500)
+const upcoming = page.locator('section[aria-label="Upcoming"]')
+check('Upcoming repeats a daily line on every day', (await upcoming.locator('text=AGENDA-GYM').count()) === 14)
+check('a due-again item waits in its own list', (await upcoming.locator('li:has-text("AGENDA-HAIRCUT")').count()) === 1)
+await upcoming.locator('li:has-text("AGENDA-GYM") button:has-text("Skip")').nth(1).click()
+await wait(900)
+check('Skip writes "skip" into the line and drops that day', (await upcoming.locator('text=AGENDA-GYM').count()) === 13)
+await upcoming.locator('button[aria-label="Done today: AGENDA-HAIRCUT"]').click()
+await wait(900)
+const haircut = ((await upcoming.locator('li:has-text("AGENDA-HAIRCUT")').textContent()) ?? '')
+check('Done writes a tick and pushes the next due date out', !haircut.includes('due today') && haircut.includes('due '), haircut)
+await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")').catch(() => {})
+await upcoming.locator('li:has-text("AGENDA-GYM") button:not(:has-text("Skip"))').first().click()
+await wait(900)
+check('the journal holds the skip and the tick', /AGENDA-GYM skip \w{3} \d+/.test(await editorText(page)) && (await editorText(page)).includes('✓ AGENDA-HAIRCUT'))
+
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)
 await page.locator('text=Blank note').first().click()
@@ -938,7 +968,7 @@ const oldNote = (id, title, ageDays) => {
   }
 }
 const goHome = async (pg) => {
-  await pg.click('nav >> text=Home').catch(() => {})
+  await pg.click('nav >> text=Today').catch(() => {})
   await wait(500)
 }
 

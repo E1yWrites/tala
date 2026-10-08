@@ -167,6 +167,7 @@ export type ViewKind =
   | 'folder'
   | 'tag'
   | 'tasks'
+  | 'agenda'
   | 'settings'
 
 export interface ViewRef {

@@ -115,3 +115,14 @@ describe('entryLabel', () => {
     expect(entryLabel(parse('buy eggs', true)!)).toBe('')
   })
 })
+
+describe('reminders', () => {
+  it('reads ! (at the time) and !15m / !2h / !1d (before)', () => {
+    expect(parse('@ thu 2pm dentist !30m')).toMatchObject({ text: 'dentist', remind: 30 })
+    expect(parse('@ thu 2pm dentist !')).toMatchObject({ text: 'dentist', remind: 0 })
+    expect(parse('essay due fri !1d', true)).toMatchObject({ text: 'essay', remind: 1440 })
+    expect(parse('@ every 15th P1299 globe !2h')).toMatchObject({ amount: 1299, remind: 120 })
+    expect(parse('wow!', true)).toEqual({ kind: 'task', text: 'wow!' })
+    expect(entryLabel(parse('@ thu 2pm dentist !30m')!)).toBe('Thu, Oct 8 · 2pm · remind 30m before')
+  })
+})

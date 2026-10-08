@@ -28,7 +28,7 @@ Lecture halls and desks: pen in hand, slides on screen, patchy or no network. No
 
 - Notes made of Pages; each Page owns its typed text and its Ink. PDF import keeps the original and renders pages on demand, also offline. Folders, tags, search, `.tala` backup and restore, a desktop shell.
 - Decided for later phases: pinch zoom, page strip, lasso, snap-to-shape, PDF export, lecture audio with safety nets, a Tasks tab, library thumbnails, a coach loop (weekly goal where missing a day resets nothing; a Study day is 5 minutes of writing or marking up; a Session ends after 10 minutes without writing or when the Note closes).
-- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Tasks / Search plus a large new-note button; Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor.
+- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Today / Search plus a large new-note button (Upcoming and Tasks open from Today); Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor.
 - Bituin rules: never over the page while writing; only a small corner chip after the pen has paused about 2 seconds; never during a stroke; never takes focus; a global Quiet mode silences reactions and reminders.
 
 ## Brand Commitments

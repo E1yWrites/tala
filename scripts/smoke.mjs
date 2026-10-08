@@ -163,13 +163,16 @@ check('mobile: onboarding completes', await completeOnboarding(mpage))
 check('mobile: bottom nav visible', await mpage.isVisible('nav[aria-label="Primary"]'))
 const tabs = await mpage.locator('nav[aria-label="Primary"] button').allTextContents()
 check(
-  'mobile: tab bar has Notes, Tasks, Search and a New note button',
-  ['Notes', 'Tasks', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
+  'mobile: tab bar has Notes, Today, Search and a New note button',
+  ['Notes', 'Today', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
     (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="New note"]')),
 )
-await mpage.click('nav[aria-label="Primary"] >> text=Tasks')
+await mpage.click('nav[aria-label="Primary"] >> text=Today')
 await waitFor(350)
-check('mobile: Tasks tab opens the tasks view', await mpage.isVisible('section[aria-label="Tasks"]'))
+check('mobile: Today tab opens Today', await mpage.isVisible('section[aria-label="Today"]'))
+await mpage.click('section[aria-label="Today"] button:has-text("Upcoming")')
+await waitFor(350)
+check('mobile: Upcoming opens from Today', await mpage.isVisible('section[aria-label="Upcoming"]'))
 await mpage.click('nav[aria-label="Primary"] button[aria-label*="settings and more"]')
 await waitFor(250)
 await mpage.click('[role="menu"] >> text=Settings')

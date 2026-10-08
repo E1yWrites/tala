@@ -1,4 +1,4 @@
-import { CheckSquare, NotebookText, Plus, Search } from 'lucide-react'
+import { CalendarCheck, NotebookText, Plus, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -12,8 +12,9 @@ import { cn } from '@/utils/cn'
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
- * Phone bottom bar on the green rail: Notes, Tasks, the gold New note, Search, and the
- * profile menu (Settings lives under the picture). Left-handed mode mirrors it.
+ * Phone bottom bar on the green rail: Notes, Today (with Upcoming and Tasks inside),
+ * the gold New note, Search, and the profile menu (Settings lives under the
+ * picture). Left-handed mode mirrors it.
  */
 export function MobileNav(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
@@ -24,8 +25,9 @@ export function MobileNav(): React.ReactNode {
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
   const profile = useSettingsStore((s) => s.settings.profile)
 
-  // Every library view (all, starred, folders, tags, ...) counts as the Notes tab
-  const notesActive = activeView.kind !== 'tasks' && activeView.kind !== 'settings'
+  // Today, Upcoming and Tasks are the Today tab; every library view (all, starred, folders, ...) is Notes
+  const todayActive = activeView.kind === 'home' || activeView.kind === 'agenda' || activeView.kind === 'tasks'
+  const notesActive = !todayActive && activeView.kind !== 'settings'
 
   return (
     <nav
@@ -42,12 +44,7 @@ export function MobileNav(): React.ReactNode {
         active={notesActive}
         onClick={() => setView({ kind: 'all' })}
       />
-      <NavTab
-        label="Tasks"
-        icon={CheckSquare}
-        active={activeView.kind === 'tasks'}
-        onClick={() => setView({ kind: 'tasks' })}
-      />
+      <NavTab label="Today" icon={CalendarCheck} active={todayActive} onClick={() => setView({ kind: 'home' })} />
 
       <div className="flex flex-1 items-start justify-center">
         <button

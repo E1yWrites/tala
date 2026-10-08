@@ -13,3 +13,9 @@
 - **Recording**: lecture audio captured while writing, lined up with Ink by time.
 - **Task**: a checklist item in a Page's typed text; the Tasks tab lists them across the Library.
 - **Backup**: a `.tala` file holding the Library.
+- **Entry**: a typed line Tala understands because it starts with a marker (`P150 lunch`, `@ fri 2pm dentist`, `[ ] essay due fri`, `✓ water`); the line itself stays the record. _Avoid_: record, item.
+- **Journal**: the note for one month whose Pages are its days; quick capture writes to today's Page.
+- **Today**: the Home view: what the Library's Entries put on today, plus undated open Tasks.
+- **Upcoming**: the next days of the Agenda, then every Due-again item.
+- **Due-again**: an Entry repeated from when it was last done (`@ haircut every ~6w`), not on fixed dates.
+- **Reminder**: an alert asked for on an Entry with `!` or `!15m`; Bituin never sends one.

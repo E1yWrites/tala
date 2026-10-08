@@ -139,3 +139,15 @@ describe('deadlines', () => {
     expect(readDates('made by mom', PIN)).toEqual({ rest: 'made by mom' })
   })
 })
+
+describe('skips and ISO days', () => {
+  it('reads "skip" days on a repeat, and ISO dates', () => {
+    expect(readDates('MWF 9-10:30 Calc skip oct 14 except 2026-10-16', PIN, { event: true }).repeat).toEqual({
+      unit: 'week',
+      every: 1,
+      on: [1, 3, 5],
+      skip: ['2026-10-14', '2026-10-16'],
+    })
+    expect(readDates('quiz 2026-11-03', PIN).when).toEqual({ day: '2026-11-03' })
+  })
+})

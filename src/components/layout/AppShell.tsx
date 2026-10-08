@@ -14,6 +14,7 @@ import { EditorPlaceholder } from '@/components/NoteEditor/EditorPlaceholder'
 import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
+import { AgendaPage } from '@/pages/AgendaPage'
 import type { ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
@@ -94,14 +95,15 @@ export function AppShell(): React.ReactNode {
     return <OnboardingPage />
   }
 
-  // The phone has no Home tab: Notes is where it opens
-  const view: ViewRef = isMobile && activeView.kind === 'home' ? { kind: 'all' } : activeView
+  const view: ViewRef = activeView
 
   let viewContent: React.ReactNode
   if (view.kind === 'home') {
     viewContent = <HomePage />
   } else if (view.kind === 'tasks') {
     viewContent = <TasksPage />
+  } else if (view.kind === 'agenda') {
+    viewContent = <AgendaPage />
   } else if (view.kind === 'settings') {
     viewContent = <SettingsPage />
   } else {

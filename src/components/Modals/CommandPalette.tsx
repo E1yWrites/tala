@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Archive,
   ArrowLeftRight,
+  CalendarDays,
   Command,
   FileText,
   FolderPlus,
@@ -86,7 +87,8 @@ export function CommandPalette(): React.ReactNode {
           openModal({ kind: 'search' })
         },
       },
-      { id: 'go-home', label: 'Go to Home', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
+      { id: 'go-home', label: 'Go to Today', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
+      { id: 'go-agenda', label: 'Go to Upcoming', icon: CalendarDays, run: () => { closeAllModals(); setView({ kind: 'agenda' }) } },
       { id: 'go-all', label: 'Go to All Notes', icon: Notebook, run: () => { closeAllModals(); setView({ kind: 'all' }) } },
       { id: 'go-favorites', label: 'Go to Favorites', icon: Bookmark, run: () => { closeAllModals(); setView({ kind: 'favorites' }) } },
       { id: 'go-pinned', label: 'Go to Pinned', icon: Pin, run: () => { closeAllModals(); setView({ kind: 'pinned' }) } },

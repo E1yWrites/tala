@@ -16,6 +16,7 @@ import { interruptStale, formatDuration } from './recordings'
 import { loadStudy } from './study'
 import { startInkIndexer } from './inkText'
 import { restoreIfEvicted, startMirror } from './mirror'
+import { startReminders } from './reminders'
 import { toast } from 'sonner'
 
 /**
@@ -125,6 +126,7 @@ export function bootApp(): Promise<void> {
     await announceInterruptedRecordings()
     void requestPersistence()
     startInkIndexer()
+    startReminders()
   })()
   return bootPromise
 }

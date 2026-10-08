@@ -26,6 +26,8 @@ export interface Repeat {
   /** `~`: due again that long after it was last done, not on fixed dates. */
   approx?: boolean
   until?: DayKey
+  /** "skip oct 14": single days left out. */
+  skip?: DayKey[]
 }
 
 export interface DateRead {
@@ -255,6 +257,11 @@ export function readDates(text: string, pinned: DayKey, opts: DateOptions = {}):
       const k = monthDay(pinned, MONTHS[next]!, Number(t.replace(/\D/g, '')))
       return k ? [k, 2] : undefined
     }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+      const [y, m, d] = t.split('-').map(Number)
+      const k = monthDay(pinned, m! - 1, d!, y)
+      return k ? [k, 1] : undefined
+    }
     const slash = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?$/.exec(t)
     if (slash && Number(slash[1]) >= 1 && Number(slash[1]) <= 12) {
       const y = slash[3] ? Number(slash[3].length === 2 ? `20${slash[3]}` : slash[3]) : undefined
@@ -387,8 +394,18 @@ export function readDates(text: string, pinned: DayKey, opts: DateOptions = {}):
   }
 
   let until: DayKey | undefined
+  const skip: DayKey[] = []
   for (let i = 0; i < raw.length; ) {
     const t = low[i]!
+    // "skip oct 14", "except 10/14": one day out of a repeat
+    if (t === 'skip' || t === 'except') {
+      const d = day(i + 1)
+      if (d) {
+        skip.push(d[0])
+        i += take(i, 1 + d[1])
+        continue
+      }
+    }
     // Deadline and end words take the date (and time) that follows
     if (t === 'due' || t === 'hanggang' || t === 'deadline' || t === 'by' || t === 'until' || t === 'till' || t === 'til') {
       const isUntil = t === 'until' || t === 'till' || t === 'til'
@@ -430,6 +447,7 @@ export function readDates(text: string, pinned: DayKey, opts: DateOptions = {}):
   }
   if (until && out.repeat) out.repeat.until = until
   else if (until) out.due ??= { day: until }
+  if (skip.length && out.repeat) out.repeat.skip = skip
   out.rest = raw.filter((_, k) => !used[k]).join(' ')
   return out
 }

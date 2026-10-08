@@ -6,7 +6,8 @@ import {
   Archive,
   CheckSquare,
   ChevronRight,
-  Home,
+  CalendarCheck,
+  CalendarDays,
   MoreHorizontal,
   NotebookText,
   PanelLeft,
@@ -108,7 +109,8 @@ export function Sidebar({
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
 
   const primaryItems: NavItemSpec[] = [
-    { id: 'home', label: 'Home', icon: Home },
+    { id: 'home', label: 'Today', icon: CalendarCheck },
+    { id: 'agenda', label: 'Upcoming', icon: CalendarDays },
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
     { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },

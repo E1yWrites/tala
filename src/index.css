@@ -230,7 +230,7 @@
   color: rgb(var(--c-accent-strong));
 }
 .entry-chip-event { background: rgb(var(--c-ballpoint-soft)); color: rgb(var(--c-ballpoint)); }
-.entry-chip-money { background: rgb(var(--c-gold-soft)); color: rgb(var(--c-gold-ink)); }
+.entry-chip-money { background: rgb(var(--c-raise)); color: rgb(var(--c-ink)); }
 .entry-chip-suggest {
   background: transparent;
   color: rgb(var(--c-faint));
@@ -579,7 +579,7 @@
   user-select: none;
 }
 .ink-entry-event { fill: rgb(var(--c-ballpoint)); }
-.ink-entry-money { fill: rgb(var(--c-gold-ink)); }
+.ink-entry-money { fill: rgb(var(--c-ink)); }
 
 .ink-selection {
   fill: transparent;
