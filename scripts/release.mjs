@@ -9,6 +9,7 @@ const FILES = {
   pkg: ['package.json', /("version":\s*")([^"]+)/],
   tauri: ['src-tauri/tauri.conf.json', /("version":\s*")([^"]+)/],
   cargo: ['src-tauri/Cargo.toml', /^(version\s*=\s*")([^"]+)/m],
+  lock: ['src-tauri/Cargo.lock', /(name = "tala"\r?\nversion = ")([^"]+)/],
 }
 const read = (f) => readFileSync(f, 'utf8')
 const fail = (m) => { console.error(m); process.exit(1) }
