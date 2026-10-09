@@ -17,6 +17,7 @@ import { TasksPage } from '@/pages/TasksPage'
 import { AgendaPage } from '@/pages/AgendaPage'
 import { MoneyPage } from '@/pages/MoneyPage'
 import { HabitsPage } from '@/pages/HabitsPage'
+import { WorkoutsPage } from '@/pages/WorkoutsPage'
 import type { ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
@@ -110,6 +111,8 @@ export function AppShell(): React.ReactNode {
     viewContent = <MoneyPage />
   } else if (view.kind === 'habits') {
     viewContent = <HabitsPage />
+  } else if (view.kind === 'workouts') {
+    viewContent = <WorkoutsPage />
   } else if (view.kind === 'settings') {
     viewContent = <SettingsPage />
   } else {

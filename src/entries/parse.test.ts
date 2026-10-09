@@ -129,3 +129,26 @@ describe('reminders', () => {
     expect(entryLabel(parse('@ thu 2pm dentist !30m')!)).toBe('Thu, Oct 8 · 2pm · remind 30m before')
   })
 })
+
+describe('lifts (journal pages only)', () => {
+  const lift = (s: string) => parseLine(s, PIN, DEFAULT_CONTEXT, false, true)
+  it.each([
+    ['bench 60x5x3 @8', { name: 'bench', weight: 60, reps: 5, sets: 3, rpe: 8 }],
+    ['Squat 100kg x 5', { name: 'Squat', weight: 100, reps: 5, sets: 1 }],
+    ['leg press 200x10x3', { name: 'leg press', weight: 200, reps: 10, sets: 3 }],
+    ['curl 25lb x12 @9.5', { name: 'curl', weight: 25, unit: 'lb', reps: 12, sets: 1, rpe: 9.5 }],
+    ['pullups x8x3', { name: 'pullups', weight: 0, reps: 8, sets: 3 }],
+    ['Bench Press (Barbell) 60x5', { name: 'Bench Press (Barbell)', weight: 60, reps: 5, sets: 1 }],
+  ])('%s', (line, expected) => {
+    expect(lift(line)).toEqual({ kind: 'lift', day: PIN, ...expected })
+  })
+
+  it('stays prose elsewhere, and needs a name and sane numbers', () => {
+    expect(parse('bench 60x5x3')).toBeNull()
+    expect(lift('1920x1080')).toBeNull()
+    expect(lift('monitor 1920x1080')).toBeNull()
+    expect(lift('bench 60x5x3 @12')).toBeNull()
+    expect(entryLabel(lift('bench 60x5x3 @8')!)).toBe('3×5 · 60kg · RPE 8')
+    expect(entryLabel(lift('pullups x8')!)).toBe('1×8 · bodyweight')
+  })
+})

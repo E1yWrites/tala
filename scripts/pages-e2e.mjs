@@ -2,7 +2,7 @@
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, continuous scroll (pages mount near the screen, insert between
  * pages, reopen where you left off), the Tasks view, the journal (quick capture, entry chips,
- * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), Habits, ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
+ * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), Habits, Workouts, ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -551,6 +551,32 @@ await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")
 await wait(900)
 const journalText = await editorText(page)
 check('the journal holds one counted line per habit', journalText.includes('✓ water 2') && journalText.includes('✓ gym') && journalText.includes('x water'), journalText.slice(-120))
+
+/* ---- 6a5. Workouts: lift lines on journal pages, best e1RM, rest timer, Strong CSV -- */
+await page.click('nav >> text=Workouts')
+await wait(500)
+const workouts = page.locator('section[aria-label="Workouts"]')
+check('Workouts explains the lift line when there are none', (await workouts.locator('text=No lifts yet').count()) === 1)
+await page.fill(capture, 'bench 60x5x3 @8')
+check('a lift line previews as sets × reps', ((await page.locator('form .entry-chip-lift').textContent()) ?? '').startsWith('3×5 · 60kg · RPE 8'))
+await page.keyboard.press('Enter')
+await wait(800)
+const benchRow = ((await workouts.locator('li:has-text("bench")').textContent()) ?? '')
+check('the exercise shows its best estimated 1RM', benchRow.includes('74kg'), benchRow)
+const [csvDownload] = await Promise.all([page.waitForEvent('download'), workouts.locator('button:has-text("Export for Strong")').click()])
+const csvFile = join(tmpdir(), `tala-e2e-${process.pid}.csv`)
+await csvDownload.saveAs(csvFile)
+const csvRows = (await readFile(csvFile, 'utf8')).trim().split('\n')
+check('the Strong CSV has one row per set', csvRows[0].startsWith('Date,Workout Name,') && csvRows.length === 4 && csvRows[3].includes(',bench,3,60,5,'), csvRows.join(' | '))
+await rm(csvFile, { force: true })
+await workouts.locator('button[aria-label="Rest 1:30"]').click()
+await wait(1200)
+check('the rest timer counts down', /^1:2\d$/.test(((await workouts.locator('[role="timer"]').textContent()) ?? '').trim()))
+await workouts.locator('button:has-text("Stop")').click()
+check('Stop ends it', (await workouts.locator('[role="timer"]').count()) === 0)
+await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
+await wait(900)
+check('the journal line carries its lift chip', (await page.locator('.ProseMirror .entry-chip-lift').count()) === 1)
 
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)

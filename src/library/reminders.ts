@@ -72,13 +72,18 @@ function fire(key: string, due: Due): void {
   timers.delete(key)
   if (fired.has(key)) return
   fired.add(key)
-  toast(due.title, { description: due.body, duration: 30_000 })
+  notify(due.title, due.body, key)
+}
+
+/** A toast, plus a system notification when Tala is in the background and allowed to send one. */
+export function notify(title: string, body: string, tag: string): void {
+  toast(title, { description: body, duration: 30_000 })
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || document.visibilityState === 'visible') return
-  const opts = { body: due.body, tag: key, icon: './app-icon-192.png' }
+  const opts = { body, tag, icon: './app-icon-192.png' }
   // Android Chrome only shows notifications through the service worker
   void navigator.serviceWorker?.getRegistration().then((reg) => {
-    if (reg) void reg.showNotification(due.title, opts)
-    else new Notification(due.title, opts)
+    if (reg) void reg.showNotification(title, opts)
+    else new Notification(title, opts)
   })
 }
 

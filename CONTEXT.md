@@ -24,3 +24,5 @@
 - **Habit**: something kept up on a number of days a week, ticked with `✓ name` lines; Study is the first, counted from writing time.
 - **Strength**: how steadily a Habit is kept, 0–100%; a miss dents it, nothing resets it.
 - **Day off**: `✓ gym skip`, a day that leaves a Habit's Strength alone. _Avoid_: missed day.
+- **Lift line**: `bench 60x5x3 @8` on a journal Page: weight × reps × sets, with RPE if given.
+- **Rest timer**: the countdown between sets on the Workouts view; it alerts while Tala is open.

@@ -2,15 +2,16 @@ import { useState } from 'react'
 import { PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
-import { entryLabel, parseTyped } from '@/entries/parse'
+import { parseTyped } from '@/entries/parse'
+import { chipLabel } from '@/library/workouts'
 import { appendLine } from '@/library/journal'
 import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/utils/cn'
 
-/** What a captured line will become, for the chip beside the field. */
-export function previewLine(text: string): { kind: string; label: string } | null {
-  const entry = text.trim() ? parseTyped(text, dayKey(Date.now())) : null
-  const label = entry ? entryLabel(entry) || 'Task' : ''
+/** What a captured line will become, for the chip beside the field. `journal`: it is going into today's journal page. */
+export function previewLine(text: string, journal = true): { kind: string; label: string } | null {
+  const entry = text.trim() ? parseTyped(text, dayKey(Date.now()), undefined, journal) : null
+  const label = entry ? chipLabel(entry) || 'Task' : ''
   return entry && label ? { kind: entry.kind, label } : null
 }
 

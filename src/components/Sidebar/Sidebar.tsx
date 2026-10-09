@@ -18,6 +18,7 @@ import {
   Trash2,
   Wallet,
   Repeat,
+  Dumbbell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Avatar } from '../UI/Avatar'
@@ -118,6 +119,7 @@ export function Sidebar({
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
     { id: 'money', label: 'Money', icon: Wallet },
     { id: 'habits', label: 'Habits', icon: Repeat },
+    { id: 'workouts', label: 'Workouts', icon: Dumbbell },
   ]
 
   const topTags = useMemo(

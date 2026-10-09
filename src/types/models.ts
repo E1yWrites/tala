@@ -170,6 +170,7 @@ export type ViewKind =
   | 'agenda'
   | 'money'
   | 'habits'
+  | 'workouts'
   | 'settings'
 
 export interface ViewRef {

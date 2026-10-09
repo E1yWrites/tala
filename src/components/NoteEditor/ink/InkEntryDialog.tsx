@@ -18,7 +18,7 @@ export function InkEntryDialog({ onClose, onSave }: { onClose: () => void; onSav
   const [prefix, setPrefix] = useState<string>(KINDS[0].prefix)
   const [text, setText] = useState('')
   const line = `${prefix}${text.trim()}`
-  const preview = text.trim() ? previewLine(line) : null
+  const preview = text.trim() ? previewLine(line, false) : null
   const kind = KINDS.find((k) => k.prefix === prefix)!
 
   return (

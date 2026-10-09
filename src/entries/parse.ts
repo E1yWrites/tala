@@ -9,6 +9,7 @@ import type { DayKey, Repeat, When } from './dates'
     P150 lunch gcash      expense        +P500 baon cash          income
     P500 gcash>cash       transfer       ✓ water 3                habit tick
                                          ✓ gym skip               a day off, not a miss
+    bench 60x5x3 @8       lift: weight × reps × sets, RPE (journal pages only)
 
   The text stays the record: nothing here is stored, every roll-up re-reads the
   page. `pinned` is the day the line was written; relative words count from it.
@@ -19,6 +20,7 @@ export type Entry =
   | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; income?: boolean; remind?: number }
   | { kind: 'money'; flow: 'out' | 'in' | 'move'; amount: number; account?: string; to?: string; text: string; day: DayKey }
   | { kind: 'tick'; name: string; count: number; day: DayKey; skip?: true }
+  | { kind: 'lift'; name: string; weight: number; unit?: 'lb'; reps: number; sets: number; rpe?: number; day: DayKey }
 
 export interface EntryContext {
   /** The words that name accounts ("gcash"), lowercase. */
@@ -69,8 +71,27 @@ function takeRemind(ws: string[]): [string[], number | undefined] {
   return [rest, remind]
 }
 
-/** A typed line (a paragraph, or a checklist item's own text when `task`). */
-export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = current, task = false): Entry | null {
+/**
+ * "bench 60x5x3 @8", "squat 100kg x 5", "pullups x8x3" (bodyweight), "curl 25lb x12 @9",
+ * "Bench Press (Barbell) 60x5" (Strong's names).
+ * Unmarked, so only journal pages read it: elsewhere "photo 4x6" is just words.
+ */
+const LIFT = /^(\p{L}[\p{L}\d'’.,()\- ]*?)\s+(?:(\d+(?:\.\d+)?)\s?(kg|lbs?)?\s?)?[x×]\s?(\d+)(?:\s?[x×]\s?(\d+))?(?:\s+@\s?(\d+(?:\.5)?))?$/iu
+
+function parseLift(line: string, day: DayKey): Entry | null {
+  const m = LIFT.exec(line)
+  if (!m) return null
+  const weight = Number(m[2] ?? 0)
+  const lb = /^lb/i.test(m[3] ?? '')
+  const reps = Number(m[4])
+  const sets = Number(m[5] ?? 1)
+  const rpe = m[6] ? Number(m[6]) : undefined
+  if (weight > (lb ? 2200 : 1000) || reps < 1 || reps > 100 || sets < 1 || sets > 20 || (rpe !== undefined && (rpe < 1 || rpe > 10))) return null
+  return { kind: 'lift', name: m[1]!.trim(), weight, ...(lb ? { unit: 'lb' as const } : {}), reps, sets, ...(rpe !== undefined ? { rpe } : {}), day }
+}
+
+/** A typed line (a paragraph, or a checklist item's own text when `task`). `journal`: it is on a journal page. */
+export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = current, task = false, journal = false): Entry | null {
   const line = text.trim()
   if (task) {
     const d = readDates(line, pinned)
@@ -155,16 +176,16 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = curr
     if (!said || (tick[1]!.toLowerCase() === 'x' && !known)) return null
     return { kind: 'tick', name: known ?? said, count, day: d.when?.day ?? pinned, ...(skip ? { skip } : {}) }
   }
-  return null
+  return journal ? parseLift(line, pinned) : null
 }
 
 /** `[ ] essay fri` typed as plain text (quick capture, hand-drawn entries), not as a checklist item. */
 export const TASK_LINE = /^\[([ xX])\]\s+(.*)$/
 
 /** A line as written anywhere: a `[ ] ` prefix makes it a task. */
-export function parseTyped(line: string, pinned: DayKey, ctx: EntryContext = current): Entry | null {
+export function parseTyped(line: string, pinned: DayKey, ctx: EntryContext = current, journal = false): Entry | null {
   const task = TASK_LINE.exec(line.trim())
-  return task ? parseLine(task[2]!, pinned, ctx, true) : parseLine(line, pinned, ctx)
+  return task ? parseLine(task[2]!, pinned, ctx, true) : parseLine(line, pinned, ctx, false, journal)
 }
 
 const NOT_MONEY = new Set([
@@ -211,6 +232,9 @@ export function formatTime(t: string): string {
 
 export const formatPeso = (n: number): string =>
   `${n < 0 ? '−' : ''}₱${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`
+
+/** "60kg", "25lb", "bodyweight". */
+export const formatWeight = (l: { weight: number; unit?: 'lb' }): string => (l.weight ? `${l.weight}${l.unit ?? 'kg'}` : 'bodyweight')
 
 /** An account word as shown: its name in the Library, else "GCash", "Cash". */
 export const accountName = (tag: string): string =>
@@ -270,6 +294,8 @@ export function entryLabel(e: Entry): string {
       if (e.flow === 'move') return `${formatPeso(e.amount)} ${accountName(e.account!)} → ${accountName(e.to!)}`
       return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [accountName(e.account)] : [])].join(' · ')
     }
+    case 'lift':
+      return [`${e.sets}×${e.reps}`, formatWeight(e), ...(e.rpe !== undefined ? [`RPE ${e.rpe}`] : [])].join(' · ')
     case 'tick':
       return e.skip ? `Day off · ${e.name}` : `✓ ${e.name}${e.count > 1 ? ` ×${e.count}` : ''}`
   }

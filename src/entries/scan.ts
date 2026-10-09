@@ -24,6 +24,8 @@ export interface Line {
   /** The day it was written: relative words ("fri", "bukas") count from it. */
   at: DayKey
   task?: { checked: boolean }
+  /** A typed line on a journal page (the only place an unmarked lift line is read). */
+  journal?: true
   /** Ink entry id, for a line drawn by hand. */
   ink?: string
   archived: boolean
@@ -74,7 +76,8 @@ export function scanLines(notes: Note[], pagesByNote: Record<string, PageRecord[
       const base = { noteId: note.id, pageId: page.id, pageNumber: i + 1, archived: note.isArchived }
       const found: Found[] = []
       if (page.content) collect(page.content, [], found)
-      for (const f of found) lines.push({ ...base, ...f, at: isDay(f.at) ? f.at : fallback })
+      const journal = isDay(page.day) ? { journal: true as const } : {}
+      for (const f of found) lines.push({ ...base, ...f, ...journal, at: isDay(f.at) ? f.at : fallback })
       const ink = inkDocs[page.id]
       if (!ink?.entries?.length) return
       const live = new Set(ink.strokes.map((s) => s.id))
@@ -103,7 +106,7 @@ export function scanEntries(
   ctx: EntryContext = entryContext(),
 ): EntryRef[] {
   return scanLines(notes, pagesByNote, inkDocs).flatMap((line) => {
-    const entry = parseLine(line.text, line.at, ctx, !!line.task)
+    const entry = parseLine(line.text, line.at, ctx, !!line.task, !!line.journal)
     return entry ? [{ ...line, entry }] : []
   })
 }

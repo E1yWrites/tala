@@ -6,6 +6,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { EditorView } from '@tiptap/pm/view'
 import { dayKey } from '@/coach/study'
 import { entryContext, entryLabel, parseLine, suggestMarker } from '@/entries/parse'
+import { chipLabel } from '@/library/workouts'
 
 /*
   Pagtatala in the editor. The text stays the record; this only
@@ -103,8 +104,8 @@ export const EntryLines = Extension.create<EntryLinesOptions>({
         if (!text.trim()) return false
         const pinned = (node.attrs.at as string | null) ?? fallback
         const end = pos + node.nodeSize - 1
-        const entry = parseLine(text, pinned, ctx, inTask(parent))
-        const label = entry ? entryLabel(entry) : ''
+        const entry = parseLine(text, pinned, ctx, inTask(parent), !!day)
+        const label = entry ? chipLabel(entry) : ''
         if (entry && label) {
           decos.push(Decoration.widget(end, chip(label, entry.kind), { side: 1, key: `c|${entry.kind}|${label}`, stopEvent: () => true }))
         } else if (!entry && day && !inTask(parent)) {
@@ -134,7 +135,7 @@ export const EntryLines = Extension.create<EntryLinesOptions>({
             state.doc.nodesBetween(a, b, (node, pos, parent) => {
               if (node.type.name !== 'paragraph') return true
               if (node.attrs.at) return false
-              const entry = parseLine(node.textContent, today, entryContext(), inTask(parent))
+              const entry = parseLine(node.textContent, today, entryContext(), inTask(parent), !!day)
               const datedTask = entry?.kind !== 'task' || !!(entry.when || entry.due)
               if (entry && datedTask) {
                 tr ??= state.tr
