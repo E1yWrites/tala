@@ -11,7 +11,7 @@ const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** Five-point star path centred on (cx, cy) with outer radius r. */
-function starPath(cx: number, cy: number, r: number): string {
+export function starPath(cx: number, cy: number, r: number): string {
   const pts: string[] = []
   for (let i = 0; i < 10; i++) {
     const rad = i % 2 === 0 ? r : r * 0.45

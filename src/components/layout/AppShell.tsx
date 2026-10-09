@@ -18,6 +18,7 @@ import { AgendaPage } from '@/pages/AgendaPage'
 import { MoneyPage } from '@/pages/MoneyPage'
 import { HabitsPage } from '@/pages/HabitsPage'
 import { WorkoutsPage } from '@/pages/WorkoutsPage'
+import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
 import type { ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
@@ -119,6 +120,8 @@ export function AppShell(): React.ReactNode {
     viewContent = <NoteListPanel view={view} />
   }
   const isSettingsArea = view.kind === 'settings'
+  // The planner takes the whole pane until a line opens its note beside it
+  const plannerWide = PLANNER_VIEWS.has(view.kind) && !selectedNoteId
 
   /* --------------------------------- Drawer -------------------------------- */
 
@@ -177,7 +180,7 @@ export function AppShell(): React.ReactNode {
         </aside>
       )}
 
-      {isSettingsArea ? (
+      {isSettingsArea || plannerWide ? (
         <main className="min-h-0 min-w-0 flex-1">
           {focusMode && selectedNoteId ? (
             <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />

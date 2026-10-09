@@ -10,11 +10,11 @@ Installable PWA first: iPadOS Safari home-screen app and Android Chrome. The sam
 
 ## Users
 
-Students. They capture lectures by hand and by keyboard, and mark up slides and PDF handouts, mostly on a tablet with a stylus (iPad, Android). They review on a laptop or phone. The job: take notes during class without friction, annotate what the lecturer shows, and find and revise it all later.
+Students. They capture lectures by hand and by keyboard, and mark up slides and PDF handouts, mostly on a tablet with a stylus (iPad, Android). They review on a laptop or phone. The job: take notes during class without friction, annotate what the lecturer shows, and find and revise it all later. The same people (Filipino students and young professionals) also write down their day in it: classes and appointments, baon and sweldo, habits, workouts.
 
 ## Product Purpose
 
-A local-first notebook that keeps typed text, handwriting and PDF markup in one place, with no account and no server. Success means ink feels instant, notes are never lost, and studying feels encouraging rather than guilt-driven.
+A local-first notebook that keeps typed text, handwriting and PDF markup in one place, with no account and no server, and that tracks: lines written with a marker (`P150 lunch`, `@ fri 2pm dentist`, `✓ water`) are read back as a planner. Success means ink feels instant, notes are never lost, and studying feels encouraging rather than guilt-driven.
 
 ## Positioning
 
@@ -22,13 +22,14 @@ Free and local, no AI in v1, with Bituin the star mascot acting as a rule-based 
 
 ## Operating Context
 
-Lecture halls and desks: pen in hand, slides on screen, patchy or no network. Notes live in the webview's IndexedDB on the device; a `.tala` zip backup is the only portability story (no sync service). iPad Safari may evict storage for sites that are not installed, so installing to the home screen and requesting persistent storage matter. Terminology is fixed in `CONTEXT.md` (Note, Page, Ink, Library, Bituin, Session, Study day, Weekly goal, Wrap-up, Quiet mode, Recording, Task, Backup).
+Lecture halls and desks: pen in hand, slides on screen, patchy or no network. Notes live in the webview's IndexedDB on the device; a `.tala` zip backup is the only portability story (no sync service). iPad Safari may evict storage for sites that are not installed, so installing to the home screen and requesting persistent storage matter. Terminology is fixed in `CONTEXT.md` (Note, Page, Ink, Library, Bituin, Session, Study day, Weekly goal, Wrap-up, Quiet mode, Recording, Task, Backup, Entry, Journal, Today, Upcoming, Account, Safe to spend, Habit, Strength, Day off, Lift line).
 
 ## Capabilities and Constraints
 
 - Notes made of Pages; each Page owns its typed text and its Ink. PDF import keeps the original and renders pages on demand, also offline. Folders, tags, search, `.tala` backup and restore, a desktop shell.
 - Decided for later phases: pinch zoom, page strip, lasso, snap-to-shape, PDF export, lecture audio with safety nets, a Tasks tab, library thumbnails, a coach loop (weekly goal where missing a day resets nothing; a Study day is 5 minutes of writing or marking up; a Session ends after 10 minutes without writing or when the Note closes).
-- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Today / Search plus a large new-note button (Upcoming and Tasks open from Today); Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor.
+- The planner reads the pages, it keeps no records of its own: Today, Upcoming, Tasks, Money, Habits and Workouts. A view's buttons write real lines into today's journal page.
+- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Today / Search plus a large new-note button; Today is the planner's hub, with a strip to Upcoming, Tasks, Money, Habits and Workouts; Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor; the sidebar groups PLANNER above NOTEBOOK, and a planner view takes the whole pane until a line opens its note beside it.
 - Bituin rules: never over the page while writing; only a small corner chip after the pen has paused about 2 seconds; never during a stroke; never takes focus; a global Quiet mode silences reactions and reminders.
 
 ## Brand Commitments

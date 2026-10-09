@@ -1,78 +1,76 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
+import { usePageStore } from '@/store/pageStore'
 import { toggleTask } from '@/library/tasks'
 import { askNotifications, notificationState } from '@/library/reminders'
 import { agenda } from '@/entries/agenda'
 import { formatDay } from '@/entries/parse'
+import { safeToSpend } from '@/entries/money'
+import { EMPTY_LOG, habitLogs, habitRule, habitStatus } from '@/entries/habits'
+import { useMoneyStore } from '@/library/money'
+import { useHabitStore } from '@/library/habits'
 import { AgendaList } from '@/components/Agenda/AgendaList'
 import { useEntries } from '@/components/Agenda/useAgenda'
+import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
+import { StartList } from '@/components/NoteEditor/EditorPlaceholder'
+import { QuickCapture } from '@/components/QuickCapture'
 import { displayTitle } from '@/utils/noteFilters'
+import { catalogNumbers, formatCatalog } from '@/utils/catalog'
+import { pagesText, textPreview } from '@/utils/doc'
+import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
-import { timeOfDayGreeting } from '@/utils/dates'
 import { useTick } from '@/hooks/useTick'
 import { Bituin } from '@/coach/Bituin'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
-import { SidebarToggle } from '@/components/layout/SidebarToggle'
-import { QuickCapture } from '@/components/QuickCapture'
-import { safeToSpend } from '@/entries/money'
-import { useMoneyStore } from '@/library/money'
 import { SafeCard } from './MoneyPage'
-import { EMPTY_LOG, habitLogs, habitRule, habitStatus } from '@/entries/habits'
-import { useHabitStore } from '@/library/habits'
 import { DoneButton } from './HabitsPage'
 
 /**
- * Today (the Home view): a greeting from Bituin, a line for today's journal,
- * any nudge, what the pages put on today, and undated tasks still open. The
- * rail shows the week; the editor pane beside it shows the notes to pick up again.
+ * Today (the Home view, the hub of the planner): a line for today's journal,
+ * what the pages put on today, then the habits still to do, today's money and
+ * the tasks with no date. With the whole pane, those sit in a side column
+ * beside today's lines, with the notes to pick up again.
  */
 export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
   const hasNotes = useNoteStore((s) => s.notes.some((n) => !n.isDeleted && !n.isArchived))
+  const hydrated = useNoteStore((s) => s.hydrated)
   const openModal = useUIStore((s) => s.openModal)
   const firstName = useSettingsStore((s) => s.settings.profile.name.split(/\s+/)[0] ?? '')
 
   return (
-    <section aria-label="Today" className="h-full overflow-y-auto bg-shelf">
-      <div className="px-3 pt-4 empty:hidden">
-        <SidebarToggle />
-      </div>
-      <div className="mx-auto flex max-w-[560px] flex-col gap-6 px-5 py-8 animate-slide-up">
-        <header className="flex items-center gap-3">
-          <Bituin size={48} motion="wave" blink />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[26px] font-bold leading-tight tracking-[-0.025em]">
-              {timeOfDayGreeting()}
-              {firstName ? `, ${firstName}` : ''}
-            </h1>
-            <p className="text-sm text-muted">{BITUIN.home.line}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openModal({ kind: 'search' })}
-            aria-label="Search notes"
-            className="grid size-10 shrink-0 place-items-center rounded-control border border-lineSoft bg-panel text-muted transition-colors hover:border-line hover:text-ink [@media(pointer:coarse)]:size-11"
-          >
-            <Search size={17} />
-          </button>
-        </header>
-
-        <QuickCapture />
-
-        <BituinNudge placement="card" className="" />
-
-        <TodayAgenda />
-
-        <TodayHabits />
-
-        <TodayMoney />
-
-        {hasNotes && <OpenTasks />}
-      </div>
-    </section>
+    <PlannerView
+      label="Today"
+      large
+      title={`${timeOfDayGreeting()}${firstName ? `, ${firstName}` : ''}`}
+      note={BITUIN.home.line}
+      lead={<Bituin size={44} motion="wave" blink />}
+      trailing={
+        <button
+          type="button"
+          onClick={() => openModal({ kind: 'search' })}
+          aria-label="Search notes"
+          className="grid size-10 shrink-0 place-items-center rounded-control border border-lineSoft bg-panel text-muted transition-colors hover:border-line hover:text-ink [@media(pointer:coarse)]:size-11"
+        >
+          <Search size={17} />
+        </button>
+      }
+      aside={
+        <>
+          <TodayHabits />
+          <TodayMoney />
+          {hasNotes && <OpenTasks />}
+          {hasNotes ? <RecentNotes /> : hydrated && <StartList heading={false} />}
+        </>
+      }
+    >
+      <QuickCapture />
+      <BituinNudge placement="card" className="" />
+      <TodayAgenda />
+    </PlannerView>
   )
 }
 
@@ -85,15 +83,7 @@ function TodayAgenda(): React.ReactNode {
   const hasReminders = refs.some((r) => (r.entry.kind === 'event' || r.entry.kind === 'task') && r.entry.remind !== undefined)
 
   return (
-    <section aria-labelledby="home-today">
-      <div className="mb-2 flex items-baseline justify-between px-1">
-        <h2 id="home-today" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
-          Today · {formatDay(today)}
-        </h2>
-        <button type="button" onClick={() => setView({ kind: 'agenda' })} className="text-xs font-medium text-accent hover:underline">
-          Upcoming
-        </button>
-      </div>
+    <PlannerSection id="home-today" title={`Today · ${formatDay(today)}`} action={{ label: 'Upcoming', onClick: () => setView({ kind: 'agenda' }) }}>
       {items.length > 0 ? (
         <AgendaList items={items} />
       ) : (
@@ -110,7 +100,7 @@ function TodayAgenda(): React.ReactNode {
           Allow reminder alerts while Tala is open in the background
         </button>
       )}
-    </section>
+    </PlannerSection>
   )
 }
 
@@ -125,22 +115,14 @@ function TodayHabits(): React.ReactNode {
   }, [refs, habits, today])
   if (habits.length === 0) return null
   return (
-    <section aria-labelledby="home-habits">
-      <div className="mb-2 flex items-baseline justify-between px-1">
-        <h2 id="home-habits" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
-          Habits
-        </h2>
-        <button type="button" onClick={() => setView({ kind: 'habits' })} className="text-xs font-medium text-accent hover:underline">
-          All habits
-        </button>
-      </div>
+    <PlannerSection id="home-habits" title="Habits" action={{ label: 'All habits', onClick: () => setView({ kind: 'habits' }) }}>
       {due.length > 0 ? (
-        <ul className="overflow-hidden rounded-card border border-lineSoft bg-panel">
+        <ul className={CARD}>
           {due.map(({ h, s }) => (
-            <li key={h.id} className="flex items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+            <li key={h.id} className="flex min-h-14 items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[14px]">{h.name}</span>
-                <span className="block truncate text-xs text-faint">
+                <span className="block truncate text-[14px] font-medium">{h.name}</span>
+                <span className="block truncate text-xs tabular-nums text-faint">
                   {h.days < 7 ? `${s.week} of ${h.days} this week` : habitRule(h)}
                 </span>
               </span>
@@ -151,7 +133,7 @@ function TodayHabits(): React.ReactNode {
       ) : (
         <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">All done for today.</p>
       )}
-    </section>
+    </PlannerSection>
   )
 }
 
@@ -164,17 +146,9 @@ function TodayMoney(): React.ReactNode {
   const safe = useMemo(() => (tracking ? safeToSpend(refs, accounts, keep, today) : null), [tracking, refs, accounts, keep, today])
   if (!safe) return null
   return (
-    <section aria-labelledby="home-money">
-      <div className="mb-2 flex items-baseline justify-between px-1">
-        <h2 id="home-money" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
-          Money
-        </h2>
-        <button type="button" onClick={() => setView({ kind: 'money' })} className="text-xs font-medium text-accent hover:underline">
-          Accounts
-        </button>
-      </div>
+    <PlannerSection id="home-money" title="Money" action={{ label: 'Accounts', onClick: () => setView({ kind: 'money' }) }}>
       <SafeCard safe={safe} keep={keep} compact />
-    </section>
+    </PlannerSection>
   )
 }
 
@@ -194,23 +168,17 @@ function OpenTasks(): React.ReactNode {
   const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
   if (open.length === 0) return null
   return (
-    <section aria-labelledby="home-tasks">
-      <div className="mb-2 flex items-baseline justify-between px-1">
-        <h2 id="home-tasks" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
-          Still to do
-        </h2>
-        <button type="button" onClick={() => setView({ kind: 'tasks' })} className="text-xs font-medium text-accent hover:underline">
-          All tasks
-        </button>
-      </div>
-      <ul className="overflow-hidden rounded-card border border-lineSoft bg-panel">
+    <PlannerSection id="home-tasks" title="Still to do" action={{ label: 'All tasks', onClick: () => setView({ kind: 'tasks' }) }}>
+      <ul className={CARD}>
         {open.slice(0, 5).map((t) => (
           <li key={`${t.pageId}:${t.path.join('.')}`} className="flex items-start gap-3 border-b border-lineSoft px-3.5 py-2.5 last:border-b-0">
             <button
               type="button"
+              role="checkbox"
+              aria-checked={false}
               onClick={() => void toggleTask({ ...t, checked: false })}
               aria-label={`Tick “${t.text}”`}
-              className="mt-0.5 size-[18px] shrink-0 rounded-[5px] border-[1.5px] border-line transition-colors hover:border-ink"
+              className="mt-0.5 size-[18px] shrink-0 rounded-[5px] border-[1.5px] border-line transition-[border-color,transform] duration-150 hover:border-ink active:scale-[0.9]"
             />
             <button type="button" onClick={() => selectNote(t.noteId, t.pageId)} className="min-w-0 flex-1 text-left">
               <span className="block truncate text-[14px]">{t.text || 'Untitled task'}</span>
@@ -219,6 +187,46 @@ function OpenTasks(): React.ReactNode {
           </li>
         ))}
       </ul>
-    </section>
+    </PlannerSection>
+  )
+}
+
+/** With the whole pane, the notes to pick up again (the editor pane shows these when Today sits beside it). */
+function RecentNotes(): React.ReactNode {
+  const notes = useNoteStore((s) => s.notes)
+  const pagesByNote = usePageStore((s) => s.pagesByNote)
+  const selectNote = useUIStore((s) => s.selectNote)
+  const setView = useUIStore((s) => s.setView)
+  const catalog = catalogNumbers(notes)
+  const recent = useMemo(
+    () =>
+      notes
+        .filter((n) => !n.isDeleted && !n.isArchived && !n.journal)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, 4),
+    [notes],
+  )
+  if (recent.length === 0) return null
+  return (
+    <PlannerSection id="home-recent" title="Pick up again" className="planner-wide" action={{ label: 'All notes', onClick: () => setView({ kind: 'all' }) }}>
+      <ul className={CARD}>
+        {recent.map((note) => (
+          <li key={note.id} className="border-b border-lineSoft last:border-b-0">
+            <button
+              type="button"
+              onClick={() => selectNote(note.id)}
+              className="flex w-full items-baseline gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-raise/60"
+            >
+              <span className="w-11 shrink-0 text-[11.5px] font-medium tabular-nums text-faint">{formatCatalog(catalog.get(note.id) ?? 0)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] font-semibold">{displayTitle(note)}</span>
+                <span className="block truncate text-xs text-muted">{textPreview(pagesText(pagesByNote[note.id] ?? []), 80) || 'No text yet'}</span>
+              </span>
+              <time className="shrink-0 text-xs tabular-nums text-faint">{formatRelative(note.updatedAt)}</time>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </PlannerSection>
   )
 }

@@ -41,7 +41,8 @@ describe('strength (Loop score)', () => {
 describe('status', () => {
   it('adds up a measurable habit through the day', () => {
     const water = habit({ name: 'water', target: 8 })
-    expect(habitStatus(water, log([line('✓ water 3')], 'water'), TODAY)).toMatchObject({ count: 3, done: false, due: true })
+    expect(habitStatus(water, log([line('✓ water 3')], 'water'), TODAY)).toMatchObject({ count: 3, done: false, due: true, age: 0 })
+    expect(habitStatus(water, log([line('✓ water 3', '2026-10-01')], 'water'), TODAY).age).toBe(7) // a tick before it was added counts
     const s = habitStatus(water, log([line('✓ water 3'), line('✓ water 5')], 'water'), TODAY)
     expect(s).toMatchObject({ count: 8, done: true, due: false })
     expect(s.days.map((d) => d.state)).toEqual(['none', 'none', 'none', 'done', 'later', 'later', 'later'])

@@ -493,7 +493,7 @@ check('the journal holds the skip and the tick', /AGENDA-GYM skip \w{3} \d+/.tes
 /* ---- 6a3. Money: balances from the ₱ lines, set balance, a new account, safe to spend -- */
 await page.click('nav >> text=Today')
 await wait(400)
-check('Today shows safe to spend once money lines exist', (await page.locator('section[aria-labelledby="home-money"] >> text=Safe to spend today').count()) === 1)
+check('Today shows safe to spend once money lines exist', /to spend today|over today’s share/.test((await page.locator('section[aria-labelledby="home-money"]').textContent()) ?? ''))
 await page.click('nav >> text=Money')
 await wait(500)
 const money = page.locator('section[aria-label="Money"]')

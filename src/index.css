@@ -106,10 +106,30 @@
     min-height: 100dvh;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%; /* no font inflation in landscape */
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-canvas font-sans text-ink antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+  }
+
+  /* Controls answer a tap at once (no double-tap-zoom wait) and a long press
+     does not select their label. Links in a page stay selectable text. */
+  button,
+  a,
+  [role='button'],
+  [role='tab'] {
+    touch-action: manipulation;
+  }
+  button,
+  [role='button'],
+  [role='tab'] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   ::selection {
@@ -154,6 +174,130 @@
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The planner (Today, Upcoming, Tasks, Money, Habits, Workouts): one column in
+   the list pane or on a phone; given the whole pane (tablet and desktop, no
+   note open) a main column and a side column. Lines stay at a reading width.
+--------------------------------------------------------------------------- */
+.planner {
+  container: planner / inline-size;
+}
+/* Header, tabs and body share one column edge */
+.planner-frame {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+.planner-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.planner-wide {
+  display: none;
+}
+@container planner (min-width: 848px) {
+  /* Every view starts on the same edge, so switching never moves the title or the field */
+  .planner-frame {
+    max-width: 1120px;
+  }
+  .planner-cols {
+    grid-template-columns: minmax(0, 720px);
+  }
+  .planner[data-split] .planner-cols {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    column-gap: 2rem;
+    align-items: start;
+  }
+  .planner-wide {
+    display: block;
+  }
+}
+
+/* The hub strip: the side that can still scroll fades, so a cut-off tab reads as "more" */
+.planner-tabs {
+  scroll-padding-inline: 1.5rem;
+}
+.planner-tabs[data-fade='start'] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 28px);
+  mask-image: linear-gradient(to right, transparent, black 28px);
+}
+.planner-tabs[data-fade='end'] {
+  -webkit-mask-image: linear-gradient(to left, transparent, black 28px);
+  mask-image: linear-gradient(to left, transparent, black 28px);
+}
+.planner-tabs[data-fade='both'] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+}
+
+/* A habit: name, strength and Done on one line, the week under it; one line
+   for all four when the card is wide enough, columns lining up row to row */
+.habit-list {
+  container: habits / inline-size;
+}
+.habit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5rem 4rem;
+  grid-template-areas:
+    'name strength done'
+    'dots dots dots';
+  align-items: center;
+  column-gap: 0.5rem;
+  padding: 0.5rem 0.875rem 0.75rem;
+}
+.habit-row > .habit-name { grid-area: name; }
+.habit-row > .habit-dots { grid-area: dots; padding-left: 22px; }
+.habit-row > .habit-strength { grid-area: strength; }
+.habit-row > .habit-done { grid-area: done; justify-self: end; }
+.habit-row > .habit-form { grid-column: 1 / -1; }
+@container habits (min-width: 560px) {
+  .habit-row {
+    grid-template-columns: minmax(0, 1fr) auto 3.5rem 4rem;
+    grid-template-areas: 'name dots strength done';
+    padding-bottom: 0.5rem;
+  }
+  .habit-row > .habit-dots { padding-left: 0; }
+}
+
+/* A habit ticked just now: the check draws itself once (not on every visit) */
+.tick-draw path {
+  stroke-dasharray: 24;
+  animation: tick-draw 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes tick-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The rest timer drains at a constant rate; restarted mid-way it starts part-drained */
+.rest-drain {
+  transform-origin: left;
+  animation: rest-drain linear both;
+}
+@keyframes rest-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* iOS zooms the page into any field under 16px and never zooms back out.
+   Utilities set smaller sizes for mouse layouts, so this has to win over them. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 

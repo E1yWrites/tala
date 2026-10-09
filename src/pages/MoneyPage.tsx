@@ -1,19 +1,17 @@
 import { useMemo, useState } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
 import { balances, CATEGORIES, categoryOf, monthSummary, safeToSpend } from '@/entries/money'
-import type { Account, MoneyRef } from '@/entries/money'
+import type { Account, MoneyRef, SafeToSpend } from '@/entries/money'
 import { accountName, formatDay, formatPeso } from '@/entries/parse'
 import { addAccount, removeAccount, renameAccount, setBalance, setCategory, setKeep, useMoneyStore } from '@/library/money'
 import { useEntries } from '@/components/Agenda/useAgenda'
 import { QuickCapture } from '@/components/QuickCapture'
 import { DropdownMenu } from '@/components/UI/DropdownMenu'
-import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/utils/cn'
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long' })
-const label = 'text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint'
-const card = 'overflow-hidden rounded-card border border-lineSoft bg-panel'
 const parseAmount = (s: string): number => Number(s.replace(/[₱,\s]/g, '').replace(/^p(hp)?/i, ''))
 
 /** Money from every ₱ line: safe to spend today, accounts, this month by category, the lines themselves. */
@@ -26,93 +24,103 @@ export function MoneyPage(): React.ReactNode {
   const maxCat = month.byCategory[0]?.[1] ?? 1
 
   return (
-    <section aria-label="Money" className="flex h-full min-h-0 flex-col bg-canvas">
-      <header className="flex items-center gap-2 px-4 pb-2 pt-4">
-        <SidebarToggle className="-ml-1" />
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-snug tracking-[-0.02em]">Money</h1>
-          <p className="text-xs text-faint">From every ₱ line in your notes</p>
-        </div>
-      </header>
-
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 pb-24 pt-2">
-        <QuickCapture />
-
-        <SafeCard safe={safe} keep={keep} />
-
-        <section aria-labelledby="money-accounts">
-          <h2 id="money-accounts" className={cn(label, 'mb-1.5 px-1')}>
-            Accounts · {formatPeso(Math.round(safe.total))}
-          </h2>
-          <ul className={card}>
-            {accounts.map((a) => (
-              <AccountRow key={a.id} account={a} balance={bal.get(a.id) ?? 0} canRemove={accounts.length > 1} />
-            ))}
-            <AddAccount />
-          </ul>
-          <KeepRow keep={keep} />
-        </section>
-
-        <section aria-labelledby="money-month">
-          <h2 id="money-month" className={cn(label, 'mb-1.5 px-1')}>
-            {monthName.format(new Date())} · spent {formatPeso(month.spent)}
-            {month.income > 0 && ` · in ${formatPeso(month.income)}`}
-          </h2>
-          {month.byCategory.length === 0 ? (
-            <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-              No spending yet this month. Write “P150 lunch gcash” in any note.
-            </p>
-          ) : (
-            <ul className={cn(card, 'px-3 py-2')}>
-              {month.byCategory.map(([cat, amount]) => (
-                <li key={cat} className="py-1.5">
-                  <div className="flex justify-between text-[13px]">
-                    <span>{cat}</span>
-                    <span className="tabular-nums text-muted">{formatPeso(amount)}</span>
-                  </div>
-                  <div className="mt-1 h-1.5 rounded-full bg-raise">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${(amount / maxCat) * 100}%` }} />
-                  </div>
-                </li>
+    <PlannerView
+      label="Money"
+      title="Money"
+      note="From every ₱ line in your notes"
+      aside={
+        <>
+          <PlannerSection id="money-accounts" title="Accounts">
+            <ul className={CARD}>
+              {accounts.map((a) => (
+                <AccountRow key={a.id} account={a} balance={bal.get(a.id) ?? 0} canRemove={accounts.length > 1} />
               ))}
+              <li className="flex min-h-11 items-center border-b border-lineSoft bg-shelf/60 px-3.5 text-[14px]">
+                <span className="flex-1 font-medium text-muted">All accounts</span>
+                <span className="font-semibold tabular-nums">{formatPeso(Math.round(safe.total))}</span>
+              </li>
+              <AddAccount />
             </ul>
+            <KeepRow keep={keep} />
+          </PlannerSection>
+
+          {month.lines.length > 0 && (
+            <PlannerSection id="money-lines" title="Lines this month">
+              <ul className={CARD}>
+                {month.lines.slice(0, 50).map((r) => (
+                  <MoneyLine key={`${r.pageId}|${r.ink ?? r.path.join('.')}`} r={r} category={categoryOf(r.entry.text, categories)} />
+                ))}
+              </ul>
+            </PlannerSection>
           )}
-        </section>
+        </>
+      }
+    >
+      <QuickCapture />
+      <SafeCard safe={safe} keep={keep} />
 
-        {month.lines.length > 0 && (
-          <section aria-labelledby="money-lines">
-            <h2 id="money-lines" className={cn(label, 'mb-1.5 px-1')}>
-              Lines this month
-            </h2>
-            <ul className={card}>
-              {month.lines.slice(0, 50).map((r) => (
-                <MoneyLine key={`${r.pageId}|${r.ink ?? r.path.join('.')}`} r={r} category={categoryOf(r.entry.text, categories)} />
-              ))}
+      <PlannerSection id="money-month" title={monthName.format(new Date())}>
+        {month.byCategory.length === 0 ? (
+          <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
+            No spending yet this month. Write “P150 lunch gcash” in any note.
+          </p>
+        ) : (
+          <div className={CARD}>
+            <dl className="flex gap-6 border-b border-lineSoft px-3.5 py-2.5 text-[14px]">
+              <div className="flex items-baseline gap-1.5">
+                <dt className="text-muted">Spent</dt>
+                <dd className="font-semibold tabular-nums">{formatPeso(month.spent)}</dd>
+              </div>
+              {month.income > 0 && (
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-muted">In</dt>
+                  <dd className="font-semibold tabular-nums">{formatPeso(month.income)}</dd>
+                </div>
+              )}
+            </dl>
+            <ul className="px-3.5 py-2">
+            {month.byCategory.map(([cat, amount]) => (
+              <li key={cat} className="py-1.5">
+                <div className="flex justify-between text-[13px]">
+                  <span>{cat}</span>
+                  <span className="tabular-nums text-muted">{formatPeso(amount)}</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raise">
+                  <div className="h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${amount / maxCat})` }} />
+                </div>
+              </li>
+            ))}
             </ul>
-          </section>
+          </div>
         )}
-      </div>
-    </section>
+      </PlannerSection>
+    </PlannerView>
   )
 }
 
-/** The baon meter: today's share of what's left until money comes in. */
-export function SafeCard({ safe, keep, compact = false }: { safe: ReturnType<typeof safeToSpend>; keep: number; compact?: boolean }): React.ReactNode {
+/**
+ * Today's share of what's left until money comes in, said as a sentence. Going
+ * over is said plainly, never in red: tomorrow's share already takes it in.
+ */
+export function SafeCard({ safe, keep, compact = false }: { safe: SafeToSpend; keep: number; compact?: boolean }): React.ReactNode {
   const over = safe.leftToday < 0
-  const until = `${formatDay(safe.until)}${safe.incomeName ? ` (${safe.incomeName})` : ''}`
+  const until = `${formatDay(safe.until)}${safe.incomeName ? ` · ${safe.incomeName}` : ''}`
+  // From tomorrow, what is left spreads over one day fewer
+  const fromTomorrow = safe.days > 1 ? Math.max(0, (safe.total - keep - safe.bills) / (safe.days - 1)) : 0
   return (
-    <div className={cn(card, 'px-4 py-3.5')}>
-      <p className={label}>Safe to spend today</p>
-      <p className={cn('mt-1 text-[32px] font-bold leading-none tracking-[-0.02em] tabular-nums', over && 'text-danger')}>
-        {formatPeso(Math.round(Math.max(0, safe.leftToday)))}
+    <div className={cn(CARD, 'px-4 py-3.5')}>
+      <p className="text-[21px] font-bold leading-snug tracking-[-0.02em]">
+        <span className="tabular-nums">{formatPeso(Math.round(Math.abs(safe.leftToday)))}</span>{' '}
+        <span className={over ? '' : 'font-semibold text-muted'}>{over ? 'over today’s share' : 'to spend today'}</span>
       </p>
-      <p className="mt-1.5 text-sm text-muted">
-        {over
-          ? `${formatPeso(Math.round(-safe.leftToday))} over today’s share`
+      <p className="mt-0.5 text-[13px] text-muted">
+        {over && safe.days > 1
+          ? `${formatPeso(Math.round(fromTomorrow))} a day from tomorrow until ${until}`
           : `${formatPeso(Math.round(Math.max(0, safe.perDay)))} a day until ${until}`}
       </p>
+      {!compact && <Runway days={safe.days} over={over} />}
       {!compact && (
-        <p className="mt-0.5 text-xs text-faint">
+        <p className="mt-2 text-xs tabular-nums text-faint">
           Spent today {formatPeso(safe.spentToday)}
           {safe.bills > 0 && ` · bills before then ${formatPeso(safe.bills)}`}
           {keep > 0 && ` · keeping ${formatPeso(keep)}`}
@@ -123,6 +131,29 @@ export function SafeCard({ safe, keep, compact = false }: { safe: ReturnType<typ
           Counting to the month’s end. To count to your next baon or sweldo, write a line like “@ tuwing kinsenas at katapusan +P8000 sweldo”.
         </p>
       )}
+    </div>
+  )
+}
+
+/** The days the money has to last, plotted like the week in the rail: today first, the income day last. */
+function Runway({ days, over }: { days: number; over: boolean }): React.ReactNode {
+  const n = Math.min(days, 31)
+  return (
+    <div aria-hidden="true" className="relative mt-3 flex h-3 items-center justify-between">
+      <span className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-lineSoft" />
+      {Array.from({ length: n + 1 }, (_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'relative rounded-full',
+            i === 0
+              ? cn('size-3 border-2', over ? 'border-accent bg-panel' : 'border-accent bg-accent')
+              : i === n
+                ? 'size-2.5 border-[1.5px] border-accent bg-panel'
+                : 'size-1.5 bg-line/60',
+          )}
+        />
+      ))}
     </div>
   )
 }
@@ -142,8 +173,8 @@ function AccountRow({ account, balance, canRemove }: { account: Account; balance
       >
         <ChevronRight size={14} className={cn('shrink-0 text-faint transition-transform', open && 'rotate-90')} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate text-[14px]">{account.name}</span>
-        <span className="shrink-0 font-mono text-[11px] text-faint">{account.tag}</span>
-        <span className={cn('w-24 shrink-0 text-right text-[14px] font-semibold tabular-nums', balance < 0 && 'text-danger')}>
+        <span className="shrink-0 text-xs text-faint">{account.tag}</span>
+        <span className="w-24 shrink-0 text-right text-[14px] font-semibold tabular-nums">
           {formatPeso(balance)}
         </span>
       </button>

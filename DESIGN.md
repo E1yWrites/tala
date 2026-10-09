@@ -95,6 +95,12 @@ typography:
     fontWeight: 400
     lineHeight: 1.33
     fontFeature: "'tnum' 1"
+  figure:
+    fontFamily: "'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.4
+    fontFeature: "'tnum' 1"
   code:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.88em"
@@ -220,6 +226,47 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
     padding: "12px"
+  planner-tab:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.full}"
+    padding: "0 14px"
+    height: "36px"
+  planner-tab-hover:
+    backgroundColor: "{colors.hover-well}"
+    textColor: "{colors.ink}"
+  planner-tab-active:
+    backgroundColor: "{colors.tile-green}"
+    textColor: "{colors.chart-white}"
+  planner-card:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.card}"
+  planner-row:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
+    padding: "0 14px"
+    height: "44px"
+  safe-to-spend:
+    backgroundColor: "{colors.chart-white}"
+    textColor: "{colors.ink}"
+    typography: "{typography.headline}"
+    rounded: "{rounded.card}"
+    padding: "14px 16px"
+  habit-done:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink-faint}"
+    rounded: "{rounded.full}"
+    size: "36px"
+  habit-done-active:
+    backgroundColor: "{colors.tile-green}"
+    textColor: "{colors.chart-white}"
+  habit-count:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "0 10px"
+    height: "36px"
 ---
 
 # Design System: Tala
@@ -232,6 +279,8 @@ Tala's library is a star atlas. A forest-green rail, cut from the app icon's til
 
 The world is quiet and exact rather than cute. One typeface, Hanken Grotesk, does all the work, with hierarchy made by size and weight alone. Panes are divided by one-pixel seams, not shadows; shadows are kept for things that genuinely float (the pen dock, menus, dialogs). Colour carries meaning: green acts and selects, star yellow marks stars, ballpoint blue is ink, links and focus, red is destructive. Density is a study desk at tablet scale: rows are tight enough to scan a term of notes, controls grow to 44 px under a finger or stylus.
 
+The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the same atlas read as a logbook: one frame for all six views, small-caps groups over white seamed cards on the shelf, figures said in sentences rather than shouted in red. Habits plot their week as dots the way the rail plots Study days as stars, and money's remaining days run out as a line of points to the next income day.
+
 The released world (doodle icons, Kalam and Patrick Hand display type, Inter, a scrapbook mood) is retired by owner decision, and the generic grey-card notes shell is refused. Bituin, the star mascot, and the name Tala are the only pinned brand assets.
 
 **Key Characteristics:**
@@ -241,6 +290,7 @@ The released world (doodle icons, Kalam and Patrick Hand display type, Inter, a 
 - Catalogue numbers (№ 001) on every note row, in creation order.
 - One-pixel seams between panes and rows; shadows only on floating tools and the page sheet.
 - The week as a constellation of star-yellow Study days; missing a day is a faint point, never red.
+- One planner frame for six views: a 21 px title, a muted note line, a pill strip where the rail is not docked, then small-caps groups over white seamed cards.
 - Lucide line icons throughout; no doodles, no handwriting fonts.
 
 ## Colors
@@ -248,7 +298,7 @@ The released world (doodle icons, Kalam and Patrick Hand display type, Inter, a 
 The palette is the app icon spread over a whole screen: tile green, star yellow, white paper, with a blue ballpoint for ink and a red marker for danger. Tokens are RGB channel triplets in `src/index.css` (`--c-*`), mapped through `tailwind.config.ts`, so light and dark swap variables and never per-component overrides.
 
 ### Primary
-- **Tile Green** (tile-green): fills the actions and selections that live on white: the primary button, the active half of the Type | Write segment, checked task boxes, lasso and selection overlays, complete task badges. Hover and press deepen to **Tile Green Deep**.
+- **Tile Green** (tile-green): fills the actions and selections that live on white: the primary button, the active half of the Type | Write segment, the active planner tab, checked task boxes, a habit's done days and its Done check, today's point on the money runway and the rest timer bar, lasso and selection overlays, complete task badges. As text it marks planner section links and money coming in. Hover and press deepen to **Tile Green Deep**.
 - **Green Wash** (tile-green-wash): the selected note row, selected toggles and the pressed tool in the pen dock. It is also the soft tint behind placeholder step icons.
 
 ### Secondary
@@ -257,7 +307,7 @@ The palette is the app icon spread over a whole screen: tile green, star yellow,
 - **Rail Text / Rail Muted** (rail-text, rail-muted): labels on the rail, and secondary text, counts and idle icons (6.3:1 on the rail).
 
 ### Tertiary
-- **Star Yellow** (star-yellow): stars. Bituin, Study-day stars in the constellation, the starred-note star, the New note button on the rail and the mobile New note button. Text on solid yellow is **On Star** (on-star).
+- **Star Yellow** (star-yellow): stars. Bituin, Study-day stars in the constellation and on the Habits list, the starred-note star, the New note button on the rail and the mobile New note button. Text on solid yellow is **On Star** (on-star).
 - **Star Wash / Star Ink** (star-wash, star-ink): the active Starred toggle in the editor header.
 - **Ballpoint Blue** (ballpoint-blue): the default ink, the text caret, links in the page, the focus ring (2 px outline, 2 px offset) and text selection at 22% alpha. **Ballpoint Wash** is its tint.
 - **Marker Red** (marker-red): destructive actions, the recording dot and the live Record state (on **Marker Wash**).
@@ -275,11 +325,13 @@ The palette is the app icon spread over a whole screen: tile green, star yellow,
 Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folderColor.ts`); green and yellow are deliberately left out of it.
 
 ### Named Rules
-**The One Star Rule.** Star yellow means a star: Bituin, Study days, starred notes, and the single New note button. On the rail it also marks "you are here" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.
+**The One Star Rule.** Star yellow means a star: Bituin, Study days (in the rail's constellation and as Study's done days on the Habits list), starred notes, and the single New note button. Every other habit's done day is a green dot. On the rail it also marks "you are here" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.
 
 **The Steering Green Rule.** Green on white means "act" or "selected". The rail is the same green at full strength and is never itself a button; nothing on white is filled with rail-forest.
 
 **The Ballpoint Rule.** Blue belongs to the pen: ink, caret, links and the focus ring. It never fills a control, so focus is always distinguishable from selection.
+
+**The Plain Figures Rule.** Red is for destroying things, not for money or habits. Spending past today's share, a negative account balance and a missed habit day stay in ink, muted or faint tones; the words carry the news.
 
 ## Typography
 
@@ -291,11 +343,12 @@ Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folde
 
 ### Hierarchy
 - **Display** (700, 30 px, 1.15, -0.025em): the note title on the sheet (24 px on phones) and the onboarding headline.
-- **Headline** (700, 21 px, 1.25, -0.02em): pane titles ("All Notes" with its count), the Tala wordmark, placeholder section heads (22 px). In-page headings scale from the editor size: H1 1.8em, H2 1.45em, H3 1.22em, all 700 at -0.02em.
+- **Headline** (700, 21 px, 1.25, -0.02em): pane titles ("All Notes" with its count), every planner view's title, the Safe-to-spend sentence, the Tala wordmark, placeholder section heads (22 px). Today's greeting is the one step up: 21 px on phones, 26 px from 768 px. In-page headings scale from the editor size: H1 1.8em, H2 1.45em, H3 1.22em, all 700 at -0.02em.
 - **Title** (600, 14.5 px, 1.3, -0.005em): note-row titles (13.5 px compact), card titles and nudge titles (15 px), nav items (500, 14 px).
 - **Body** (400, 16 px, 1.65): typed page text, adjustable per user via `--editor-font-size` / `--editor-line-height`; the sheet holds it to a 720 px column.
-- **Body UI** (400, 13 px, 1.375): row snippets, descriptions, nudge copy.
-- **Label** (600, 10.5 px, 0.14em, uppercase): section labels on the rail (FOLDERS, TAGS) and day groups in the list (TODAY, YESTERDAY, THIS WEEK).
+- **Body UI** (400, 13 px, 1.375): row snippets, descriptions, nudge copy, the muted note line under a planner title.
+- **Label** (600, 10.5 px, 0.14em, uppercase): section labels on the rail (PLANNER, NOTEBOOK, FOLDERS, TAGS), day groups in the list (TODAY, YESTERDAY, THIS WEEK) and the group labels above planner cards, in ink-faint (rail-muted on the rail).
+- **Figure** (600, 14 px, tabular): money inside cards: account totals, the month's Spent and In, each money line's amount. Planner row text beside it is 14 px regular.
 - **Catalogue** (500, 11.5 px, tabular): the № 000 number leading every note row.
 - **Meta** (400, 12 px, tabular): times, counts, page/ink/task meta.
 - **Code** (400, 0.88em of the page size, 1.6): inline code and code blocks inside a page only; the system monospace stack, never used for interface chrome.
@@ -312,11 +365,18 @@ Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folde
 Navigation is a responsive three-pane atlas:
 - **Desktop and tablet landscape (1024 px and up):** a 232 px rail, a note list pane (300 px, 360 px from 1280 px) on the shelf colour, and the editor filling the rest. Both columns resize from a drag handle on their right edge (rail 180 to 360 px, dragging under 140 px hides it; list 260 to 480 px); the handle is a 2 px line that turns control-line on hover, tile green while dragging and a 3 px ballpoint line on keyboard focus. The rail can be hidden; a "Show sidebar" button then leads every view's header, where the rail's "Hide sidebar" button sat.
 - **Tablet portrait (768 to 1023 px):** the rail becomes a 256 px drawer over a scrim; list and editor remain.
-- **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, a raised star-yellow New note button, Tasks, You), which mirrors for left-handed users.
+- **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, Today, a raised star-yellow New note button, Search, You), which mirrors for left-handed users. Today is lit for every planner view; Notes for every library view.
+- **Below 1024 px (rail not docked):** every planner view carries the hub strip under its header, a horizontally scrolling row of pill tabs (Today, Upcoming, Tasks, Money, Habits, Workouts) that is the one tap between them. With the rail docked the rail's PLANNER group does that job and the strip is gone.
+
+The planner views share one frame. A header (title, note line, the Show sidebar button when the rail is hidden), the hub strip where it applies, then a scrolling body on the shelf colour (12 px side padding on phones, 24 px from 768 px, 40 px at the bottom) holding groups 24 px apart. In the list pane beside an open note, or on a phone, the body is one column. With no note open on tablet and desktop the planner takes the whole pane, and once that pane is 848 px wide (container query) the frame widens to 1120 px: views with a side column split 7 : 5 with a 32 px gap, one-column views keep a 720 px column. Header, strip and body share the frame's left edge.
+
+**The Same Edge Rule.** Every planner view starts its title, strip and first card on the same left edge, so switching views never moves the eye.
 
 The editor centres a 720 px sheet with 40 px side padding (24 px on phones) on the chart ground. From 768 px up the ground carries a coordinate dot grid: 1 px seam-coloured dots on a 24 px pitch that scroll with the content. Plain lists inside the page flow into two columns when the editor pane is at least 720 px wide (container query); checklists stay single-column.
 
-Spacing follows a 4 px grid: 4, 8, 12, 16, 24, 40. Pane gutters are 16 px, rail padding 12 px, rail sections are separated by 20 px, page paragraphs by 8 px and headings by 16 to 40 px above. On coarse pointers every control grows to a 44 px target (40 px for small buttons).
+Spacing follows a 4 px grid: 4, 8, 12, 16, 24, 40. Pane gutters are 16 px, rail padding 12 px, rail sections are separated by 20 px, page paragraphs by 8 px and headings by 16 to 40 px above. On coarse pointers every control grows to a 44 px target (40 px for small buttons and the planner tabs); a planner section's link keeps its 12 px text but takes a 44 px hit area.
+
+Touch has a platform baseline. Hover styles apply only where the pointer can hover (Tailwind `hoverOnlyWhenSupported`), so a tap never leaves a stuck hover fill. On coarse pointers every input, textarea and select is set at 16 px, whatever its mouse size, so iOS never zooms into a field. Buttons, links and tabs answer a tap at once (`touch-action: manipulation`), and a long press on a button or tab never selects its label; text in a page stays selectable.
 
 **The Chart Ground Rule.** The dot grid lives only behind sheets in the editor pane. It never appears inside a sheet, on the rail, in the list or on phones.
 
@@ -335,7 +395,7 @@ Depth is mostly flat: surfaces are separated by tone (chart ground, shelf, white
 
 ## Shapes
 
-Corners are gently rounded and tiered by size: 8 px for controls (buttons, inputs, nav items, rows, segments), 10 px for cards and containers (list cards, the constellation, primary 40 px buttons, the New note button), 14 px for floating surfaces (the pen dock). The page sheet is nearly square (4 px) so it reads as paper. Fully round shapes are reserved for chips, tag pills, dots, the avatar and the mobile New note button.
+Corners are gently rounded and tiered by size: 8 px for controls (buttons, inputs, nav items, rows, segments), 10 px for cards and containers (list cards, the constellation, primary 40 px buttons, the New note button), 14 px for floating surfaces (the pen dock). The page sheet is nearly square (4 px) so it reads as paper. Fully round shapes are reserved for chips, tag pills, the planner tabs, dots (habit days, runway points), a habit's round Done check, the avatar and the mobile New note button.
 
 Borders are one pixel: seam for dividers and idle chips, control-line where a border must read as a control. The selected note row is marked with a one-pixel ink line on its left edge inside a green-wash fill; multi-selection uses a one-pixel green inset ring.
 
@@ -367,8 +427,21 @@ Calm and solid; one green, one gold, everything else quiet.
 - **Placeholder:** ink-faint.
 
 ### Navigation
-- **Rail:** forest green, 12 px padding. Top: the Hide sidebar button, app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. Folders list with a coloured dot each; FOLDERS and TAGS use the small-caps label. The week constellation, then Archive, Trash and theme icon buttons over a rail seam, then the profile row with backup status and the settings gear.
-- **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding; active icons turn star yellow.
+- **Rail:** forest green, 12 px padding. Top: the Hide sidebar button, app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. The nav list is grouped under small-caps labels: PLANNER (Today, Upcoming, Tasks, Money, Habits, Workouts), then NOTEBOOK (All Notes, Starred, and the Search row with its shortcut hint last), then FOLDERS (a coloured dot each) and TAGS. The week constellation, then Archive, Trash and theme icon buttons over a rail seam, then the profile row with backup status and the settings gear.
+- **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding: Notes, Today, the raised New note, Search, and You (the profile picture on a yellow chip, opening Settings, Quiet mode and Back up now). Labels are 11 px; active icons turn star yellow and thicken.
+- **Planner hub strip:** below 1024 px, a row of 36 px pill tabs (40 px on touch) in 13.5 px medium, 4 px apart. The active tab fills tile green with white text; idle tabs are ink-muted text on nothing and hover to hover-well with ink text. Switching changes colour only, no movement or underline; press scales to 0.97 over 150 ms. The strip scrolls sideways with no scrollbar, keeps the current tab in view with 24 px of scroll padding, and fades whichever edge can still scroll (a 28 px mask) so a cut-off tab reads as more.
+
+### Planner Frame and Cards
+The six planner views are one component with one grammar. A group is a small-caps label (ink-faint) with an optional section link on the right (12 px medium tile green, underline on hover, 44 px hit area on touch), above a white card: 10 px corners, a one-pixel seam border, no shadow, rows inside divided by seams. Rows are at least 44 px tall with 14 px side padding and 14 px text. Rows and row actions press to 0.97 over 150 ms ease-out.
+
+### Safe to Spend (signature)
+The money card states the day in one sentence in headline type: "₱205 to spend today" (the figure in ink, the words semibold ink-muted), or "₱221 over today's share" in ink when spent past it, never red and with no label above it. A 13 px muted line gives the daily share until the next income day, named when the lines say what it is (baon, sweldo). Below, the **runway**: the days left plotted as points on a seam line, today a 12 px tile-green dot (a green ring when over), the income day a 10 px green ring, the days between faint 6 px points; then a 12 px ink-faint tabular line of spent today, bills and money kept aside. Account totals and the month's Spent and In sit inside their cards in the figure type; a negative balance is ink.
+
+### Habit Row
+A habit is a grid row that reflows by its card's width (container query at 560 px). Wide: name, week, strength and Done on one line, columns lining up row to row. Narrow (phones): name, strength and Done on the first line, the week's dots under the name. The name is 14 px medium over a 12 px ink-faint rule line. The week is seven 14 px dots over day letters (today's letter bold ink): done fills tile green, started is green at 30%, a day off is a dashed ring, not done a control-line ring, days to come a seam ring. Study's done days are star-yellow stars instead of dots. Strength reads "new" over "first week" until a habit has 7 days of history, then a percentage over "strength" (10.5 px ink-faint), so a young habit never shows a low score. Done is a 36 px round check (44 px on touch) with a 1.5 px control-line ring that fills tile green when done; it presses to 0.94 over 150 ms ease-out and its check draws itself once (220 ms, cubic-bezier(0.16, 1, 0.3, 1)) only at the moment it turns done. A habit counted in numbers gets a 36 px "3/8 +" counter with 8 px corners instead, pressing to 0.97.
+
+### Rest Timer
+Between sets, a 3 px tile-green bar along the top edge drains from full to empty at a constant (linear) rate on the compositor, starting part-drained if reopened mid-rest. It is hidden under reduced motion.
 
 ### Note Row (catalogue row)
 The list is a catalogue, not a card stack. Each row: № number (catalogue type), semibold title, a one-line snippet in body-ui muted, and a meta line (starred star, time, page count with "PDF ·" when imported, Ink, task badge, up to two tags), all in 12 px ink-faint. Rows are separated by a one-pixel seam inset 12 px; hover fills hover-well at 70%; selected fills green wash with the one-pixel ink left edge. Rows are grouped by day under small-caps labels (TODAY, YESTERDAY, THIS WEEK). A compact density drops the snippet and puts the time on the title line.
@@ -402,6 +475,10 @@ A split screen: a forest-green panel (42%, up to 520 px) with the app icon, word
 - **Do** give every control a 44 px target on coarse pointers and the ballpoint focus ring everywhere.
 - **Do** use Lucide line icons at 15 to 18 px (20 px in the mobile tab bar), thickening the stroke only for the active state.
 - **Do** mirror the pen dock and the mobile tab bar for left-handed users.
+- **Do** build every planner view from the shared frame: small-caps group label, white 10 px card with a one-pixel seam, seam-divided rows of at least 44 px.
+- **Do** say money as a sentence ("₱205 to spend today", "₱221 over today's share") and set every figure in tabular type.
+- **Do** keep the planner hub strip colour-only: tile green fill for the active tab, muted text for the rest, a faded edge where it can scroll.
+- **Do** gate hover styles to hover-capable pointers and keep form fields at 16 px on coarse pointers.
 
 ### Don't:
 - **Don't** use star yellow for anything that is not a star, New note, or the rail's active and profile marks: no yellow badges, hovers, banners or second buttons.
@@ -409,6 +486,8 @@ A split screen: a forest-green panel (42%, up to 520 px) with the app icon, word
 - **Don't** bring back doodle icons, Kalam, Patrick Hand or Inter; Hanken Grotesk is the only face.
 - **Don't** build the library as a grid of grey cards with drop shadows; it is a seamed catalogue on the shelf.
 - **Don't** show a missed study day in red or as a loss; it is a faint point.
+- **Don't** colour overspending, a negative balance or a missed habit day red, and don't score a habit under a week old; it is "new".
+- **Don't** put a label above a money figure or set account names and tags in monospace; the sentence and the Hanken figure carry it.
 - **Don't** animate Bituin or anything decorative while pen mode is on, and honour reduced motion (animations collapse to 1 ms).
 - **Don't** add per-component `dark:` colour overrides when a token exists.
 - **Don't** put the dot grid inside a sheet, on the rail, in the list or on phones.

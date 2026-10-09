@@ -7,6 +7,7 @@ import { chipLabel } from '@/library/workouts'
 import { appendLine } from '@/library/journal'
 import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/utils/cn'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 /** What a captured line will become, for the chip beside the field. `journal`: it is going into today's journal page. */
 export function previewLine(text: string, journal = true): { kind: string; label: string } | null {
@@ -27,6 +28,7 @@ export function captureLine(text: string): void {
 export function QuickCapture({ className }: { className?: string }): React.ReactNode {
   const [text, setText] = useState('')
   const preview = previewLine(text)
+  const narrow = useMediaQuery('(max-width: 479px)')
 
   return (
     <form
@@ -45,7 +47,7 @@ export function QuickCapture({ className }: { className?: string }): React.React
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Write it down…  P150 lunch · @ 2pm dentist · [ ] essay fri"
+        placeholder={narrow ? 'Write it down…  P150 lunch · @ 2pm' : 'Write it down…  P150 lunch · @ 2pm dentist · [ ] essay fri'}
         aria-label="Write a line in today’s journal page"
         enterKeyHint="done"
         autoComplete="off"

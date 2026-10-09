@@ -36,7 +36,8 @@ function AgendaRow({ o, canSkip }: { o: Occurrence; canSkip: boolean }): React.R
       : ''
   // Where it was written, unless that's the journal (most lines are)
   const source = note && !note.journal ? displayTitle(note) : ''
-  const meta = [status, o.end ? `until ${formatTime(o.end)}` : '', o.amount ? formatPeso(o.amount) : '', source].filter(Boolean)
+  const income = o.ref.entry.kind === 'event' && o.ref.entry.income
+  const meta = [status, o.end ? `until ${formatTime(o.end)}` : '', o.amount ? `${income ? '+' : ''}${formatPeso(o.amount)}` : '', source].filter(Boolean)
 
   return (
     <li className="flex items-stretch border-b border-lineSoft last:border-b-0">

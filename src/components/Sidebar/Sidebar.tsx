@@ -111,16 +111,25 @@ export function Sidebar({
   const quietMode = usePrefsStore((s) => s.quietMode)
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
 
-  const primaryItems: NavItemSpec[] = [
+  // The planner reads the lines of every note; the notebook is the notes themselves
+  const plannerItems: NavItemSpec[] = [
     { id: 'home', label: 'Today', icon: CalendarCheck },
     { id: 'agenda', label: 'Upcoming', icon: CalendarDays },
-    { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
-    { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
     { id: 'money', label: 'Money', icon: Wallet },
     { id: 'habits', label: 'Habits', icon: Repeat },
     { id: 'workouts', label: 'Workouts', icon: Dumbbell },
   ]
+  const notebookItems: NavItemSpec[] = [
+    { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
+    { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
+  ]
+  const navList = (items: NavItemSpec[]): ReactNode =>
+    items.map((item) => (
+      <li key={item.id}>
+        <NavItemButton item={item} active={activeView.kind === item.id} onSelect={() => navigate({ kind: item.id as ViewKind })} />
+      </li>
+    ))
 
   const topTags = useMemo(
     () =>
@@ -168,17 +177,12 @@ export function Sidebar({
         New note
       </button>
 
-      <div className="-mx-1 mt-4 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
-        <ul className="flex flex-col gap-0.5">
-          {primaryItems.map((item) => (
-            <li key={item.id}>
-              <NavItemButton
-                item={item}
-                active={activeView.kind === item.id}
-                onSelect={() => navigate({ kind: item.id as ViewKind })}
-              />
-            </li>
-          ))}
+      <div className="-mx-1 mt-2 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
+        <SectionHeader label="Planner" className="mt-2" />
+        <ul className="mt-1 flex flex-col gap-0.5">{navList(plannerItems)}</ul>
+        <SectionHeader label="Notebook" />
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {navList(notebookItems)}
           <li>
             <NavItemButton
               item={{ id: 'search', label: 'Search', icon: Search }}
@@ -535,13 +539,15 @@ function SectionHeader({
   label,
   actionLabel,
   onAction,
+  className = 'mt-5',
 }: {
   label: string
   actionLabel?: string
   onAction?: () => void
+  className?: string
 }): ReactNode {
   return (
-    <div className="mt-5 flex items-center justify-between px-2.5">
+    <div className={cn('flex min-h-7 items-center justify-between px-2.5', className)}>
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-rail-muted">{label}</p>
       {onAction && (
         <Tooltip label={actionLabel ?? ''}>

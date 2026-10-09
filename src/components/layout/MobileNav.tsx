@@ -7,6 +7,7 @@ import { downloadBackup } from '@/utils/exportImport'
 import { Avatar } from '@/components/UI/Avatar'
 import { DropdownMenu } from '@/components/UI/DropdownMenu'
 import { cn } from '@/utils/cn'
+import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
 
 /** Height of the bar itself; the page above reserves this plus the safe area. */
 export const MOBILE_NAV_HEIGHT = '3.75rem'
@@ -25,8 +26,8 @@ export function MobileNav(): React.ReactNode {
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
   const profile = useSettingsStore((s) => s.settings.profile)
 
-  // Today, Upcoming, Tasks, Money, Habits and Workouts are the Today tab; every library view (all, starred, folders, ...) is Notes
-  const todayActive = activeView.kind === 'home' || activeView.kind === 'agenda' || activeView.kind === 'tasks' || activeView.kind === 'money' || activeView.kind === 'habits' || activeView.kind === 'workouts'
+  // The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the Today tab; every library view is Notes
+  const todayActive = PLANNER_VIEWS.has(activeView.kind)
   const notesActive = !todayActive && activeView.kind !== 'settings'
 
   return (

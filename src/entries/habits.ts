@@ -91,6 +91,8 @@ export interface HabitStatus {
   /** Still to do today: not done, no day off, and the week's days not yet reached. */
   due: boolean
   strength: number
+  /** Days since it started (the day it was added, or its first tick if earlier); 0 on the first day. */
+  age: number
   /** Monday..Sunday of this week. */
   days: Array<{ day: DayKey; state: DayState }>
 }
@@ -108,7 +110,9 @@ export function habitStatus(h: Habit, log: HabitLog, today: DayKey): HabitStatus
   const done = count >= h.target
   const off = !done && log.skips.has(today)
   const week = days.filter((d) => d.state === 'done').length
-  return { count, done, off, week, due: !done && !off && (h.days >= 7 || week < h.days), strength: strength(h, log, today), days }
+  const first = [...log.counts.keys()].reduce((a, b) => (b < a ? b : a), h.since)
+  const age = Math.max(0, Math.round((toDate(today).getTime() - toDate(first).getTime()) / 86_400_000))
+  return { count, done, off, week, due: !done && !off && (h.days >= 7 || week < h.days), strength: strength(h, log, today), age, days }
 }
 
 export const STUDY_ID = 'study'

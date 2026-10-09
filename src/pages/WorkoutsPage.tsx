@@ -7,14 +7,12 @@ import { askNotifications, notificationState } from '@/library/reminders'
 import { formatRest, startRest, stopRest, useRestStore } from '@/library/workouts'
 import { useEntries } from '@/components/Agenda/useAgenda'
 import { QuickCapture } from '@/components/QuickCapture'
-import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 import { useTick } from '@/hooks/useTick'
 import { useUIStore } from '@/store/uiStore'
 import { downloadBlob } from '@/utils/markdown'
 import { cn } from '@/utils/cn'
 
-const label = 'text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint'
-const card = 'overflow-hidden rounded-card border border-lineSoft bg-panel'
 const REST_CHOICES = [90, 120, 180]
 
 /** Every exercise from the lift lines on journal pages: last time, best, a rest timer, and a Strong export. */
@@ -23,49 +21,33 @@ export function WorkoutsPage(): React.ReactNode {
   const list = useMemo(() => exercises(refs), [refs])
 
   return (
-    <section aria-label="Workouts" className="flex h-full min-h-0 flex-col bg-canvas">
-      <header className="flex items-center gap-2 px-4 pb-2 pt-4">
-        <SidebarToggle className="-ml-1" />
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-snug tracking-[-0.02em]">Workouts</h1>
-          <p className="text-xs text-faint">From the lift lines on your journal pages</p>
-        </div>
-      </header>
-
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 pb-24 pt-2">
-        <QuickCapture />
-        <RestTimer />
-
-        <section aria-labelledby="workouts-list">
-          <div className="mb-1.5 flex items-baseline justify-between px-1">
-            <h2 id="workouts-list" className={label}>
-              Exercises
-            </h2>
-            {list.length > 0 && (
-              <button
-                type="button"
-                onClick={() => downloadBlob(`tala-workouts-${today}.csv`, new Blob([strongCsv(refs)], { type: 'text/csv' }))}
-                className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-              >
-                <Download size={13} aria-hidden="true" />
-                Export for Strong (CSV)
-              </button>
-            )}
-          </div>
-          {list.length === 0 ? (
-            <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-              No lifts yet. On today’s page, or in the field above, write “bench 60x5x3 @8”: weight × reps × sets, and RPE if you like.
-            </p>
-          ) : (
-            <ul className={card}>
+    <PlannerView label="Workouts" title="Workouts" note="From the lift lines on your journal pages">
+      <QuickCapture />
+      <RestTimer />
+      <PlannerSection id="workouts-list" title="Exercises">
+        {list.length === 0 ? (
+          <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
+            No lifts yet. On today’s page, or in the field above, write “bench 60x5x3 @8”: weight × reps × sets, and RPE if you like.
+          </p>
+        ) : (
+          <>
+            <ul className={CARD}>
               {list.map((e) => (
                 <ExerciseRow key={e.name.toLowerCase()} e={e} />
               ))}
             </ul>
-          )}
-        </section>
-      </div>
-    </section>
+            <button
+              type="button"
+              onClick={() => downloadBlob(`tala-workouts-${today}.csv`, new Blob([strongCsv(refs)], { type: 'text/csv' }))}
+              className="mt-1 flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium text-accent hover:underline [@media(pointer:coarse)]:min-h-11"
+            >
+              <Download size={13} aria-hidden="true" />
+              Export for Strong (CSV)
+            </button>
+          </>
+        )}
+      </PlannerSection>
+    </PlannerView>
   )
 }
 
@@ -101,16 +83,17 @@ function RestTimer(): React.ReactNode {
   const [alerts, setAlerts] = useState(notificationState)
   const left = endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) : 0
   return (
-    <div className={card}>
+    <div className={cn(CARD, 'relative')}>
+      {endsAt && <RestBar key={endsAt} endsAt={endsAt} seconds={seconds} />}
       <div className="flex min-h-14 items-center gap-2 px-3.5 py-2">
         <Timer size={16} className="shrink-0 text-faint" aria-hidden="true" />
         {endsAt ? (
           <>
-            <span role="timer" aria-label="Rest left" className="text-[22px] font-bold tabular-nums">
+            <span role="timer" aria-label="Rest left" className="text-[21px] font-bold tabular-nums">
               {formatRest(left)}
             </span>
             <span className="text-xs text-faint">of {formatRest(seconds)}</span>
-            <button type="button" onClick={stopRest} className="ml-auto rounded-control border border-lineSoft px-3 py-1.5 text-xs font-medium hover:border-line">
+            <button type="button" onClick={stopRest} className="ml-auto min-h-9 rounded-control border border-lineSoft px-3 text-xs font-medium transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11">
               Stop
             </button>
           </>
@@ -124,7 +107,7 @@ function RestTimer(): React.ReactNode {
                   type="button"
                   onClick={() => startRest(s)}
                   aria-label={`Rest ${formatRest(s)}`}
-                  className={cn('rounded-control border border-lineSoft px-3 py-1.5 text-xs font-semibold tabular-nums hover:border-line')}
+                  className="min-h-9 rounded-control border border-lineSoft px-3 text-xs font-semibold tabular-nums transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11"
                 >
                   {formatRest(s)}
                 </button>
@@ -139,5 +122,17 @@ function RestTimer(): React.ReactNode {
         </button>
       )}
     </div>
+  )
+}
+
+/** Drains at a constant rate on the compositor; opened mid-rest, it starts part-drained. */
+function RestBar({ endsAt, seconds }: { endsAt: number; seconds: number }): React.ReactNode {
+  const [offset] = useState(() => (endsAt - Date.now()) / 1000 - seconds)
+  return (
+    <span
+      aria-hidden="true"
+      className="rest-drain absolute inset-x-0 top-0 h-[3px] bg-accent motion-reduce:hidden"
+      style={{ animationDuration: `${seconds}s`, animationDelay: `${offset}s` }}
+    />
   )
 }
