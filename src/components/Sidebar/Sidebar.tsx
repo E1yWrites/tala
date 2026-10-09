@@ -16,6 +16,7 @@ import {
   Settings as SettingsIcon,
   Star,
   Trash2,
+  Wallet,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Avatar } from '../UI/Avatar'
@@ -114,6 +115,7 @@ export function Sidebar({
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
     { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
+    { id: 'money', label: 'Money', icon: Wallet },
   ]
 
   const topTags = useMemo(

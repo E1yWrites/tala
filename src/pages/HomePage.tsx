@@ -17,6 +17,9 @@ import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
 import { SidebarToggle } from '@/components/layout/SidebarToggle'
 import { QuickCapture } from '@/components/QuickCapture'
+import { safeToSpend } from '@/entries/money'
+import { useMoneyStore } from '@/library/money'
+import { SafeCard } from './MoneyPage'
 
 /**
  * Today (the Home view): a greeting from Bituin, a line for today's journal,
@@ -60,6 +63,8 @@ export function HomePage(): React.ReactNode {
 
         <TodayAgenda />
 
+        <TodayMoney />
+
         {hasNotes && <OpenTasks />}
       </div>
     </section>
@@ -100,6 +105,29 @@ function TodayAgenda(): React.ReactNode {
           Allow reminder alerts while Tala is open in the background
         </button>
       )}
+    </section>
+  )
+}
+
+/** Safe to spend, once any ₱ line exists: opens Money. */
+function TodayMoney(): React.ReactNode {
+  const { refs, today } = useEntries()
+  const { accounts, keep } = useMoneyStore()
+  const setView = useUIStore((s) => s.setView)
+  const tracking = refs.some((r) => r.entry.kind === 'money') || accounts.some((a) => a.adjust !== 0)
+  const safe = useMemo(() => (tracking ? safeToSpend(refs, accounts, keep, today) : null), [tracking, refs, accounts, keep, today])
+  if (!safe) return null
+  return (
+    <section aria-labelledby="home-money">
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <h2 id="home-money" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
+          Money
+        </h2>
+        <button type="button" onClick={() => setView({ kind: 'money' })} className="text-xs font-medium text-accent hover:underline">
+          Accounts
+        </button>
+      </div>
+      <SafeCard safe={safe} keep={keep} compact />
     </section>
   )
 }

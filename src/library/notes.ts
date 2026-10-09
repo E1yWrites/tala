@@ -7,6 +7,9 @@ import type { InkDoc } from '@/types/ink'
 import type { InkDocRecord, Note, PageRecord, PdfRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
 import { createId } from '@/utils/id'
+import { moneyRefs } from '@/entries/money'
+import { formatPeso } from '@/entries/parse'
+import { scanEntries } from '@/entries/scan'
 import { PAGE_SIZES } from './pageSize'
 import { abortRecordingFor } from './recorder'
 
@@ -312,7 +315,20 @@ function change(id: string, patch: Partial<Note>): Promise<SaveResult> {
 
 export function trashNotes(ids: string[]): void {
   const now = Date.now()
+  const held = moneyIn(ids)
   for (const id of ids) void change(id, { isDeleted: true, deletedAt: now })
+  // The page is the record: money written in a trashed note stops counting, so say so
+  if (held > 0) {
+    toast.message(`${ids.length === 1 ? 'That note' : 'Those notes'} held ${formatPeso(held)} in money lines. They no longer count.`, {
+      action: { label: 'Undo', onClick: () => ids.forEach(restoreNote) },
+    })
+  }
+}
+
+/** Sum of the ₱ lines (spent, received or moved) written in these notes. */
+function moneyIn(ids: string[]): number {
+  const notes = useNoteStore.getState().notes.filter((n) => ids.includes(n.id))
+  return moneyRefs(scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs())).reduce((n, r) => n + r.entry.amount, 0)
 }
 
 export function restoreNote(id: string): void {

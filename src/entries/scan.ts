@@ -4,7 +4,7 @@ import type { InkDoc } from '@/types/ink'
 import type { Note, PageRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
 import type { DayKey } from './dates'
-import { DEFAULT_CONTEXT, parseLine, TASK_LINE } from './parse'
+import { entryContext, parseLine, TASK_LINE } from './parse'
 import type { Entry, EntryContext } from './parse'
 
 /*
@@ -100,7 +100,7 @@ export function scanEntries(
   notes: Note[],
   pagesByNote: Record<string, PageRecord[]>,
   inkDocs: Record<string, InkDoc> = {},
-  ctx: EntryContext = DEFAULT_CONTEXT,
+  ctx: EntryContext = entryContext(),
 ): EntryRef[] {
   return scanLines(notes, pagesByNote, inkDocs).flatMap((line) => {
     const entry = parseLine(line.text, line.at, ctx, !!line.task)

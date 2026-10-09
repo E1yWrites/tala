@@ -2,7 +2,7 @@
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, continuous scroll (pages mount near the screen, insert between
  * pages, reopen where you left off), the Tasks view, the journal (quick capture, entry chips,
- * suggestions), ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
+ * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -489,6 +489,32 @@ await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")
 await upcoming.locator('li:has-text("AGENDA-GYM") button:not(:has-text("Skip"))').first().click()
 await wait(900)
 check('the journal holds the skip and the tick', /AGENDA-GYM skip \w{3} \d+/.test(await editorText(page)) && (await editorText(page)).includes('✓ AGENDA-HAIRCUT'))
+
+/* ---- 6a3. Money: balances from the ₱ lines, set balance, a new account, safe to spend -- */
+await page.click('nav >> text=Today')
+await wait(400)
+check('Today shows safe to spend once money lines exist', (await page.locator('section[aria-labelledby="home-money"] >> text=Safe to spend today').count()) === 1)
+await page.click('nav >> text=Money')
+await wait(500)
+const money = page.locator('section[aria-label="Money"]')
+const accountRow = (name) => money.locator(`section[aria-labelledby="money-accounts"] > ul > li:has-text("${name}")`).first()
+const rowText = async (name) => (await accountRow(name).locator('button').first().textContent()) ?? ''
+check('each account adds up its lines', (await rowText('GCash')).includes('−₱150') && (await rowText('Cash')).includes('−₱85'), `${await rowText('GCash')} | ${await rowText('Cash')}`)
+check('spending is grouped by category', (await money.locator('section[aria-labelledby="money-month"] li:has-text("Food")').count()) === 1)
+await accountRow('GCash').locator('button').first().click()
+await money.locator('input[aria-label="What GCash has now"]').fill('1000')
+await money.locator('button:has-text("Save")').click()
+await wait(400)
+check('"Has now" sets the balance', (await rowText('GCash')).includes('₱1,000'), await rowText('GCash'))
+await money.locator('input[aria-label="New account name"]').fill('BPI Savings')
+await page.keyboard.press('Enter')
+await wait(300)
+await page.fill(capture, 'P200 gcash>bpi')
+check('a new account is a word lines can use', ((await page.locator('form .entry-chip-money').textContent()) ?? '').includes('BPI Savings'))
+await page.keyboard.press('Enter')
+await wait(900)
+check('a transfer moves money between accounts', (await rowText('BPI Savings')).includes('₱200') && (await rowText('GCash')).includes('₱800'), `${await rowText('BPI Savings')} | ${await rowText('GCash')}`)
+check('safe to spend shows today’s share', /a day until|over today’s share/.test((await money.textContent()) ?? ''))
 
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)

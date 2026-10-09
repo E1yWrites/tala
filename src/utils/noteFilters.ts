@@ -10,6 +10,7 @@ export function notesForView(notes: Note[], view: ViewRef): Note[] {
     case 'home':
     case 'tasks':
     case 'agenda':
+    case 'money':
     case 'settings':
       return []
     case 'all':
@@ -126,6 +127,8 @@ export function viewMeta(
       return { title: 'Tasks', description: null }
     case 'agenda':
       return { title: 'Upcoming', description: null }
+    case 'money':
+      return { title: 'Money', description: null }
     case 'settings':
       return { title: 'Settings', description: null }
   }

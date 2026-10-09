@@ -15,19 +15,30 @@ import type { DayKey, Repeat, When } from './dates'
 
 export type Entry =
   | { kind: 'task'; text: string; when?: When; due?: When; remind?: number }
-  | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; remind?: number }
+  | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; income?: boolean; remind?: number }
   | { kind: 'money'; flow: 'out' | 'in' | 'move'; amount: number; account?: string; to?: string; text: string; day: DayKey }
   | { kind: 'tick'; name: string; count: number; day: DayKey }
 
 export interface EntryContext {
-  /** Lowercase account names ("gcash"). */
+  /** The words that name accounts ("gcash"), lowercase. */
   accounts: string[]
   /** Habit and due-again names that `x name` may tick. */
   ticks: string[]
+  /** Display names for account words ("bpi" → "BPI Savings"). */
+  names?: Record<string, string>
 }
 
-// ponytail: fixed accounts until Money (phase 3) lets people name their own
 export const DEFAULT_CONTEXT: EntryContext = { accounts: ['cash', 'gcash', 'maya', 'bank'], ticks: [] }
+
+/**
+ * The Library's own accounts and habits, which the default `ctx` of every
+ * parse reads. Set by library/context.ts when they change; tests pass a ctx.
+ */
+let current: EntryContext = DEFAULT_CONTEXT
+export const setEntryContext = (ctx: EntryContext): void => {
+  current = ctx
+}
+export const entryContext = (): EntryContext => current
 
 /** ₱150, P1,299, Php 1.5k. Lowercase `p` stays prose ("p. 12"); phones capitalise line starts anyway. */
 const AMOUNT = /^(?:₱\s?|P|php\s?)(\d{1,3}(?:,\d{3})+|\d+)(\.\d{1,2})?(k)?(?=\s|$)/i
@@ -58,7 +69,7 @@ function takeRemind(ws: string[]): [string[], number | undefined] {
 }
 
 /** A typed line (a paragraph, or a checklist item's own text when `task`). */
-export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFAULT_CONTEXT, task = false): Entry | null {
+export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = current, task = false): Entry | null {
   const line = text.trim()
   if (task) {
     const d = readDates(line, pinned)
@@ -75,10 +86,15 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFA
   if (/^@\s/.test(line)) {
     const d = readDates(line.slice(2), pinned, { event: true })
     let amount: number | undefined
+    let income = false
     const [ws, remind] = takeRemind(words(d.rest))
     const rest = ws.filter((w) => {
-      const a = amount === undefined ? amountOf(w) : undefined
-      if (a !== undefined) amount = a
+      // "+P8000" on an event is income (payday, baon); a plain amount is a bill
+      const a = amount === undefined ? amountOf(w.replace(/^\+/, '')) : undefined
+      if (a !== undefined) {
+        amount = a
+        income = w.startsWith('+')
+      }
       return a === undefined
     })
     const repeat = d.repeat && d.due?.day && !d.repeat.until ? { ...d.repeat, until: d.due.day } : d.repeat
@@ -89,6 +105,7 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFA
       ...(when ? { when } : {}),
       ...(repeat ? { repeat } : {}),
       ...(amount !== undefined ? { amount } : {}),
+      ...(income ? { income } : {}),
       ...(remind !== undefined ? { remind } : {}),
     }
   }
@@ -142,7 +159,7 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = DEFA
 export const TASK_LINE = /^\[([ xX])\]\s+(.*)$/
 
 /** A line as written anywhere: a `[ ] ` prefix makes it a task. */
-export function parseTyped(line: string, pinned: DayKey, ctx: EntryContext = DEFAULT_CONTEXT): Entry | null {
+export function parseTyped(line: string, pinned: DayKey, ctx: EntryContext = current): Entry | null {
   const task = TASK_LINE.exec(line.trim())
   return task ? parseLine(task[2]!, pinned, ctx, true) : parseLine(line, pinned, ctx)
 }
@@ -158,7 +175,7 @@ const NOT_MONEY = new Set([
  * On a journal page, an unmarked line that looks like an entry: the marker that
  * would make it one (`P`, `@ `, `✓ `), or null. "150 lunch" → "P", "dentist 2pm" → "@ ".
  */
-export function suggestMarker(text: string, pinned: DayKey, ctx: EntryContext = DEFAULT_CONTEXT): string | null {
+export function suggestMarker(text: string, pinned: DayKey, ctx: EntryContext = current): string | null {
   const line = text.trim()
   if (!line || parseLine(line, pinned, ctx) !== null) return null
   const ws = words(line)
@@ -190,9 +207,11 @@ export function formatTime(t: string): string {
 }
 
 export const formatPeso = (n: number): string =>
-  `₱${n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`
+  `${n < 0 ? '−' : ''}₱${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`
 
-const titleCase = (s: string): string => (s === 'gcash' ? 'GCash' : s.charAt(0).toUpperCase() + s.slice(1))
+/** An account word as shown: its name in the Library, else "GCash", "Cash". */
+export const accountName = (tag: string): string =>
+  current.names?.[tag] ?? (tag === 'gcash' ? 'GCash' : tag.charAt(0).toUpperCase() + tag.slice(1))
 
 function formatWhen(w: When | undefined): string[] {
   if (!w) return []
@@ -240,13 +259,13 @@ export function entryLabel(e: Entry): string {
         [
           ...(e.repeat ? [formatRepeat(e.repeat)] : []),
           ...formatWhen(e.when),
-          ...(e.amount ? [formatPeso(e.amount)] : []),
+          ...(e.amount ? [`${e.income ? '+' : ''}${formatPeso(e.amount)}`] : []),
           ...(e.remind !== undefined ? [formatRemind(e.remind)] : []),
         ].join(' · ') || 'Event'
       )
     case 'money': {
-      if (e.flow === 'move') return `${formatPeso(e.amount)} ${titleCase(e.account!)} → ${titleCase(e.to!)}`
-      return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [titleCase(e.account)] : [])].join(' · ')
+      if (e.flow === 'move') return `${formatPeso(e.amount)} ${accountName(e.account!)} → ${accountName(e.to!)}`
+      return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [accountName(e.account)] : [])].join(' · ')
     }
     case 'tick':
       return `✓ ${e.name}${e.count > 1 ? ` ×${e.count}` : ''}`

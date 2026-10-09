@@ -16,6 +16,7 @@ import {
   Bookmark,
   Sun,
   Trash2,
+  Wallet,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -89,6 +90,7 @@ export function CommandPalette(): React.ReactNode {
       },
       { id: 'go-home', label: 'Go to Today', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
       { id: 'go-agenda', label: 'Go to Upcoming', icon: CalendarDays, run: () => { closeAllModals(); setView({ kind: 'agenda' }) } },
+      { id: 'go-money', label: 'Go to Money', icon: Wallet, run: () => { closeAllModals(); setView({ kind: 'money' }) } },
       { id: 'go-all', label: 'Go to All Notes', icon: Notebook, run: () => { closeAllModals(); setView({ kind: 'all' }) } },
       { id: 'go-favorites', label: 'Go to Favorites', icon: Bookmark, run: () => { closeAllModals(); setView({ kind: 'favorites' }) } },
       { id: 'go-pinned', label: 'Go to Pinned', icon: Pin, run: () => { closeAllModals(); setView({ kind: 'pinned' }) } },

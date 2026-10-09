@@ -168,6 +168,7 @@ export type ViewKind =
   | 'tag'
   | 'tasks'
   | 'agenda'
+  | 'money'
   | 'settings'
 
 export interface ViewRef {

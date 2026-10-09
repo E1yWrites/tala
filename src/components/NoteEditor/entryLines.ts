@@ -5,7 +5,7 @@ import type { Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { EditorView } from '@tiptap/pm/view'
 import { dayKey } from '@/coach/study'
-import { DEFAULT_CONTEXT, entryLabel, parseLine, suggestMarker } from '@/entries/parse'
+import { entryContext, entryLabel, parseLine, suggestMarker } from '@/entries/parse'
 
 /*
   Pagtatala in the editor. The text stays the record; this only
@@ -93,9 +93,9 @@ export const EntryLines = Extension.create<EntryLinesOptions>({
 
   addProseMirrorPlugins() {
     const { day, fallback } = this.options
-    const ctx = DEFAULT_CONTEXT
 
     const build = (doc: PMNode): DecorationSet => {
+      const ctx = entryContext()
       const decos: Decoration[] = []
       doc.descendants((node, pos, parent) => {
         if (node.type.name !== 'paragraph') return true
@@ -134,7 +134,7 @@ export const EntryLines = Extension.create<EntryLinesOptions>({
             state.doc.nodesBetween(a, b, (node, pos, parent) => {
               if (node.type.name !== 'paragraph') return true
               if (node.attrs.at) return false
-              const entry = parseLine(node.textContent, today, ctx, inTask(parent))
+              const entry = parseLine(node.textContent, today, entryContext(), inTask(parent))
               const datedTask = entry?.kind !== 'task' || !!(entry.when || entry.due)
               if (entry && datedTask) {
                 tr ??= state.tr
