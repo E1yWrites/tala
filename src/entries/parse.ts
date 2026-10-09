@@ -8,6 +8,7 @@ import type { DayKey, Repeat, When } from './dates'
     @ thu 2pm dentist     event          @ MWF 9-10:30 Calc 1     weekly class
     P150 lunch gcash      expense        +P500 baon cash          income
     P500 gcash>cash       transfer       ✓ water 3                habit tick
+                                         ✓ gym skip               a day off, not a miss
 
   The text stays the record: nothing here is stored, every roll-up re-reads the
   page. `pinned` is the day the line was written; relative words count from it.
@@ -17,7 +18,7 @@ export type Entry =
   | { kind: 'task'; text: string; when?: When; due?: When; remind?: number }
   | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; income?: boolean; remind?: number }
   | { kind: 'money'; flow: 'out' | 'in' | 'move'; amount: number; account?: string; to?: string; text: string; day: DayKey }
-  | { kind: 'tick'; name: string; count: number; day: DayKey }
+  | { kind: 'tick'; name: string; count: number; day: DayKey; skip?: true }
 
 export interface EntryContext {
   /** The words that name accounts ("gcash"), lowercase. */
@@ -143,14 +144,16 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = curr
 
   const tick = /^(✓|✔|x|X)\s+(.+)$/.exec(line)
   if (tick) {
-    const d = readDates(tick[2]!, pinned, { past: true })
+    // "✓ gym skip": a day off. Taken before the dates, which read "skip <day>" as a repeat's day out
+    const skip = /\S\s+skip(?=\s|$)/i.test(tick[2]!)
+    const d = readDates(skip ? tick[2]!.replace(/(\S)\s+skip(?=\s|$)/i, '$1') : tick[2]!, pinned, { past: true })
     const ws = words(d.rest)
     const count = ws.length > 1 && /^\d+$/.test(ws[ws.length - 1]!) ? Number(ws.pop()) : 1
     const said = ws.join(' ')
     const known = ctx.ticks.find((n) => n.toLowerCase() === said.toLowerCase())
     // `x` is also algebra and crossed-out lists: it only ticks a name Tala knows
     if (!said || (tick[1]!.toLowerCase() === 'x' && !known)) return null
-    return { kind: 'tick', name: known ?? said, count, day: d.when?.day ?? pinned }
+    return { kind: 'tick', name: known ?? said, count, day: d.when?.day ?? pinned, ...(skip ? { skip } : {}) }
   }
   return null
 }
@@ -268,6 +271,6 @@ export function entryLabel(e: Entry): string {
       return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [accountName(e.account)] : [])].join(' · ')
     }
     case 'tick':
-      return `✓ ${e.name}${e.count > 1 ? ` ×${e.count}` : ''}`
+      return e.skip ? `Day off · ${e.name}` : `✓ ${e.name}${e.count > 1 ? ` ×${e.count}` : ''}`
   }
 }

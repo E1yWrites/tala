@@ -2,13 +2,18 @@ import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
 import { agenda, reminderAt } from '@/entries/agenda'
 import type { Occurrence } from '@/entries/agenda'
+import { toDate } from '@/entries/dates'
+import { EMPTY_LOG, habitLogs, habitStatus } from '@/entries/habits'
+import type { Habit, HabitLog } from '@/entries/habits'
 import { formatPeso, formatTime } from '@/entries/parse'
 import { scanEntries } from '@/entries/scan'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { useHabitStore } from './habits'
 
 /*
-  Reminders you set with `!` ("@ thu 2pm dentist !30m"). On the web they fire
+  Reminders you set with `!` ("@ thu 2pm dentist !30m"), and a habit's
+  reminder time on days it is still to do. On the web they fire
   while Tala is open: a toast, and a system notification when the tab is in
   the background and notifications are allowed. Nothing fires while Tala is
   closed (a web page can't schedule that without a push server); the iOS app
@@ -48,6 +53,21 @@ export function dueReminders(occurrences: Occurrence[], now: number): Map<string
   return out
 }
 
+/** Habits with a reminder time still ahead today and still to do. Pure, for tests. */
+export function habitReminders(habits: Habit[], logs: Map<string, HabitLog>, now: number): Map<string, Due> {
+  const today = dayKey(now)
+  const out = new Map<string, Due>()
+  for (const h of habits) {
+    if (!h.remind) continue
+    const [hh, mm] = h.remind.split(':').map(Number)
+    const at = toDate(today).setHours(hh!, mm!, 0, 0)
+    const s = habitStatus(h, logs.get(h.name.toLowerCase()) ?? EMPTY_LOG, today)
+    if (!s.due || at <= now) continue
+    out.set(`habit|${h.id}|${today}@${at}`, { at, title: h.name, body: h.target > 1 ? `${s.count} of ${h.target} today` : 'Still to do today' })
+  }
+  return out
+}
+
 function fire(key: string, due: Due): void {
   timers.delete(key)
   if (fired.has(key)) return
@@ -66,7 +86,11 @@ function fire(key: string, due: Due): void {
 export function planReminders(now = Date.now()): void {
   const { notes, inkDocs } = useNoteStore.getState()
   const today = dayKey(now)
-  const wanted = dueReminders(agenda(scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs), today, WINDOW_DAYS, today), now)
+  const refs = scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs)
+  const wanted = new Map([
+    ...dueReminders(agenda(refs, today, WINDOW_DAYS, today), now),
+    ...habitReminders(useHabitStore.getState().habits, habitLogs(refs), now),
+  ])
   for (const [key, t] of timers) {
     if (wanted.has(key)) continue
     clearTimeout(t)
@@ -89,6 +113,7 @@ export function startReminders(): void {
   }
   useNoteStore.subscribe((s, prev) => (s.notes !== prev.notes || s.inkDocs !== prev.inkDocs) && soon())
   usePageStore.subscribe((s, prev) => s.pagesByNote !== prev.pagesByNote && soon())
+  useHabitStore.subscribe(soon)
   setInterval(() => planReminders(), 30 * 60_000)
   // Background tabs throttle timers: look again when Tala comes back
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && planReminders())

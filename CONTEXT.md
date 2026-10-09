@@ -19,3 +19,8 @@
 - **Upcoming**: the next days of the Agenda, then every Due-again item.
 - **Due-again**: an Entry repeated from when it was last done (`@ haircut every ~6w`), not on fixed dates.
 - **Reminder**: an alert asked for on an Entry with `!` or `!15m`; Bituin never sends one.
+- **Account**: where money sits (Cash, GCash, BPI), named in a line by its one word (`P150 lunch gcash`).
+- **Safe to spend**: today's share of what the Accounts hold, less what is kept aside and the bills due before the next income.
+- **Habit**: something kept up on a number of days a week, ticked with `✓ name` lines; Study is the first, counted from writing time.
+- **Strength**: how steadily a Habit is kept, 0–100%; a miss dents it, nothing resets it.
+- **Day off**: `✓ gym skip`, a day that leaves a Habit's Strength alone. _Avoid_: missed day.

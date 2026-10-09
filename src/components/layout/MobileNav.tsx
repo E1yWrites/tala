@@ -12,7 +12,7 @@ import { cn } from '@/utils/cn'
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
- * Phone bottom bar on the green rail: Notes, Today (with Upcoming, Tasks and Money inside),
+ * Phone bottom bar on the green rail: Notes, Today (with Upcoming, Tasks, Money and Habits inside),
  * the gold New note, Search, and the profile menu (Settings lives under the
  * picture). Left-handed mode mirrors it.
  */
@@ -25,8 +25,8 @@ export function MobileNav(): React.ReactNode {
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
   const profile = useSettingsStore((s) => s.settings.profile)
 
-  // Today, Upcoming, Tasks and Money are the Today tab; every library view (all, starred, folders, ...) is Notes
-  const todayActive = activeView.kind === 'home' || activeView.kind === 'agenda' || activeView.kind === 'tasks' || activeView.kind === 'money'
+  // Today, Upcoming, Tasks, Money and Habits are the Today tab; every library view (all, starred, folders, ...) is Notes
+  const todayActive = activeView.kind === 'home' || activeView.kind === 'agenda' || activeView.kind === 'tasks' || activeView.kind === 'money' || activeView.kind === 'habits'
   const notesActive = !todayActive && activeView.kind !== 'settings'
 
   return (

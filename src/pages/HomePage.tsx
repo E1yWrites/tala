@@ -20,6 +20,9 @@ import { QuickCapture } from '@/components/QuickCapture'
 import { safeToSpend } from '@/entries/money'
 import { useMoneyStore } from '@/library/money'
 import { SafeCard } from './MoneyPage'
+import { EMPTY_LOG, habitLogs, habitRule, habitStatus } from '@/entries/habits'
+import { useHabitStore } from '@/library/habits'
+import { DoneButton } from './HabitsPage'
 
 /**
  * Today (the Home view): a greeting from Bituin, a line for today's journal,
@@ -63,6 +66,8 @@ export function HomePage(): React.ReactNode {
 
         <TodayAgenda />
 
+        <TodayHabits />
+
         <TodayMoney />
 
         {hasNotes && <OpenTasks />}
@@ -104,6 +109,47 @@ function TodayAgenda(): React.ReactNode {
         >
           Allow reminder alerts while Tala is open in the background
         </button>
+      )}
+    </section>
+  )
+}
+
+/** The habits still to do today, each with its Done button; opens Habits. */
+function TodayHabits(): React.ReactNode {
+  const { refs, today } = useEntries()
+  const habits = useHabitStore((s) => s.habits)
+  const setView = useUIStore((s) => s.setView)
+  const due = useMemo(() => {
+    const logs = habitLogs(refs)
+    return habits.map((h) => ({ h, s: habitStatus(h, logs.get(h.name.toLowerCase()) ?? EMPTY_LOG, today) })).filter((x) => x.s.due)
+  }, [refs, habits, today])
+  if (habits.length === 0) return null
+  return (
+    <section aria-labelledby="home-habits">
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <h2 id="home-habits" className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">
+          Habits
+        </h2>
+        <button type="button" onClick={() => setView({ kind: 'habits' })} className="text-xs font-medium text-accent hover:underline">
+          All habits
+        </button>
+      </div>
+      {due.length > 0 ? (
+        <ul className="overflow-hidden rounded-card border border-lineSoft bg-panel">
+          {due.map(({ h, s }) => (
+            <li key={h.id} className="flex items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px]">{h.name}</span>
+                <span className="block truncate text-xs text-faint">
+                  {h.days < 7 ? `${s.week} of ${h.days} this week` : habitRule(h)}
+                </span>
+              </span>
+              <DoneButton habit={h} status={s} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">All done for today.</p>
       )}
     </section>
   )

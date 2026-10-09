@@ -66,6 +66,9 @@ describe('ticks', () => {
   it('✓ ticks anything, x only a known name', () => {
     expect(parse('✓ water 3')).toEqual({ kind: 'tick', name: 'water', count: 3, day: PIN })
     expect(parse('✓ gym kahapon')).toEqual({ kind: 'tick', name: 'gym', count: 1, day: '2026-10-07' })
+    expect(parse('✓ gym skip')).toEqual({ kind: 'tick', name: 'gym', count: 1, day: PIN, skip: true })
+    expect(parse('✓ gym skip kahapon')).toEqual({ kind: 'tick', name: 'gym', count: 1, day: '2026-10-07', skip: true })
+    expect(parse('✓ skip rope')).toEqual({ kind: 'tick', name: 'skip rope', count: 1, day: PIN }) // a name, not a day off
     expect(parse('x water')).toBeNull()
     expect(parse('x = 5')).toBeNull()
     expect(parseLine('x Water 2', PIN, { ...DEFAULT_CONTEXT, ticks: ['water'] })).toEqual({

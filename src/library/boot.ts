@@ -15,6 +15,7 @@ import { requestPersistence } from './storage'
 import { interruptStale, formatDuration } from './recordings'
 import { loadStudy } from './study'
 import { loadMoney } from './money'
+import { loadHabits } from './habits'
 import './context'
 import { startInkIndexer } from './inkText'
 import { restoreIfEvicted, startMirror } from './mirror'
@@ -94,6 +95,7 @@ export async function load(): Promise<void> {
   useSettingsStore.setState({ settings })
   await loadStudy().catch((err) => console.error('[tala] could not load study days', err))
   await loadMoney().catch((err) => console.error('[tala] could not load money settings', err))
+  await loadHabits().catch((err) => console.error('[tala] could not load habits', err))
 
   // An import/restore can wipe the folder or tag the user is looking at —
   // fall back to All Notes instead of lingering on a ghost view.

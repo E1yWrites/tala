@@ -117,7 +117,7 @@ export function agenda(refs: EntryRef[], from: DayKey, days: number, today: DayK
   // Last tick per name, for due-again trackers
   const lastTick = new Map<string, DayKey>()
   for (const r of refs) {
-    if (r.entry.kind !== 'tick') continue
+    if (r.entry.kind !== 'tick' || r.entry.skip) continue
     const name = r.entry.name.toLowerCase()
     if ((lastTick.get(name) ?? '') < r.entry.day) lastTick.set(name, r.entry.day)
   }

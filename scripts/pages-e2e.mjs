@@ -2,7 +2,7 @@
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, continuous scroll (pages mount near the screen, insert between
  * pages, reopen where you left off), the Tasks view, the journal (quick capture, entry chips,
- * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
+ * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), Habits, ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -515,6 +515,42 @@ await page.keyboard.press('Enter')
 await wait(900)
 check('a transfer moves money between accounts', (await rowText('BPI Savings')).includes('₱200') && (await rowText('GCash')).includes('₱800'), `${await rowText('BPI Savings')} | ${await rowText('GCash')}`)
 check('safe to spend shows today’s share', /a day until|over today’s share/.test((await money.textContent()) ?? ''))
+
+/* ---- 6a4. Habits: Study first, Done writes ✓ lines, +1 counts up one line, Today lists what's left -- */
+await page.click('nav >> text=Habits')
+await wait(500)
+const habitsView = page.locator('section[aria-label="Habits"]')
+check('Study is habit #1', ((await habitsView.locator('section[aria-labelledby="habits-list"] li').first().textContent()) ?? '').includes('Study'))
+const addHabitNamed = async (name, target) => {
+  await habitsView.locator('button:has-text("Add a habit")').click()
+  await habitsView.locator('input[aria-label="Habit name"]').last().fill(name)
+  if (target) await habitsView.locator('input[aria-label="How many make a day done"]').last().fill(String(target))
+  await habitsView.locator('button:has-text("Add habit")').click()
+  await wait(300)
+}
+await addHabitNamed('water', 3)
+await addHabitNamed('gym')
+await habitsView.locator('button[aria-label^="water: one more"]').click()
+await wait(700)
+await habitsView.locator('button[aria-label^="water: one more"]').click()
+await wait(700)
+check('+1 counts up', ((await habitsView.locator('button[aria-label^="water: one more"]').textContent()) ?? '').includes('2/3'))
+await page.click('nav >> text=Today')
+await wait(400)
+const homeHabits = page.locator('section[aria-labelledby="home-habits"]')
+check('Today lists the habits still to do', (await homeHabits.locator('li:has-text("water")').count()) === 1 && (await homeHabits.locator('li:has-text("gym")').count()) === 1)
+await homeHabits.locator('button[aria-label="gym: done today?"]').click()
+await wait(700)
+check('Done on Today takes it off the list', (await homeHabits.locator('li:has-text("gym")').count()) === 0)
+await page.fill(capture, 'x water')
+check('"x" ticks a habit by name', ((await page.locator('form .entry-chip-tick').textContent()) ?? '').includes('water'))
+await page.keyboard.press('Enter')
+await wait(800)
+check('a typed tick completes the day', (await homeHabits.locator('text=All done for today').count()) === 1)
+await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
+await wait(900)
+const journalText = await editorText(page)
+check('the journal holds one counted line per habit', journalText.includes('✓ water 2') && journalText.includes('✓ gym') && journalText.includes('x water'), journalText.slice(-120))
 
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)

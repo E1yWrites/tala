@@ -33,17 +33,27 @@ function appendWords(ref: EntryRef, words: string): Promise<SaveResult> {
     })
     return Promise.resolve('saved')
   }
+  return editParagraph(ref, (content) => [...content, { type: 'text', text: ` ${words}` }])
+}
+
+/** Rewrites a typed line's paragraph (not a hand-drawn entry) and saves its page. */
+function editParagraph(ref: EntryRef, edit: (content: JSONContent[]) => JSONContent[]): Promise<SaveResult> {
   const page = usePageStore.getState().pagesByNote[ref.noteId]?.find((p) => p.id === ref.pageId)
-  if (!page?.content) return Promise.resolve('gone')
+  if (ref.ink || !page?.content) return Promise.resolve('gone')
   const doc = structuredClone(page.content)
   let node: JSONContent | undefined = doc
   for (const i of ref.path) node = node?.content?.[i]
   if (node?.type !== 'paragraph') return Promise.resolve('gone')
-  node.content = [...(node.content ?? []), { type: 'text', text: ` ${words}` }]
+  node.content = edit(node.content ?? [])
   const saved = savePageContent(ref.noteId, ref.pageId, doc)
   // An open editor keeps its own copy of the page text; make it reload this one
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('tala:external-sync'))
   return saved
+}
+
+/** Replaces a typed line's text ("✓ water 3" → "✓ water 4"). */
+export function replaceLine(ref: EntryRef, text: string): Promise<SaveResult> {
+  return editParagraph(ref, () => [{ type: 'text', text }])
 }
 
 /** Leaves one day out of a repeating event. */
