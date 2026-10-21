@@ -2,17 +2,18 @@ import { readDates, toDate } from './dates'
 import type { DayKey, Repeat, When } from './dates'
 
 /*
-  Pagtatala: a typed line becomes an Entry when it starts with a marker.
+  The marker grammar: what a typed line says when it starts with a marker.
 
-    [ ] essay due fri     task (the `[ ]` is already a checklist item by now)
+    [ ] essay due fri     task (a checklist item in a Note; the `[ ]` is the item)
     @ thu 2pm dentist     event          @ MWF 9-10:30 Calc 1     weekly class
     P150 lunch gcash      expense        +P500 baon cash          income
     P500 gcash>cash       transfer       ✓ water 3                habit tick
                                          ✓ gym skip               a day off, not a miss
-    bench 60x5x3 @8       lift: weight × reps × sets, RPE (journal pages only)
+    bench 60x5x3 @8       lift: weight × reps × sets, RPE (Isip Entries only)
 
-  The text stays the record: nothing here is stored, every roll-up re-reads the
-  page. `pinned` is the day the line was written; relative words count from it.
+  Tasks are read from Notes; everything else from Isip Entries. The text stays
+  the record: nothing here is stored, every roll-up re-reads it. `pinned` is the
+  day the line counts from; relative words count from it.
 */
 
 export type Entry =
@@ -74,7 +75,7 @@ function takeRemind(ws: string[]): [string[], number | undefined] {
 /**
  * "bench 60x5x3 @8", "squat 100kg x 5", "pullups x8x3" (bodyweight), "curl 25lb x12 @9",
  * "Bench Press (Barbell) 60x5" (Strong's names).
- * Unmarked, so only journal pages read it: elsewhere "photo 4x6" is just words.
+ * Unmarked, so only Isip Entries read it: in a Note "photo 4x6" is just words.
  */
 const LIFT = /^(\p{L}[\p{L}\d'’.,()\- ]*?)\s+(?:(\d+(?:\.\d+)?)\s?(kg|lbs?)?\s?)?[x×]\s?(\d+)(?:\s?[x×]\s?(\d+))?(?:\s+@\s?(\d+(?:\.5)?))?$/iu
 
@@ -90,8 +91,8 @@ function parseLift(line: string, day: DayKey): Entry | null {
   return { kind: 'lift', name: m[1]!.trim(), weight, ...(lb ? { unit: 'lb' as const } : {}), reps, sets, ...(rpe !== undefined ? { rpe } : {}), day }
 }
 
-/** A typed line (a paragraph, or a checklist item's own text when `task`). `journal`: it is on a journal page. */
-export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = current, task = false, journal = false): Entry | null {
+/** A typed line: a checklist item's own text when `task`; `isip`: an Isip Entry, where an unmarked lift counts. */
+export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = current, task = false, isip = false): Entry | null {
   const line = text.trim()
   if (task) {
     const d = readDates(line, pinned)
@@ -176,16 +177,7 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = curr
     if (!said || (tick[1]!.toLowerCase() === 'x' && !known)) return null
     return { kind: 'tick', name: known ?? said, count, day: d.when?.day ?? pinned, ...(skip ? { skip } : {}) }
   }
-  return journal ? parseLift(line, pinned) : null
-}
-
-/** `[ ] essay fri` typed as plain text (quick capture, hand-drawn entries), not as a checklist item. */
-export const TASK_LINE = /^\[([ xX])\]\s+(.*)$/
-
-/** A line as written anywhere: a `[ ] ` prefix makes it a task. */
-export function parseTyped(line: string, pinned: DayKey, ctx: EntryContext = current, journal = false): Entry | null {
-  const task = TASK_LINE.exec(line.trim())
-  return task ? parseLine(task[2]!, pinned, ctx, true) : parseLine(line, pinned, ctx, false, journal)
+  return isip ? parseLift(line, pinned) : null
 }
 
 const NOT_MONEY = new Set([
@@ -196,7 +188,7 @@ const NOT_MONEY = new Set([
 ])
 
 /**
- * On a journal page, an unmarked line that looks like an entry: the marker that
+ * An unmarked line that looks like an entry: the marker that
  * would make it one (`P`, `@ `, `✓ `), or null. "150 lunch" → "P", "dentist 2pm" → "@ ".
  */
 export function suggestMarker(text: string, pinned: DayKey, ctx: EntryContext = current): string | null {
@@ -221,7 +213,7 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const formatDay = (k: DayKey): string => dayFmt.format(toDate(k))
 
 const longDayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
-/** A journal page's heading: "Thursday, October 8". */
+/** A day as a heading: "Thursday, October 8". */
 export const formatLongDay = (k: DayKey): string => longDayFmt.format(toDate(k))
 
 export function formatTime(t: string): string {

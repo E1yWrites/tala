@@ -6,6 +6,7 @@ import type {
   BlobRecord,
   Folder,
   InkDocRecord,
+  IsipEntry,
   MetaRecord,
   Note,
   PageRecord,
@@ -31,6 +32,7 @@ export const LIBRARY_TABLES = [
   'recordings',
   'audioChunks',
   'meta',
+  'isipEntries',
 ] as const
 
 export interface Snapshot {
@@ -46,6 +48,7 @@ export interface Snapshot {
   /** Always empty in a dump: audio is saved per lecture, never inside a backup (see dump). */
   audioChunks: AudioChunkRecord[]
   meta: MetaRecord[]
+  isipEntries: IsipEntry[]
 }
 
 /**
@@ -86,6 +89,7 @@ export async function restore(data: Partial<Snapshot>, mode: 'merge' | 'replace'
     recordings: (data.recordings ?? []).map((r) => (r.status === 'recording' ? { ...r, status: 'interrupted' as const } : r)),
     audioChunks: data.audioChunks ?? [],
     meta: data.meta ?? [],
+    isipEntries: data.isipEntries ?? [],
   }
 
   await db.transaction('rw', LIBRARY_TABLES.map((t) => db.table(t)), async () => {

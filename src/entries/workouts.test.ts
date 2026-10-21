@@ -6,7 +6,7 @@ import type { Lift } from './workouts'
 
 let n = 0
 const line = (text: string, at: string): EntryRef => ({
-  noteId: 'n', pageId: at, pageNumber: 1, path: [n++], text, at, archived: false, journal: true, entry: parseLine(text, at, DEFAULT_CONTEXT, false, true)!,
+  isip: String(n++), at, entry: parseLine(text, at, DEFAULT_CONTEXT, false, true)!,
 })
 const lift = (text: string, at = '2026-10-08') => line(text, at).entry as Lift
 

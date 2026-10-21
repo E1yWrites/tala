@@ -6,10 +6,11 @@ import { toDate } from '@/entries/dates'
 import { EMPTY_LOG, habitLogs, habitStatus } from '@/entries/habits'
 import type { Habit, HabitLog } from '@/entries/habits'
 import { formatPeso, formatTime } from '@/entries/parse'
-import { scanEntries } from '@/entries/scan'
+import { useIsipStore } from '@/store/isipStore'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
 import { useHabitStore } from './habits'
+import { libraryRefs } from './isip'
 
 /*
   Reminders you set with `!` ("@ thu 2pm dentist !30m"), and a habit's
@@ -89,9 +90,8 @@ export function notify(title: string, body: string, tag: string): void {
 
 /** Sets a timer for every reminder in the next 36 hours and drops the ones whose line changed. */
 export function planReminders(now = Date.now()): void {
-  const { notes, inkDocs } = useNoteStore.getState()
   const today = dayKey(now)
-  const refs = scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs)
+  const refs = libraryRefs()
   const wanted = new Map([
     ...dueReminders(agenda(refs, today, WINDOW_DAYS, today), now),
     ...habitReminders(useHabitStore.getState().habits, habitLogs(refs), now),
@@ -116,8 +116,9 @@ export function startReminders(): void {
     clearTimeout(debounce)
     debounce = setTimeout(() => planReminders(), 1500)
   }
-  useNoteStore.subscribe((s, prev) => (s.notes !== prev.notes || s.inkDocs !== prev.inkDocs) && soon())
+  useNoteStore.subscribe((s, prev) => s.notes !== prev.notes && soon())
   usePageStore.subscribe((s, prev) => s.pagesByNote !== prev.pagesByNote && soon())
+  useIsipStore.subscribe(soon)
   useHabitStore.subscribe(soon)
   setInterval(() => planReminders(), 30 * 60_000)
   // Background tabs throttle timers: look again when Tala comes back

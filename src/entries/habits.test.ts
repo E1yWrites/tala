@@ -8,7 +8,7 @@ import type { EntryRef } from './scan'
 const TODAY = '2026-10-08' // a Thursday
 let n = 0
 const line = (text: string, at = TODAY): EntryRef => ({
-  noteId: 'n', pageId: 'p', pageNumber: 1, path: [n++], text, at, archived: false, entry: parseLine(text, at, DEFAULT_CONTEXT)!,
+  isip: String(n++), at, entry: parseLine(text, at, DEFAULT_CONTEXT)!,
 })
 const habit = (h: Partial<Habit> = {}): Habit => ({ id: 'h', name: 'gym', days: 7, target: 1, since: TODAY, ...h })
 const log = (lines: EntryRef[], name = 'gym') => habitLogs(lines).get(name)!

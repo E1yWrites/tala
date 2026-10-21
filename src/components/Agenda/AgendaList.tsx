@@ -10,7 +10,8 @@ import { cn } from '@/utils/cn'
 
 /**
  * Rows of the Agenda: a time (or a checkbox for a task, a Done for a due-again
- * item), what it is, and where it was written. Tapping opens that page.
+ * item), what it is, and for a task the note it is in. Tapping opens the task's
+ * page, or the Isip Entry on Today.
  */
 export function AgendaList({ items, canSkip = false }: { items: Occurrence[]; canSkip?: boolean }): React.ReactNode {
   return (
@@ -23,8 +24,10 @@ export function AgendaList({ items, canSkip = false }: { items: Occurrence[]; ca
 }
 
 function AgendaRow({ o, canSkip }: { o: Occurrence; canSkip: boolean }): React.ReactNode {
-  const note = useNoteStore((s) => s.notes.find((n) => n.id === o.ref.noteId))
+  const task = o.ref.task
+  const note = useNoteStore((s) => (task ? s.notes.find((n) => n.id === task.noteId) : undefined))
   const selectNote = useUIStore((s) => s.selectNote)
+  const openEntry = useUIStore((s) => s.openEntry)
   const title = o.title || (o.kind === 'task' ? 'Untitled task' : 'Untitled')
   const late = o.overdue !== undefined
   const status = late
@@ -34,20 +37,19 @@ function AgendaRow({ o, canSkip }: { o: Occurrence; canSkip: boolean }): React.R
     : o.kind === 'again'
       ? `due ${formatDay(o.day)}`
       : ''
-  // Where it was written, unless that's the journal (most lines are)
-  const source = note && !note.journal ? displayTitle(note) : ''
+  const source = note ? displayTitle(note) : ''
   const income = o.ref.entry.kind === 'event' && o.ref.entry.income
   const meta = [status, o.end ? `until ${formatTime(o.end)}` : '', o.amount ? `${income ? '+' : ''}${formatPeso(o.amount)}` : '', source].filter(Boolean)
 
   return (
     <li className="flex items-stretch border-b border-lineSoft last:border-b-0">
-      {o.kind === 'task' && !o.ref.ink ? (
+      {task ? (
         <button
           type="button"
           role="checkbox"
           aria-checked={false}
           aria-label={`Mark done: ${title}`}
-          onClick={() => void toggleTask({ ...o.ref, checked: false })}
+          onClick={() => void toggleTask(task)}
           className="grid min-h-12 w-12 shrink-0 place-items-center"
         >
           <span className="size-5 rounded-md border-[1.5px] border-line bg-panel transition-colors hover:border-ink" />
@@ -71,7 +73,7 @@ function AgendaRow({ o, canSkip }: { o: Occurrence; canSkip: boolean }): React.R
       )}
       <button
         type="button"
-        onClick={() => selectNote(o.ref.noteId, o.ref.pageId)}
+        onClick={() => (task ? selectNote(task.noteId, task.pageId) : o.ref.isip && openEntry(o.ref.isip))}
         className="min-w-0 flex-1 py-2.5 pr-3 text-left hover:bg-raise"
       >
         <span className="flex items-center gap-1.5">
@@ -89,7 +91,7 @@ function AgendaRow({ o, canSkip }: { o: Occurrence; canSkip: boolean }): React.R
       {canSkip && o.repeats && o.kind === 'event' && (
         <button
           type="button"
-          onClick={() => void skipOccurrence(o.ref, o.day)}
+          onClick={() => skipOccurrence(o.ref, o.day)}
           className="shrink-0 px-3 text-xs font-medium text-muted hover:text-ink"
           aria-label={`Skip ${title} on this day`}
         >

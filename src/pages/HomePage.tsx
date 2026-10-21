@@ -15,6 +15,7 @@ import { useEntries } from '@/components/Agenda/useAgenda'
 import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 import { StartList } from '@/components/NoteEditor/EditorPlaceholder'
 import { QuickCapture } from '@/components/QuickCapture'
+import { DayEntries } from '@/components/Isip/DayEntries'
 import { displayTitle } from '@/utils/noteFilters'
 import { catalogNumbers, formatCatalog } from '@/utils/catalog'
 import { pagesText, textPreview } from '@/utils/doc'
@@ -29,10 +30,10 @@ import { SafeCard } from './MoneyPage'
 import { DoneButton } from './HabitsPage'
 
 /**
- * Today (the Home view, the hub of the planner): a line for today's journal,
- * what the pages put on today, then the habits still to do, today's money and
- * the tasks with no date. With the whole pane, those sit in a side column
- * beside today's lines, with the notes to pick up again.
+ * Today (the Home view, the hub of Isip): the capture box, what Entries and
+ * Tasks put on today, the day's Entries, then the habits still to do, today's
+ * money and the tasks with no date. With the whole pane, those sit in a side
+ * column, with the notes to pick up again.
  */
 export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
@@ -70,11 +71,12 @@ export function HomePage(): React.ReactNode {
       <QuickCapture />
       <BituinNudge placement="card" className="" />
       <TodayAgenda />
+      <DayEntries />
     </PlannerView>
   )
 }
 
-/** What the pages put on today: classes, appointments, bills, tasks planned or due, due-again items. */
+/** What Entries and Tasks put on today: classes, appointments, bills, tasks planned or due, due-again items. */
 function TodayAgenda(): React.ReactNode {
   const { refs, today } = useEntries()
   const setView = useUIStore((s) => s.setView)
@@ -88,7 +90,7 @@ function TodayAgenda(): React.ReactNode {
         <AgendaList items={items} />
       ) : (
         <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-          Nothing planned. Write “@ 2pm dentist” or “[ ] essay fri” in any note.
+          Nothing planned. Write “@ 2pm dentist” above, or “[ ] essay fri” in a note.
         </p>
       )}
       {hasReminders && alerts === 'default' && (
@@ -137,7 +139,7 @@ function TodayHabits(): React.ReactNode {
   )
 }
 
-/** Safe to spend, once any ₱ line exists: opens Money. */
+/** Safe to spend, once any ₱ Entry exists: opens Money. */
 function TodayMoney(): React.ReactNode {
   const { refs, today } = useEntries()
   const { accounts, keep } = useMoneyStore()
@@ -160,9 +162,7 @@ function OpenTasks(): React.ReactNode {
   const setView = useUIStore((s) => s.setView)
   const open = useMemo(
     () =>
-      refs.filter(
-        (r) => r.entry.kind === 'task' && r.task && !r.task.checked && !r.archived && !r.ink && !r.entry.when && !r.entry.due,
-      ),
+      refs.flatMap((r) => (r.task && !r.task.checked && !r.task.archived && r.entry.kind === 'task' && !r.entry.when && !r.entry.due ? [r.task] : [])),
     [refs],
   )
   const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
@@ -176,13 +176,13 @@ function OpenTasks(): React.ReactNode {
               type="button"
               role="checkbox"
               aria-checked={false}
-              onClick={() => void toggleTask({ ...t, checked: false })}
+              onClick={() => void toggleTask(t)}
               aria-label={`Tick “${t.text}”`}
               className="mt-0.5 size-[18px] shrink-0 rounded-[5px] border-[1.5px] border-line transition-[border-color,transform] duration-150 hover:border-ink active:scale-[0.9]"
             />
             <button type="button" onClick={() => selectNote(t.noteId, t.pageId)} className="min-w-0 flex-1 text-left">
               <span className="block truncate text-[14px]">{t.text || 'Untitled task'}</span>
-              {!byId.get(t.noteId)?.journal && <span className="block truncate text-xs text-faint">{displayTitle(byId.get(t.noteId)!)}</span>}
+              <span className="block truncate text-xs text-faint">{displayTitle(byId.get(t.noteId)!)}</span>
             </button>
           </li>
         ))}
@@ -201,7 +201,7 @@ function RecentNotes(): React.ReactNode {
   const recent = useMemo(
     () =>
       notes
-        .filter((n) => !n.isDeleted && !n.isArchived && !n.journal)
+        .filter((n) => !n.isDeleted && !n.isArchived)
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, 4),
     [notes],

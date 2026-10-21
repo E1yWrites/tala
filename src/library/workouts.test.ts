@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '@/database/db'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { useIsipStore } from '@/store/isipStore'
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn(), message: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
 
-const { appendLine } = await import('./journal')
 const { createNote, flush, markOnDisk } = await import('./notes')
+const { addEntries, libraryRefs } = await import('./isip')
 const { chipLabel, startRest, useRestStore } = await import('./workouts')
-const { scanEntries } = await import('@/entries/scan')
 const { parseLine } = await import('@/entries/parse')
 
 const at = (d: string): number => new Date(`${d}T18:00:00`).getTime()
@@ -23,18 +23,19 @@ beforeEach(async () => {
   await db.open()
   useNoteStore.setState({ notes: [], inkDocs: {}, hydrated: false })
   usePageStore.setState({ pagesByNote: {}, hydrated: false })
+  useIsipStore.setState({ entries: [] })
   markOnDisk([])
   toast.mockClear()
 })
 afterEach(() => vi.useRealTimers())
 
 describe('workouts', () => {
-  it('reads lift lines on journal pages only, and the chip says PR or last time', async () => {
-    createNote({ title: 'Photo sizes', content: paragraph('photo 4x6') })
-    await appendLine('bench 55x5x3', at('2026-10-01')).saved
-    await appendLine('bench 57.5x5x3', at('2026-10-05')).saved
-    const lifts = scanEntries(useNoteStore.getState().notes, usePageStore.getState().pagesByNote).filter((r) => r.entry.kind === 'lift')
-    expect(lifts.map((r) => r.text)).toEqual(['bench 55x5x3', 'bench 57.5x5x3'])
+  it('reads lifts from Isip only, and the chip says PR or last time', async () => {
+    createNote({ title: 'Gym notes', content: paragraph('bench 100x5x3') })
+    addEntries('bench 55x5x3', at('2026-10-01'))
+    addEntries('bench 57.5x5x3', at('2026-10-05'))
+    const lifts = libraryRefs().filter((r) => r.entry.kind === 'lift')
+    expect(lifts.map((r) => r.entry)).toMatchObject([{ weight: 55 }, { weight: 57.5 }])
 
     const chip = (text: string) => chipLabel(parseLine(text, '2026-10-08', undefined, false, true)!)
     expect(chip('bench 60x5x3')).toBe('3×5 · 60kg · PR')

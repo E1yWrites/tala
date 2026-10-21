@@ -3,16 +3,14 @@ import { dayKey } from '@/coach/study'
 import { db } from '@/database/db'
 import { STUDY_ID } from '@/entries/habits'
 import type { Habit } from '@/entries/habits'
-import { scanEntries } from '@/entries/scan'
-import { useNoteStore } from '@/store/noteStore'
-import { usePageStore } from '@/store/pageStore'
+import { isipRefs } from '@/entries/scan'
+import { useIsipStore } from '@/store/isipStore'
 import { createId } from '@/utils/id'
-import { replaceLine } from './agenda'
-import { appendLine } from './journal'
+import { addEntries, editEntry } from './isip'
 
 /*
   The Library's habits: one `meta` row each (`habit:<id>`), so a backup carries
-  them. What was done is the ✓ lines on pages; removing a habit keeps them.
+  them. What was done is the ✓ Entries in Isip; removing a habit keeps them.
 */
 
 const PREFIX = 'habit:'
@@ -90,30 +88,18 @@ export function removeHabit(id: string): void {
   void db.meta.delete(PREFIX + id).catch((err) => console.error('[tala] could not remove a habit', err))
 }
 
-/** Today's typed ✓ line for `name` in today's journal page, if there is one. */
-function todaysTick(name: string, now: number) {
+/** "Done" (or +1) from a view: one `✓ name N` Entry per habit per day, so today's counts one more, else a new one. */
+export function tickHabit(name: string, now = Date.now()): void {
   const day = dayKey(now)
-  const { notes, inkDocs } = useNoteStore.getState()
-  const pagesByNote = usePageStore.getState().pagesByNote
-  const note = notes.find((n) => n.journal === day.slice(0, 7) && !n.isDeleted)
-  const page = note && pagesByNote[note.id]?.find((p) => p.day === day)
-  if (!note || !page) return undefined
-  return scanEntries([note], pagesByNote, inkDocs).find(
-    (r) => r.pageId === page.id && !r.ink && r.entry.kind === 'tick' && !r.entry.skip && r.entry.day === day && r.entry.name.toLowerCase() === name.toLowerCase(),
+  const today = useIsipStore.getState().entries.filter((e) => e.day === day)
+  const ref = isipRefs(today).find(
+    (r) => r.entry.kind === 'tick' && !r.entry.skip && r.entry.day === day && r.entry.name.toLowerCase() === name.toLowerCase(),
   )
+  if (ref?.entry.kind === 'tick') editEntry(ref.isip!, { text: `✓ ${name} ${ref.entry.count + 1}` }, now)
+  else addEntries(`✓ ${name}`, now)
 }
 
-/** "Done" (or +1) from a view: today's ✓ line for it counts one more, else a new line in today's journal page. */
-export function tickHabit(name: string, now = Date.now()): { noteId: string; pageId: string } {
-  const ref = todaysTick(name, now)
-  if (ref?.entry.kind === 'tick') {
-    void replaceLine(ref, `✓ ${name} ${ref.entry.count + 1}`)
-    return { noteId: ref.noteId, pageId: ref.pageId }
-  }
-  return appendLine(`✓ ${name}`, now)
-}
-
-/** A day off: "✓ gym skip" in today's journal page. */
-export function skipHabit(name: string, now = Date.now()): { noteId: string; pageId: string } {
-  return appendLine(`✓ ${name} skip`, now)
+/** A day off: a "✓ gym skip" Entry. */
+export function skipHabit(name: string, now = Date.now()): void {
+  addEntries(`✓ ${name} skip`, now)
 }

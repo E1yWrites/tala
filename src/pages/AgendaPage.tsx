@@ -11,7 +11,7 @@ import { PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 
 const STEP_DAYS = 14
 
-/** The days ahead, as the lines on your pages planned them, then every due-again item. */
+/** The days ahead, as your Entries and the Tasks in your notes planned them, then every due-again item. */
 export function AgendaPage(): React.ReactNode {
   const { refs, today } = useEntries()
   const [span, setSpan] = useState(STEP_DAYS)
@@ -29,7 +29,7 @@ export function AgendaPage(): React.ReactNode {
     <PlannerView
       label="Upcoming"
       title="Upcoming"
-      note={`The next ${span} days, from every note`}
+      note={`The next ${span} days`}
       aside={
         due.length > 0 && (
           <PlannerSection id="upcoming-again" title="Due again">
@@ -42,7 +42,7 @@ export function AgendaPage(): React.ReactNode {
       {items.length === 0 && due.length === 0 ? (
         <EmptyState
           title="Nothing coming up"
-          description={'Write a line with a date in any note: "@ fri 2pm dentist", "@ MWF 9-10:30 Calc 1", "[ ] essay due fri".'}
+          description={'Write a line with a date above ("@ fri 2pm dentist", "@ MWF 9-10:30 Calc 1"), or a dated task in a note ("[ ] essay due fri").'}
         />
       ) : (
         <>

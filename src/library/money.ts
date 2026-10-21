@@ -2,15 +2,13 @@ import { create } from 'zustand'
 import { db } from '@/database/db'
 import { balances, DEFAULT_ACCOUNTS } from '@/entries/money'
 import type { Account } from '@/entries/money'
-import { scanEntries } from '@/entries/scan'
-import { useNoteStore } from '@/store/noteStore'
-import { usePageStore } from '@/store/pageStore'
 import { createId } from '@/utils/id'
+import { libraryRefs } from './isip'
 
 /*
   The Library's money settings, in `meta` so a backup carries them: the
   accounts (and their balance adjustments), what to keep aside, and the
-  category you chose for a word. The amounts themselves are lines on pages.
+  category you chose for a word. The amounts themselves are Isip Entries.
 */
 
 const ACCOUNTS_KEY = 'money:accounts'
@@ -56,9 +54,8 @@ export const tagFor = (name: string): string => (name.trim().split(/\s+/)[0] ?? 
 
 /** "I have ₱1,250 in GCash": stores the difference from what the lines add up to, so later lines still count. */
 export function setBalance(id: string, actual: number): void {
-  const { notes, inkDocs } = useNoteStore.getState()
   const { accounts } = useMoneyStore.getState()
-  const now = balances(scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs), accounts).get(id) ?? 0
+  const now = balances(libraryRefs(), accounts).get(id) ?? 0
   setAccounts(accounts.map((a) => (a.id === id ? { ...a, adjust: a.adjust + actual - now } : a)))
 }
 

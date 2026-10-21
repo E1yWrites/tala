@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/core'
 import { usePageStore } from '@/store/pageStore'
 import type { Note, PageRecord } from '@/types/models'
-import { scanLines } from '@/entries/scan'
+import { scanTasks } from '@/entries/scan'
 import { savePageContent, type SaveResult } from './notes'
 
 /** A checklist item somewhere in the library. A Task lives in a Page's typed text. */
@@ -18,9 +18,8 @@ export interface TaskRef {
 
 /** Every task on every page of the live (not trashed, not archived) notes, in note then page order. */
 export function listTasks(notes: Note[], pagesByNote: Record<string, PageRecord[]>): TaskRef[] {
-  // ponytail: hand-drawn tasks aren't listed until ticking one can rewrite its ink entry
-  return scanLines(notes, pagesByNote).flatMap(({ noteId, pageId, pageNumber, path, text, task, archived }) =>
-    task && !archived ? [{ noteId, pageId, pageNumber, path, text, checked: task.checked }] : [],
+  return scanTasks(notes, pagesByNote).flatMap(({ noteId, pageId, pageNumber, path, text, checked, archived }) =>
+    archived ? [] : [{ noteId, pageId, pageNumber, path, text, checked }],
   )
 }
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '@/database/db'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { useIsipStore } from '@/store/isipStore'
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn(), message: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
@@ -11,13 +12,13 @@ const { flush, markOnDisk } = await import('./notes')
 const { addHabit, habitNameProblem, loadHabits, skipHabit, tickHabit, useHabitStore } = await import('./habits')
 const { habitReminders } = await import('./reminders')
 const { habitLogs } = await import('@/entries/habits')
-const { scanEntries } = await import('@/entries/scan')
+const { libraryRefs } = await import('./isip')
 const { parseLine } = await import('@/entries/parse')
 await import('./context')
 
 const at = (d: string, hm = '09:00'): number => new Date(`${d}T${hm}:00`).getTime()
-const lines = () => scanEntries(useNoteStore.getState().notes, usePageStore.getState().pagesByNote).map((r) => r.text)
-const logs = () => habitLogs(scanEntries(useNoteStore.getState().notes, usePageStore.getState().pagesByNote))
+const lines = () => useIsipStore.getState().entries.map((e) => e.text)
+const logs = () => habitLogs(libraryRefs())
 
 beforeEach(async () => {
   await flush()
@@ -26,6 +27,7 @@ beforeEach(async () => {
   await db.open()
   useNoteStore.setState({ notes: [], inkDocs: {}, hydrated: false })
   usePageStore.setState({ pagesByNote: {}, hydrated: false })
+  useIsipStore.setState({ entries: [] })
   markOnDisk([])
   await loadHabits()
 })
@@ -42,7 +44,7 @@ describe('habits', () => {
     expect(useHabitStore.getState().habits).toMatchObject([{ name: 'Water', days: 7, target: 8, since: '2026-10-08' }])
   })
 
-  it('"Done" counts one more on today’s line instead of adding lines; a day off is its own line', async () => {
+  it('"Done" counts one more on today’s ✓ Entry instead of adding Entries; a day off is its own Entry', async () => {
     addHabit({ name: 'water', days: 7, target: 8 }, at('2026-10-08'))
     tickHabit('water', at('2026-10-08'))
     await flush()

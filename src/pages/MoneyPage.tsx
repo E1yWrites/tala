@@ -14,7 +14,7 @@ import { cn } from '@/utils/cn'
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long' })
 const parseAmount = (s: string): number => Number(s.replace(/[₱,\s]/g, '').replace(/^p(hp)?/i, ''))
 
-/** Money from every ₱ line: safe to spend today, accounts, this month by category, the lines themselves. */
+/** Money from every ₱ Entry: safe to spend today, accounts, this month by category, the lines themselves. */
 export function MoneyPage(): React.ReactNode {
   const { refs, today } = useEntries()
   const { accounts, keep, categories } = useMoneyStore()
@@ -27,7 +27,7 @@ export function MoneyPage(): React.ReactNode {
     <PlannerView
       label="Money"
       title="Money"
-      note="From every ₱ line in your notes"
+      note="From every ₱ line you write in Isip"
       aside={
         <>
           <PlannerSection id="money-accounts" title="Accounts">
@@ -48,7 +48,7 @@ export function MoneyPage(): React.ReactNode {
             <PlannerSection id="money-lines" title="Lines this month">
               <ul className={CARD}>
                 {month.lines.slice(0, 50).map((r) => (
-                  <MoneyLine key={`${r.pageId}|${r.ink ?? r.path.join('.')}`} r={r} category={categoryOf(r.entry.text, categories)} />
+                  <MoneyLine key={r.isip} r={r} category={categoryOf(r.entry.text, categories)} />
                 ))}
               </ul>
             </PlannerSection>
@@ -62,7 +62,7 @@ export function MoneyPage(): React.ReactNode {
       <PlannerSection id="money-month" title={monthName.format(new Date())}>
         {month.byCategory.length === 0 ? (
           <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-            No spending yet this month. Write “P150 lunch gcash” in any note.
+            No spending yet this month. Write “P150 lunch gcash” above.
           </p>
         ) : (
           <div className={CARD}>
@@ -281,13 +281,13 @@ function KeepRow({ keep }: { keep: number }): React.ReactNode {
 }
 
 function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.ReactNode {
-  const selectNote = useUIStore((s) => s.selectNote)
+  const openEntry = useUIStore((s) => s.openEntry)
   const e = r.entry
   const word = e.text.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
   const sign = e.flow === 'in' ? '+' : e.flow === 'out' ? '−' : ''
   return (
     <li className="flex items-center border-b border-lineSoft last:border-b-0">
-      <button type="button" onClick={() => selectNote(r.noteId, r.pageId)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 pl-3.5 text-left hover:bg-raise">
+      <button type="button" onClick={() => r.isip && openEntry(r.isip)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 pl-3.5 text-left hover:bg-raise">
         <span className="w-12 shrink-0 text-xs tabular-nums text-faint">{formatDay(e.day).replace(/^\w+,\s*/, '')}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px]">{e.text || (e.flow === 'move' ? 'Transfer' : 'Untitled')}</span>

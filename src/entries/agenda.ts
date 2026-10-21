@@ -4,8 +4,8 @@ import type { DayKey, Repeat } from './dates'
 import type { EntryRef } from './scan'
 
 /*
-  The Agenda: what the lines on your pages put on each day. Pure: give it the
-  scanned entries and a window of days, get back occurrences.
+  The Agenda: what Isip Entries and the Tasks in Notes put on each day. Pure:
+  give it the scanned entries and a window of days, get back occurrences.
 
   - A task's planned day never goes overdue: if it passed, the task waits on
     Today. Only a deadline ("due fri") turns overdue.
@@ -106,7 +106,8 @@ export function dueAfter(r: Repeat, last: DayKey): DayKey {
   }
 }
 
-const keyOf = (ref: EntryRef, day: DayKey): string => `${ref.pageId}|${ref.ink ?? ref.path.join('.')}|${day}`
+const keyOf = (ref: EntryRef, day: DayKey): string =>
+  `${ref.isip ?? `${ref.task?.pageId}|${ref.task?.path.join('.')}`}|${day}`
 
 /** Occurrences on the `days` days from `from`, in day then time order (timed first, then the rest). */
 export function agenda(refs: EntryRef[], from: DayKey, days: number, today: DayKey): Occurrence[] {

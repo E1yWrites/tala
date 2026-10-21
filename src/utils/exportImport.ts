@@ -3,6 +3,7 @@ import type {
   BlobRecord,
   Folder,
   InkDocRecord,
+  IsipEntry,
   MetaRecord,
   Note,
   PageRecord,
@@ -10,7 +11,6 @@ import type {
   RecordingRecord,
   Tag,
 } from '@/types/models'
-import type { InkDoc, InkEntry } from '@/types/ink'
 import { DEFAULT_SETTINGS } from '@/data/defaults'
 import { sanitizeDoc } from '@/utils/doc'
 import JSZip from 'jszip'
@@ -38,8 +38,10 @@ export interface BackupFile {
   pdfs?: PdfRecord[]
   /** Lecture audio rows (metadata only: the audio itself is never inside a backup). */
   recordings?: RecordingRecord[]
-  /** Study days and the weekly goal. */
+  /** Study days, the weekly goal, money and habit settings. */
   meta?: MetaRecord[]
+  /** The lines typed into Isip. */
+  isipEntries?: IsipEntry[]
   /** Binary payloads: the bytes are separate zip entries named `blobs/<id>`. */
   blobs?: Array<{ id: string; type: string }>
   /** Runtime only (filled by importBackupFile from the zip entries); never serialized. */
@@ -59,6 +61,7 @@ export function backupToSnapshot(backup: BackupFile): Partial<Snapshot> {
     blobs: backup.blobData,
     recordings: backup.recordings,
     meta: backup.meta,
+    isipEntries: backup.isipEntries,
   }
 }
 
@@ -77,6 +80,7 @@ export function snapshotToBackup(s: Snapshot): BackupFile {
     pdfs: s.pdfs,
     recordings: s.recordings,
     meta: s.meta,
+    isipEntries: s.isipEntries,
     blobs: s.blobs.map((b) => ({ id: b.id, type: b.data.type })),
   }
 }
@@ -225,6 +229,9 @@ export function parseBackup(text: string): BackupFile {
     ? (b.meta as unknown[]).filter((m): m is MetaRecord => isObj(m) && isStr(m.key) && 'value' in m)
         .map((m) => ({ key: m.key, value: m.value }))
     : []
+  const isipEntries = Array.isArray(b.isipEntries)
+    ? (b.isipEntries as unknown[]).map(normalizeIsipEntry).filter((e): e is IsipEntry => e !== null)
+    : []
 
   return {
     ...(b as BackupFile),
@@ -239,6 +246,26 @@ export function parseBackup(text: string): BackupFile {
     blobs,
     recordings,
     meta,
+    isipEntries,
+  }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** One Isip Entry, or null: it needs an id, a line and the day it counts for. */
+function normalizeIsipEntry(raw: unknown): IsipEntry | null {
+  if (!isObj(raw) || !isStr(raw.id) || typeof raw.text !== 'string' || typeof raw.day !== 'string' || !DAY.test(raw.day)) return null
+  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now()
+  const decisions = isObj(raw.decisions)
+    ? Object.fromEntries(Object.entries(raw.decisions).filter((d): d is [string, 'dismissed' | 'confirmed'] => d[1] === 'dismissed' || d[1] === 'confirmed'))
+    : {}
+  return {
+    id: raw.id,
+    text: raw.text.replace(/\s*\n\s*/g, ' ').trim(),
+    day: raw.day,
+    createdAt,
+    updatedAt: typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt,
+    ...(Object.keys(decisions).length ? { decisions } : {}),
   }
 }
 
@@ -298,7 +325,6 @@ function normalizePage(raw: unknown): PageRecord | null {
   if (typeof raw.pdfPage === 'number' && raw.pdfPage >= 1) page.pdfPage = Math.floor(raw.pdfPage)
   if (isStr(raw.backgroundBlobId)) page.backgroundBlobId = raw.backgroundBlobId
   if (typeof raw.background === 'string' && raw.background.length > 0) page.background = raw.background
-  if (typeof raw.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.day)) page.day = raw.day
   return page
 }
 
@@ -361,16 +387,7 @@ function sanitizeInkDoc(rec: unknown): Note['ink'] {
   if (!isObj(rec)) return null
   const doc = rec.doc
   if (!isObj(doc) || !Array.isArray((doc as { strokes?: unknown }).strokes)) return null
-  const entries = (doc as { entries?: unknown }).entries
-  if (entries === undefined) return doc as unknown as Note['ink']
-  // Hand-drawn entries: keep only well-formed ones
-  const ok = Array.isArray(entries)
-    ? entries.filter(
-        (e): e is InkEntry =>
-          isObj(e) && isStr(e.id) && isStr(e.line) && isStr(e.at) && Array.isArray(e.strokeIds) && e.strokeIds.every(isStr),
-      )
-    : []
-  return { ...(doc as unknown as InkDoc), entries: ok }
+  return doc as unknown as Note['ink']
 }
 
 function isStorableRecord(v: unknown): v is Folder | Tag {
@@ -410,7 +427,6 @@ function normalizeNote(raw: unknown): Note | null {
     deletedAt: typeof raw.deletedAt === 'number' ? raw.deletedAt : null,
     createdAt: num(raw.createdAt, Date.now()),
     updatedAt: num(raw.updatedAt, num(raw.createdAt, Date.now())),
-    ...(typeof raw.journal === 'string' && /^\d{4}-\d{2}$/.test(raw.journal) ? { journal: raw.journal } : {}),
   }
 }
 

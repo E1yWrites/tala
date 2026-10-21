@@ -39,7 +39,7 @@ export function HabitsPage(): React.ReactNode {
           <AddHabit />
         </ul>
         <p className="mt-2 px-1 text-xs text-muted">
-          Tick from any page: “✓ water 3”, “✓ gym kahapon”, or a day off, “✓ gym skip”. Strength grows as you keep it; a missed day dents it and
+          Tick in the field above: “✓ water 3”, “✓ gym kahapon”, or a day off, “✓ gym skip”. Strength grows as you keep it; a missed day dents it and
           nothing resets it.
         </p>
       </PlannerSection>
@@ -98,7 +98,7 @@ function Strength({ status }: { status: HabitStatus }): React.ReactNode {
   )
 }
 
-/** ✓ for a yes/no habit; +1 (with the count) for a measurable one. Writes into today's journal page. */
+/** ✓ for a yes/no habit; +1 (with the count) for a measurable one. Writes today's `✓ name N` Entry. */
 export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatus }): React.ReactNode {
   // Draw the check only when it turns done here, not every time the list opens
   const wasDone = useRef(status.done)

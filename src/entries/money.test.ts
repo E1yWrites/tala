@@ -6,7 +6,7 @@ import type { EntryRef } from './scan'
 const TODAY = '2026-10-08' // a Thursday
 let n = 0
 function line(text: string, at = TODAY): EntryRef {
-  return { noteId: 'n', pageId: 'p', pageNumber: 1, path: [n++], text, at, archived: false, entry: parseLine(text, at, DEFAULT_CONTEXT)! }
+  return { isip: String(n++), at, entry: parseLine(text, at, DEFAULT_CONTEXT)! }
 }
 const accounts = DEFAULT_ACCOUNTS.map((a) => (a.id === 'gcash' ? { ...a, adjust: 1000 } : a))
 
@@ -28,7 +28,7 @@ describe('categories', () => {
   it('sums the month by category, newest line first', () => {
     const m = monthSummary([line('P150 lunch', '2026-10-01'), line('P85 jeep', '2026-10-07'), line('P60 kape', '2026-10-07'), line('+P500 baon'), line('P99 lunch', '2026-09-30')], '2026-10', {})
     expect(m).toMatchObject({ spent: 295, income: 500, byCategory: [['Food', 210], ['Transport', 85]] })
-    expect(m.lines.map((l) => l.text)[0]).toBe('+P500 baon')
+    expect(m.lines[0]!.entry).toMatchObject({ flow: 'in', amount: 500, text: 'baon' })
   })
 })
 

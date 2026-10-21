@@ -1,8 +1,8 @@
 /* End-to-end for pages, PDFs, backups, tasks and Bituin: per-page typed text,
  * PDF import and on-demand render (also offline), a .tala backup round trip that
  * carries the PDF, continuous scroll (pages mount near the screen, insert between
- * pages, reopen where you left off), the Tasks view, the journal (quick capture, entry chips,
- * suggestions), Today/Upcoming, Money (balances, set balance, accounts, transfers), Habits, Workouts, ink tools (zoom, wet ink, lasso and lasso-to-entry, page strip, PDF
+ * pages, reopen where you left off), the Tasks view, Isip (capture, a pasted list, Entries
+ * edited, moved and deleted on Today, Notes reading only their tasks), Today/Upcoming, Money (balances, set balance, accounts, transfers), Habits, Workouts, ink tools (zoom, wet ink, lasso, page strip, PDF
  * export), lecture audio (chunks on disk, stroke timestamps, replay, crash recovery)
  * and the backup nudge (snooze, Quiet mode).
  * Run: node scripts/pages-e2e.mjs  (requires `npm run preview` running on :4173)
@@ -422,45 +422,67 @@ await page.click('section[aria-label="Tasks"] button:has-text("TASK-ALPHA")')
 await wait(700)
 check('the note shows the task ticked', (await page.locator('.ProseMirror li[data-checked="true"]').count()) > 0)
 
-/* ---- 6a. Pagtatala: quick capture writes today's journal page; lines become entries -- */
-await page.click('nav >> text=Tasks')
+/* ---- 6a. Isip: the capture box saves Entries; Notes read only their tasks ---- */
+await page.click('nav >> text=Today')
 await wait(500)
-const capture = 'input[aria-label="Write a line in today’s journal page"]'
+const capture = 'input[aria-label="Write a line in Isip"]'
+const today = page.locator('section[aria-label="Today"]')
+const written = today.locator('section[aria-labelledby="home-entries"]')
+const writtenRow = (text) => written.locator(`li:has-text("${text}")`)
+/** The lines in the day's list, without their chips. */
+const writtenTexts = () => written.locator('li > button > span:first-child').allTextContents()
 await page.fill(capture, 'P150 lunch gcash')
 check('capture previews what the line becomes', ((await page.locator('form .entry-chip-money').textContent()) ?? '').includes('₱150'))
 await page.keyboard.press('Enter')
 await wait(400)
-await page.fill(capture, '[ ] JOURNAL-TASK due fri')
-await page.keyboard.press('Enter')
-await wait(600)
-check('a captured task shows in Tasks', (await page.locator('section[aria-label="Tasks"] >> text=JOURNAL-TASK').count()) > 0)
-await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
-await wait(900)
-const month = await page.evaluate(() => new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date()))
-check('the journal is this month’s note', (await page.locator(`text=${month}`).count()) > 0, month)
-check('captured lines carry their chips', (await page.locator('.ProseMirror .entry-chip-money').count()) === 1 && (await page.locator('.ProseMirror .entry-chip-task').count()) === 1)
-check('entry lines are pinned to their day', (await page.locator('.ProseMirror p[data-at]').count()) >= 2)
-await page.locator('.ProseMirror').last().click()
-await page.keyboard.press('Control+End')
-await page.keyboard.press('Enter')
-await page.keyboard.type('85 jeep')
+check('the Entry lands in the day’s list with its chip', (await writtenRow('P150 lunch gcash').locator('.entry-chip-money').count()) === 1)
+// A pasted list makes one Entry per line
+await page.locator(capture).evaluate((el, text) => {
+  const data = new DataTransfer()
+  data.setData('text/plain', text)
+  el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+}, 'P85 jeep\nP60 kape\n')
 await wait(400)
-check('an unmarked look-alike gets a suggestion on a journal page', (await page.locator('.ProseMirror .entry-chip-suggest').count()) === 1)
-await page.click('.ProseMirror .entry-chip-suggest')
+check('a pasted list saves one Entry per line', (await written.locator('li').count()) === 3 && (await page.inputValue(capture)) === '')
+// Edit in place: the text, then the day
+await written.locator('button[aria-label="Edit: P60 kape"]').click()
+await today.locator('input[aria-label="Line"]').fill('P65 kape')
+await page.keyboard.press('Enter')
 await wait(400)
-check('accepting the suggestion marks the line', (await editorText(page)).includes('P85 jeep') && (await page.locator('.ProseMirror .entry-chip-money').count()) === 2)
+check('an Entry is edited in place', (await writtenRow('P65 kape').count()) === 1 && (await writtenRow('P60 kape').count()) === 0)
+const yesterday = await page.evaluate(() => {
+  const d = new Date(Date.now() - 86_400_000)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})
+await written.locator('button[aria-label="Edit: P65 kape"]').click()
+await today.locator('input[aria-label="Day it counts for"]').fill(yesterday)
+await today.locator('button:has-text("Save")').click()
+await wait(400)
+check('moving an Entry to another day shows that day', (await page.inputValue('input[aria-label="Pick a day"]')) === yesterday && (await writtenRow('P65 kape').count()) === 1)
+await written.locator('button[aria-label="Day after"]').click()
+await wait(200)
+check('‹ › move between days', (await writtenRow('P65 kape').count()) === 0 && (await writtenRow('P150 lunch gcash').count()) === 1)
+await written.locator('button[aria-label="Edit: P85 jeep"]').click()
+await today.locator('button:has-text("Delete")').click()
+await wait(400)
+check('Delete takes the Entry away', (await writtenRow('P85 jeep').count()) === 0)
+await page.click('[data-sonner-toast][data-front="true"] button:has-text("Undo")')
+await wait(400)
+check('…and Undo brings it back', (await writtenRow('P85 jeep').count()) === 1)
+// Notes are for notes: only a checklist item is read from a page
 await newNote(page)
 await page.locator('text=Blank note').first().click()
 await wait(600)
 await page.click('.ProseMirror')
-await page.keyboard.type('150 students attended')
+await page.keyboard.type('P150 lunch')
 await page.keyboard.press('Enter')
-await page.keyboard.type('@ fri 2pm dentist')
-await wait(500)
-check('ordinary notes get no suggestions', (await page.locator('.ProseMirror .entry-chip-suggest').count()) === 0)
-check('a marked event line gets its chip anywhere', (await page.locator('.ProseMirror .entry-chip-event').count()) === 1)
+await page.keyboard.type('@ fri 2pm NOTE-DENTIST')
+await page.keyboard.press('Enter')
+await page.keyboard.type('[ ] NOTE-TASK due fri')
+await wait(600)
+check('a note’s lines get no chips; its dated task does', (await page.locator('.ProseMirror .entry-chip').count()) === 1 && (await page.locator('.ProseMirror .entry-chip-task').count()) === 1)
 
-/* ---- 6a2. Agenda: Today and Upcoming read the lines; Skip and Done write lines -- */
+/* ---- 6a2. Agenda: Today and Upcoming read Entries and Tasks; Skip and Done write Entries -- */
 await page.click('nav >> text=Today')
 await wait(400)
 for (const l of ['@ 11:59pm AGENDA-LATE !30m', '@ daily 6am AGENDA-GYM', '@ AGENDA-HAIRCUT every ~1d kahapon']) {
@@ -469,37 +491,36 @@ for (const l of ['@ 11:59pm AGENDA-LATE !30m', '@ daily 6am AGENDA-GYM', '@ AGEN
   await wait(250)
 }
 await wait(600)
-const today = page.locator('section[aria-label="Today"]')
-check('Today lists what the lines put on today', (await today.locator('text=AGENDA-LATE').count()) === 1 && (await today.locator('text=AGENDA-GYM').count()) === 1)
-check('a due-again item done yesterday, every day, is due today', ((await today.locator('li:has-text("AGENDA-HAIRCUT")').textContent()) ?? '').includes('due today'))
+check('Today lists what the lines put on today', (await today.locator('section[aria-labelledby="home-today"] >> text=AGENDA-LATE').count()) === 1 && (await today.locator('section[aria-labelledby="home-today"] >> text=AGENDA-GYM').count()) === 1)
+check('a due-again item done yesterday, every day, is due today', ((await today.locator('li:has-text("AGENDA-HAIRCUT")').first().textContent()) ?? '').includes('due today'))
 check('a reminder shows its bell', (await today.locator('li:has-text("AGENDA-LATE") [aria-label="reminder set"]').count()) === 1)
 await page.click('nav >> text=Upcoming')
 await wait(500)
 const upcoming = page.locator('section[aria-label="Upcoming"]')
 check('Upcoming repeats a daily line on every day', (await upcoming.locator('text=AGENDA-GYM').count()) === 14)
+check('Upcoming lists a note’s dated task, not its other lines', (await upcoming.locator('text=NOTE-TASK').count()) === 1 && (await upcoming.locator('text=NOTE-DENTIST').count()) === 0)
 check('a due-again item waits in its own list', (await upcoming.locator('li:has-text("AGENDA-HAIRCUT")').count()) === 1)
 await upcoming.locator('li:has-text("AGENDA-GYM") button:has-text("Skip")').nth(1).click()
 await wait(900)
-check('Skip writes "skip" into the line and drops that day', (await upcoming.locator('text=AGENDA-GYM').count()) === 13)
+check('Skip writes "skip" into the Entry and drops that day', (await upcoming.locator('text=AGENDA-GYM').count()) === 13)
 await upcoming.locator('button[aria-label="Done today: AGENDA-HAIRCUT"]').click()
 await wait(900)
 const haircut = ((await upcoming.locator('li:has-text("AGENDA-HAIRCUT")').textContent()) ?? '')
 check('Done writes a tick and pushes the next due date out', !haircut.includes('due today') && haircut.includes('due '), haircut)
-await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")').catch(() => {})
 await upcoming.locator('li:has-text("AGENDA-GYM") button:not(:has-text("Skip"))').first().click()
-await wait(900)
-check('the journal holds the skip and the tick', /AGENDA-GYM skip \w{3} \d+/.test(await editorText(page)) && (await editorText(page)).includes('✓ AGENDA-HAIRCUT'))
+await wait(700)
+check('a line opens its Entry for editing on Today', /AGENDA-GYM skip \w{3} \d+/.test(await page.inputValue('section[aria-label="Today"] input[aria-label="Line"]')))
+await today.locator('button:has-text("Cancel")').click()
+check('Done is an Entry of its own', (await writtenRow('✓ AGENDA-HAIRCUT').count()) === 1)
 
-/* ---- 6a3. Money: balances from the ₱ lines, set balance, a new account, safe to spend -- */
-await page.click('nav >> text=Today')
-await wait(400)
+/* ---- 6a3. Money: balances from the ₱ Entries, set balance, a new account, safe to spend -- */
 check('Today shows safe to spend once money lines exist', /to spend today|over today’s share/.test((await page.locator('section[aria-labelledby="home-money"]').textContent()) ?? ''))
 await page.click('nav >> text=Money')
 await wait(500)
 const money = page.locator('section[aria-label="Money"]')
 const accountRow = (name) => money.locator(`section[aria-labelledby="money-accounts"] > ul > li:has-text("${name}")`).first()
 const rowText = async (name) => (await accountRow(name).locator('button').first().textContent()) ?? ''
-check('each account adds up its lines', (await rowText('GCash')).includes('−₱150') && (await rowText('Cash')).includes('−₱85'), `${await rowText('GCash')} | ${await rowText('Cash')}`)
+check('each account adds up its Entries, not the notes', (await rowText('GCash')).includes('−₱150') && (await rowText('Cash')).includes('−₱150'), `${await rowText('GCash')} | ${await rowText('Cash')}`)
 check('spending is grouped by category', (await money.locator('section[aria-labelledby="money-month"] li:has-text("Food")').count()) === 1)
 await accountRow('GCash').locator('button').first().click()
 await money.locator('input[aria-label="What GCash has now"]').fill('1000')
@@ -515,8 +536,12 @@ await page.keyboard.press('Enter')
 await wait(900)
 check('a transfer moves money between accounts', (await rowText('BPI Savings')).includes('₱200') && (await rowText('GCash')).includes('₱800'), `${await rowText('BPI Savings')} | ${await rowText('GCash')}`)
 check('safe to spend shows today’s share', /a day until|over today’s share/.test((await money.textContent()) ?? ''))
+await money.locator('section[aria-labelledby="money-lines"] li:has-text("jeep") button').first().click()
+await wait(600)
+check('a money line opens its Entry', (await page.inputValue('section[aria-label="Today"] input[aria-label="Line"]')) === 'P85 jeep')
+await today.locator('button:has-text("Cancel")').click()
 
-/* ---- 6a4. Habits: Study first, Done writes ✓ lines, +1 counts up one line, Today lists what's left -- */
+/* ---- 6a4. Habits: Study first, Done writes ✓ Entries, +1 counts up one Entry, Today lists what's left -- */
 await page.click('nav >> text=Habits')
 await wait(500)
 const habitsView = page.locator('section[aria-label="Habits"]')
@@ -547,12 +572,10 @@ check('"x" ticks a habit by name', ((await page.locator('form .entry-chip-tick')
 await page.keyboard.press('Enter')
 await wait(800)
 check('a typed tick completes the day', (await homeHabits.locator('text=All done for today').count()) === 1)
-await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
-await wait(900)
-const journalText = await editorText(page)
-check('the journal holds one counted line per habit', journalText.includes('✓ water 2') && journalText.includes('✓ gym') && journalText.includes('x water'), journalText.slice(-120))
+const habitLines = (await writtenTexts()).filter((t) => /water|gym$/.test(t))
+check('one counted Entry per habit a day', habitLines.join(' | ') === '✓ water 2 | ✓ gym | x water', habitLines.join(' | '))
 
-/* ---- 6a5. Workouts: lift lines on journal pages, best e1RM, rest timer, Strong CSV -- */
+/* ---- 6a5. Workouts: lifts from Isip, best e1RM, rest timer, Strong CSV -- */
 await page.click('nav >> text=Workouts')
 await wait(500)
 const workouts = page.locator('section[aria-label="Workouts"]')
@@ -574,9 +597,11 @@ await wait(1200)
 check('the rest timer counts down', /^1:2\d$/.test(((await workouts.locator('[role="timer"]').textContent()) ?? '').trim()))
 await workouts.locator('button:has-text("Stop")').click()
 check('Stop ends it', (await workouts.locator('[role="timer"]').count()) === 0)
-await page.click('[data-sonner-toast][data-front="true"] button:has-text("Open")')
-await wait(900)
-check('the journal line carries its lift chip', (await page.locator('.ProseMirror .entry-chip-lift').count()) === 1)
+await workouts.locator('li:has-text("bench") button').first().click()
+await wait(600)
+check('an exercise opens its last Entry', (await page.inputValue('section[aria-label="Today"] input[aria-label="Line"]')) === 'bench 60x5x3 @8')
+await today.locator('button:has-text("Cancel")').click()
+check('the Entry carries its lift chip', (await writtenRow('bench 60x5x3').locator('.entry-chip-lift').count()) === 1)
 
 /* ---- 6b. Ink tools: zoom, wet ink, lasso, undo across pages, strip, PDF export -- */
 await newNote(page)
@@ -709,19 +734,6 @@ check('Duplicate adds a copy', (await countStrokes()) === before + 1)
 await page.click('button[aria-label="Undo handwriting"]')
 await wait(900)
 check('Undo removes the copy', (await countStrokes()) === before)
-
-// Lasso → Turn into: the handwriting becomes an expense without being read
-await page.mouse.move(ax - 20, ay - 25)
-await page.mouse.down()
-for (const [x, y] of [[ax + 100, ay - 25], [ax + 100, ay + 65], [ax - 20, ay + 65], [ax - 20, ay - 15]]) await page.mouse.move(x, y, { steps: 4 })
-await page.mouse.up()
-await wait(300)
-await page.click('button[aria-label="Turn selected handwriting into an entry"]')
-await page.fill('input[aria-label="What it says"]', '85 jeep')
-await page.click('button:has-text("Save")')
-await wait(900)
-check('a lassoed line becomes an entry, labelled beside it', ((await page.locator('svg.ink-svg text.ink-entry').first().textContent()) ?? '').includes('₱85'))
-check('…and is stored on the ink doc', (await inkRows()).some((r) => r.doc.entries?.[0]?.line === 'P85 jeep'))
 
 // Undo covers the whole note: a stroke on page 2 is undone from page 1
 await page.click('button:has-text("Add page")')

@@ -15,19 +15,19 @@ import { cn } from '@/utils/cn'
 
 const REST_CHOICES = [90, 120, 180]
 
-/** Every exercise from the lift lines on journal pages: last time, best, a rest timer, and a Strong export. */
+/** Every exercise from the lifts in Isip: last time, best, a rest timer, and a Strong export. */
 export function WorkoutsPage(): React.ReactNode {
   const { refs, today } = useEntries()
   const list = useMemo(() => exercises(refs), [refs])
 
   return (
-    <PlannerView label="Workouts" title="Workouts" note="From the lift lines on your journal pages">
+    <PlannerView label="Workouts" title="Workouts" note="From the lifts you write in Isip">
       <QuickCapture />
       <RestTimer />
       <PlannerSection id="workouts-list" title="Exercises">
         {list.length === 0 ? (
           <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-            No lifts yet. On today’s page, or in the field above, write “bench 60x5x3 @8”: weight × reps × sets, and RPE if you like.
+            No lifts yet. In the field above, write “bench 60x5x3 @8”: weight × reps × sets, and RPE if you like.
           </p>
         ) : (
           <>
@@ -52,13 +52,13 @@ export function WorkoutsPage(): React.ReactNode {
 }
 
 function ExerciseRow({ e }: { e: Exercise }): React.ReactNode {
-  const selectNote = useUIStore((s) => s.selectNote)
+  const openEntry = useUIStore((s) => s.openEntry)
   const best = e.best.weight ? `${Math.round(e1rm(e.best) * 10) / 10}${e.best.unit ?? 'kg'}` : `${e.best.reps} reps`
   return (
     <li className="border-b border-lineSoft last:border-b-0">
       <button
         type="button"
-        onClick={() => selectNote(e.last.noteId, e.last.pageId)}
+        onClick={() => e.last.isip && openEntry(e.last.isip)}
         className="flex min-h-14 w-full items-center gap-3 px-3.5 py-2 text-left hover:bg-raise"
       >
         <span className="min-w-0 flex-1">

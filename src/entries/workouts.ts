@@ -4,7 +4,7 @@ import type { Entry } from './parse'
 import type { EntryRef } from './scan'
 
 /*
-  Workouts, read from the lift lines on journal pages ("bench 60x5x3 @8").
+  Workouts, read from the lifts in Isip Entries ("bench 60x5x3 @8"). A Workout is one day's lifts.
   Pure. No programs: what you lifted, what you lifted last time, and your best.
 */
 

@@ -29,6 +29,7 @@ import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
 import { shortcut } from '@/utils/keys'
 import { captureLine, previewLine } from '@/components/QuickCapture'
+import { ISIP } from '@/isip/copy'
 
 interface CommandEntry {
   id: string
@@ -135,12 +136,12 @@ export function CommandPalette(): React.ReactNode {
       .map((x) => x.c)
     const line = query.trim()
     if (!line) return matches
-    // Anything typed can be written down; it leads only when it reads as an entry,
+    // Anything typed can be saved as an Isip Entry; it leads only when it reads as one,
     // so "settings" + Enter still opens Settings
     const preview = previewLine(line)
     const log: CommandEntry = {
       id: 'log',
-      label: `Write in today’s page: “${line}”`,
+      label: ISIP.capture.palette(line),
       hint: preview?.label,
       icon: PenLine,
       run: () => {

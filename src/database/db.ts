@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { AppSettings, Folder, Note, PageRecord, PdfRecord, Tag } from '@/types/models'
-import type { AudioChunkRecord, BlobRecord, InkDocRecord, MetaRecord, RecordingRecord } from '@/types/models'
+import type { AudioChunkRecord, BlobRecord, InkDocRecord, IsipEntry, MetaRecord, RecordingRecord } from '@/types/models'
 import { upgradePages } from '@/library/migrate'
 
 /* ---------------------------------------------------------------------------
@@ -12,7 +12,8 @@ import { upgradePages } from '@/library/migrate'
    v3 adds nested folders (parentId), pages and pdfs.
    v4 makes a Page own its typed text (copied, never moved, from Note.content),
    and adds `blobs` for binary data so boot never loads it.
-   v5 adds lecture audio (`recordings` rows + `audioChunks`) and `meta`. Additive only: there
+   v5 adds lecture audio (`recordings` rows + `audioChunks`) and `meta`.
+   v6 adds `isipEntries`, the lines typed into Isip. Additive only: there
    is no downgrade path, which is why boot keeps a safety copy first.
 --------------------------------------------------------------------------- */
 
@@ -28,6 +29,7 @@ class TalaDatabase extends Dexie {
   recordings!: Table<RecordingRecord, string>
   audioChunks!: Table<AudioChunkRecord, [string, number]>
   meta!: Table<MetaRecord, string>
+  isipEntries!: Table<IsipEntry, string>
 
   constructor() {
     super('tala')
@@ -139,6 +141,20 @@ class TalaDatabase extends Dexie {
       recordings: 'id, noteId',
       audioChunks: '[recordingId+seq], recordingId',
       meta: 'key',
+    })
+    this.version(6).stores({
+      notes: 'id, folderId, updatedAt, isDeleted',
+      folders: 'id, name, parentId',
+      tags: 'id, name',
+      settings: 'key',
+      inkDocs: 'noteId',
+      pages: 'id, noteId, [noteId+index]',
+      pdfs: 'noteId',
+      blobs: 'id',
+      recordings: 'id, noteId',
+      audioChunks: '[recordingId+seq], recordingId',
+      meta: 'key',
+      isipEntries: 'id, day, createdAt',
     })
   }
 }

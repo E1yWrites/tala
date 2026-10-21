@@ -6,6 +6,8 @@ interface UIState {
   selectedNoteId: string | null
   /** Page to show when the next note opens (set by Tasks); NoteEditor consumes it. */
   pendingPageId: string | null
+  /** Isip Entry to open for editing on Today (set by Money, Workouts, the Agenda); Today consumes it. */
+  pendingEntryId: string | null
   /** Mobile/tablet slide-in sidebar */
   sidebarDrawerOpen: boolean
   /** Distraction-free mode: hides sidebar + list to focus on the editor */
@@ -30,6 +32,9 @@ interface UIState {
   setView: (view: ViewRef) => void
   selectNote: (id: string | null, pageId?: string) => void
   clearPendingPage: () => void
+  /** Today, on the Entry's day, with that Entry open for editing. */
+  openEntry: (id: string) => void
+  clearPendingEntry: () => void
   setSidebarDrawer: (open: boolean) => void
   toggleFocusMode: () => void
   openModal: (intent: ModalIntent) => void
@@ -56,6 +61,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   activeView: { kind: 'home' },
   selectedNoteId: null,
   pendingPageId: null,
+  pendingEntryId: null,
   sidebarDrawerOpen: false,
   focusMode: false,
   modalStack: [],
@@ -76,6 +82,15 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   clearPendingPage() {
     set({ pendingPageId: null })
+  },
+
+  openEntry(id) {
+    get().setView({ kind: 'home' })
+    set({ pendingEntryId: id })
+  },
+
+  clearPendingEntry() {
+    set({ pendingEntryId: null })
   },
 
   setSidebarDrawer(open) {

@@ -178,7 +178,7 @@ export function Sidebar({
       </button>
 
       <div className="-mx-1 mt-2 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
-        <SectionHeader label="Planner" className="mt-2" />
+        <SectionHeader label="Isip" className="mt-2" />
         <ul className="mt-1 flex flex-col gap-0.5">{navList(plannerItems)}</ul>
         <SectionHeader label="Notebook" />
         <ul className="mt-1 flex flex-col gap-0.5">

@@ -8,7 +8,6 @@ import { displayTitle } from '@/utils/noteFilters'
 import { cn } from '@/utils/cn'
 import { EmptyState } from '@/components/UI/EmptyState'
 import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
-import { QuickCapture } from '@/components/QuickCapture'
 
 /** Every checklist item in the Library, grouped by note. Tick here or open the page it lives on. */
 export function TasksPage(): React.ReactNode {
@@ -36,7 +35,6 @@ export function TasksPage(): React.ReactNode {
       title="Tasks"
       note={tasks.length === 0 ? 'Checklists from all your notes' : `${open.length} open · ${done.length} done`}
     >
-      <QuickCapture />
       {tasks.length === 0 ? (
         <EmptyState
           icon={CheckSquare}

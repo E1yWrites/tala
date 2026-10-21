@@ -3,13 +3,11 @@ import type { JSONContent } from '@tiptap/core'
 import { db } from '@/database/db'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { useIsipStore } from '@/store/isipStore'
 import type { InkDoc } from '@/types/ink'
 import type { InkDocRecord, Note, PageRecord, PdfRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
 import { createId } from '@/utils/id'
-import { moneyRefs } from '@/entries/money'
-import { formatPeso } from '@/entries/parse'
-import { scanEntries } from '@/entries/scan'
 import { PAGE_SIZES } from './pageSize'
 import { abortRecordingFor } from './recorder'
 
@@ -35,9 +33,6 @@ export interface CreateNoteInput {
   content?: JSONContent | null
   folderId?: string | null
   tagIds?: string[]
-  /** A journal note for this month (`YYYY-MM`); its first page logs `day`. */
-  journal?: string
-  day?: string
 }
 
 /** `scratch`: kept in memory only. `gone`: the note or page no longer exists. */
@@ -95,7 +90,8 @@ const isScratch = (noteId: string): boolean => {
 
 let tail: Promise<unknown> = Promise.resolve()
 
-function enqueue(job: () => Promise<void>, what: string, undo?: () => void): Promise<boolean> {
+/** Runs `job` after every earlier write; a failure runs `undo` and toasts. The library's one queue (library/isip.ts uses it too). */
+export function enqueue(job: () => Promise<void>, what: string, undo?: () => void): Promise<boolean> {
   const run = tail.then(job).then(
     () => true,
     (err) => {
@@ -222,7 +218,6 @@ function newNote(input: CreateNoteInput): Note {
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
-    ...(input.journal ? { journal: input.journal } : {}),
   }
 }
 
@@ -245,8 +240,7 @@ function removeNoteFromStores(ids: string[]): void {
 /** New note with its first page. Stays in memory until it earns content (templates and titles save at once). */
 export function createNote(input: CreateNoteInput = {}): Note {
   const note = newNote(input)
-  const page = newPage(note.id, note.id, 0, input.content ?? null)
-  addNoteToStores(note, [input.day ? { ...page, day: input.day } : page])
+  addNoteToStores(note, [newPage(note.id, note.id, 0, input.content ?? null)])
   void commit(note.id, 'save note', async () => {}, () => removeNoteFromStores([note.id]))
   return note
 }
@@ -315,20 +309,7 @@ function change(id: string, patch: Partial<Note>): Promise<SaveResult> {
 
 export function trashNotes(ids: string[]): void {
   const now = Date.now()
-  const held = moneyIn(ids)
   for (const id of ids) void change(id, { isDeleted: true, deletedAt: now })
-  // The page is the record: money written in a trashed note stops counting, so say so
-  if (held > 0) {
-    toast.message(`${ids.length === 1 ? 'That note' : 'Those notes'} held ${formatPeso(held)} in money lines. They no longer count.`, {
-      action: { label: 'Undo', onClick: () => ids.forEach(restoreNote) },
-    })
-  }
-}
-
-/** Sum of the ₱ lines (spent, received or moved) written in these notes. */
-function moneyIn(ids: string[]): number {
-  const notes = useNoteStore.getState().notes.filter((n) => ids.includes(n.id))
-  return moneyRefs(scanEntries(notes, usePageStore.getState().pagesByNote, inkDocs())).reduce((n, r) => n + r.entry.amount, 0)
 }
 
 export function restoreNote(id: string): void {
@@ -351,7 +332,6 @@ export function duplicateNote(id: string): Note | undefined {
     createdAt: now,
     updatedAt: now,
   }
-  delete copy.journal // a month has one journal; the copy is an ordinary note
   // The legacy page (id === note id) keeps that rule for the copy; the rest get fresh ids.
   const idMap = new Map(getPages(id).map((p) => [p.id, p.id === id ? copy.id : createId()]))
   const pages = getPages(id).map((p) => ({ ...structuredClone(p), id: idMap.get(p.id)!, noteId: copy.id }))
@@ -423,18 +403,21 @@ export async function emptyTrash(): Promise<void> {
   if (ids.length > 0) await deleteForever(ids)
 }
 
-/** Erases every note, page, ink doc, blob and recording. Folders, tags and settings stay. */
+/** Erases every note, page, ink doc, blob, recording and Isip Entry. Folders, tags, settings and `meta` stay. */
 export async function clearAll(): Promise<void> {
   await flush()
   const notes = useNoteStore.getState().notes
   const ink = inkDocs()
   const pages = usePageStore.getState().pagesByNote
+  const { entries } = useIsipStore.getState()
   useNoteStore.setState({ notes: [], inkDocs: {} })
   usePageStore.setState({ pagesByNote: {} })
+  useIsipStore.setState({ entries: [] })
+  const tables = [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks, db.isipEntries]
   await enqueue(
     async () => {
-      await db.transaction('rw', [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks], async () => {
-        await Promise.all([db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks].map((t) => t.clear()))
+      await db.transaction('rw', tables, async () => {
+        await Promise.all(tables.map((t) => t.clear()))
       })
       onDisk = new Set()
     },
@@ -442,6 +425,7 @@ export async function clearAll(): Promise<void> {
     () => {
       useNoteStore.setState({ notes, inkDocs: ink })
       usePageStore.setState({ pagesByNote: pages })
+      useIsipStore.setState({ entries })
     },
   )
 }
@@ -517,8 +501,8 @@ function commitPages(
   )
 }
 
-/** A new page copies the page above it (size and template); under a PDF page it is a blank A4. `day` makes it a journal day. */
-export function addPage(noteId: string, template?: PageRecord['template'], atIndex?: number, day?: string): PageRecord {
+/** A new page copies the page above it (size and template); under a PDF page it is a blank A4. */
+export function addPage(noteId: string, template?: PageRecord['template'], atIndex?: number): PageRecord {
   const prev = getPages(noteId)
   const index = Math.min(atIndex ?? prev.length, prev.length)
   const sibling = prev[Math.max(0, index - 1)]
@@ -527,7 +511,6 @@ export function addPage(noteId: string, template?: PageRecord['template'], atInd
     ...newPage(noteId, createId(), index),
     template: template ?? (sibling && !underPdf ? sibling.template : 'blank'),
     size: sibling?.size?.kind !== 'pdf' && sibling?.size ? sibling.size : PAGE_SIZES.a4,
-    ...(day ? { day } : {}),
   }
   const next = [...prev]
   next.splice(index, 0, page)

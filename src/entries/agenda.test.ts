@@ -5,13 +5,16 @@ import type { EntryRef } from './scan'
 
 const TODAY = '2026-10-08' // a Thursday
 
-/** A line as the scanner would hand it over: written on `at`. */
-function line(text: string, at = TODAY, task?: { checked: boolean }): EntryRef {
-  const body = task ? text.replace(/^\[[ xX]\]\s+/, '') : text
-  const entry = parseLine(body, at, DEFAULT_CONTEXT, !!task)!
-  return { noteId: 'n', pageId: 'p', pageNumber: 1, path: [Math.random()], text: body, at, archived: false, task, entry }
+let n = 0
+/** An Isip Entry as the scanner would hand it over, counting for `at`. */
+function line(text: string, at = TODAY): EntryRef {
+  return { isip: String(n++), at, entry: parseLine(text, at, DEFAULT_CONTEXT, false, true)! }
 }
-const task = (text: string, at = TODAY, checked = false) => line(text, at, { checked })
+/** A checklist item in a Note, written on `at`. */
+function task(text: string, at = TODAY, checked = false): EntryRef {
+  const t = { noteId: 'n', pageId: 'p', pageNumber: 1, path: [n++], text, at, checked, archived: false }
+  return { at, task: t, entry: parseLine(text, at, DEFAULT_CONTEXT, true)! }
+}
 const days = (refs: EntryRef[], n = 7, from = TODAY) => agenda(refs, from, n, TODAY).map((o) => `${o.day} ${o.time ?? ''} ${o.title}`.replace(/\s+/g, ' ').trim())
 
 describe('tasks', () => {

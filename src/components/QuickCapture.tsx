@@ -2,29 +2,31 @@ import { useState } from 'react'
 import { PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
-import { parseTyped } from '@/entries/parse'
+import { parseLine } from '@/entries/parse'
+import { ISIP } from '@/isip/copy'
+import { addEntries, deleteEntries } from '@/library/isip'
 import { chipLabel } from '@/library/workouts'
-import { appendLine } from '@/library/journal'
-import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/utils/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
-/** What a captured line will become, for the chip beside the field. `journal`: it is going into today's journal page. */
-export function previewLine(text: string, journal = true): { kind: string; label: string } | null {
-  const entry = text.trim() ? parseTyped(text, dayKey(Date.now()), undefined, journal) : null
-  const label = entry ? chipLabel(entry) || 'Task' : ''
+/** What a line will read as, for the chip beside the field. */
+export function previewLine(text: string): { kind: string; label: string } | null {
+  const line = text.trim()
+  const entry = line ? parseLine(line, dayKey(Date.now()), undefined, false, true) : null
+  const label = entry ? chipLabel(entry) : ''
   return entry && label ? { kind: entry.kind, label } : null
 }
 
-/** Writes a line into today's journal page and offers to open it. */
+/** Saves each line of `text` as an Isip Entry, with an Undo. */
 export function captureLine(text: string): void {
-  const { noteId, pageId } = appendLine(text)
-  toast.success('Written in today’s page', {
-    action: { label: 'Open', onClick: () => useUIStore.getState().selectNote(noteId, pageId) },
+  const added = addEntries(text)
+  if (added.length === 0) return
+  toast.success(ISIP.capture.saved(added.length), {
+    action: { label: ISIP.undo, onClick: () => deleteEntries(added.map((e) => e.id)) },
   })
 }
 
-/** One line into today's journal: "P150 lunch gcash", "@ 2pm dentist", "[ ] essay due fri", or just words. */
+/** The one Isip box: "P150 lunch gcash", "@ 2pm dentist", "bench 60x5x3", or just words. Enter saves; a pasted list saves a line each. */
 export function QuickCapture({ className }: { className?: string }): React.ReactNode {
   const [text, setText] = useState('')
   const preview = previewLine(text)
@@ -47,8 +49,17 @@ export function QuickCapture({ className }: { className?: string }): React.React
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={narrow ? 'Write it down…  P150 lunch · @ 2pm' : 'Write it down…  P150 lunch · @ 2pm dentist · [ ] essay fri'}
-        aria-label="Write a line in today’s journal page"
+        onPaste={(e) => {
+          // A text field would join the lines; keep them apart
+          const pasted = e.clipboardData.getData('text')
+          if (!/\n/.test(pasted.trim())) return
+          e.preventDefault()
+          const el = e.currentTarget
+          captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length))
+          setText('')
+        }}
+        placeholder={narrow ? ISIP.capture.placeholderShort : ISIP.capture.placeholder}
+        aria-label={ISIP.capture.label}
         enterKeyHint="done"
         autoComplete="off"
         className="h-11 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"

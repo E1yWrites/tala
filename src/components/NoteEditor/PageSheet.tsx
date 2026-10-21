@@ -15,7 +15,6 @@ import type { InkDoc, InkStroke } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { processImageFile } from '@/utils/image'
 import { dayKey } from '@/coach/study'
-import { formatLongDay } from '@/entries/parse'
 import { EntryLines } from './entryLines'
 import { EditorToolbar } from './EditorToolbar'
 import { ReadingView } from './ReadingView'
@@ -162,11 +161,10 @@ function TypedPage({
         TaskItem.configure({ nested: true }),
         ImageExtension,
         TaskSyntaxInput,
-        EntryLines.configure({ day: page.day ?? null, fallback: page.day ?? dayKey(page.createdAt) }),
+        EntryLines.configure({ fallback: dayKey(page.createdAt) }),
         Placeholder.configure({
-          placeholder: page.day
-            ? 'Write your day…   "P150 lunch gcash" · "@ 2pm dentist" · "[ ] essay due fri"'
-            : 'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',
+          placeholder:
+            'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',
         }),
       ],
       content: page.content ?? '',
@@ -214,7 +212,7 @@ function TypedPage({
           head(() => editor?.commands.focus('start'))
         ) : (
           <p aria-hidden="true" className="pt-2 text-xs font-medium tabular-nums text-faint">
-            {page.day ? formatLongDay(page.day) : `Page ${index + 1}`}
+            Page {index + 1}
           </p>
         )}
       </div>

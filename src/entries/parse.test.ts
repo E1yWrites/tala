@@ -86,7 +86,7 @@ describe('prose stays prose', () => {
   })
 })
 
-describe('suggestMarker (journal pages)', () => {
+describe('suggestMarker', () => {
   it.each([
     ['150 lunch', 'P'],
     ['1,299 globe bill', 'P'],
@@ -130,7 +130,7 @@ describe('reminders', () => {
   })
 })
 
-describe('lifts (journal pages only)', () => {
+describe('lifts (Isip Entries only)', () => {
   const lift = (s: string) => parseLine(s, PIN, DEFAULT_CONTEXT, false, true)
   it.each([
     ['bench 60x5x3 @8', { name: 'bench', weight: 60, reps: 5, sets: 3, rpe: 8 }],

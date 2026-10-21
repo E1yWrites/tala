@@ -23,8 +23,6 @@ export interface Note {
   deletedAt: number | null
   createdAt: number
   updatedAt: number
-  /** A journal note: the month it logs, `YYYY-MM`. Its pages are that month's days. */
-  journal?: string
 }
 
 /** Handwriting stored out-of-line (v2+), keyed by its owning note. */
@@ -63,8 +61,6 @@ export interface PageRecord {
   backgroundBlobId?: string
   /** Pre-v4 data-URL background; the v4 upgrade moves it into `blobs`. */
   background?: string | null
-  /** A journal page: the day it logs, `YYYY-MM-DD`. Entries on it count from this day. */
-  day?: string
   createdAt: number
   updatedAt: number
 }
@@ -101,6 +97,19 @@ export interface AudioChunkRecord {
 export interface MetaRecord {
   key: string
   value: unknown
+}
+
+/** One line typed into Isip. The text is the record: what it says is re-read from it, never stored. */
+export interface IsipEntry {
+  id: string
+  text: string
+  /** The day it counts for, `YYYY-MM-DD`: the capture day unless changed by hand. */
+  day: string
+  /** Epoch ms; relative words count from it. */
+  createdAt: number
+  updatedAt: number
+  /** The owner's say on a Reading, keyed by the Reading's source text, so an edit elsewhere in the line keeps it. */
+  decisions?: Record<string, 'dismissed' | 'confirmed'>
 }
 
 /** The original PDF a note was imported from; the bytes live in `blobs`. */

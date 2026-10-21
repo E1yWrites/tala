@@ -138,7 +138,7 @@ function PlannerTabs(): ReactNode {
   }, [active])
 
   return (
-    <nav aria-label="Planner" className="px-3 pb-2 md:px-5 lg:hidden">
+    <nav aria-label="Isip" className="px-3 pb-2 md:px-5 lg:hidden">
       <div ref={strip} onScroll={measure} data-fade={fade} className="planner-tabs planner-frame no-scrollbar flex gap-1 overflow-x-auto">
         {TABS.map((t) => {
           const on = active === t.kind
