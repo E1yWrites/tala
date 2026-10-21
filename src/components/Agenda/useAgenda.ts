@@ -15,9 +15,11 @@ export function useEntries(): { refs: EntryRef[]; today: string } {
   const notes = useNoteStore((s) => s.notes)
   const pagesByNote = usePageStore((s) => s.pagesByNote)
   const entries = useIsipStore((s) => s.entries)
-  // Account words and habit names decide what some lines are, so re-read when they change
+  // Account words, habit names and corrections decide what some lines are, so re-read when they change
   const accounts = useMoneyStore((s) => s.accounts)
+  const categories = useMoneyStore((s) => s.categories)
   const habits = useHabitStore((s) => s.habits)
-  const refs = useMemo(() => libraryRefs(), [notes, pagesByNote, entries, accounts, habits])
+  const aliases = useIsipStore((s) => s.aliases)
+  const refs = useMemo(() => libraryRefs(), [notes, pagesByNote, entries, accounts, categories, habits, aliases])
   return { refs, today: dayKey(Date.now()) }
 }

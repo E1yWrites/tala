@@ -149,7 +149,7 @@ export function CommandPalette(): React.ReactNode {
         captureLine(line)
       },
     }
-    return preview ? [log, ...matches] : [...matches, log]
+    return preview && !preview.suggested ? [log, ...matches] : [...matches, log]
   }, [commands, query, closeAllModals])
 
   useEffect(() => setActiveIdx(0), [query])

@@ -11,7 +11,7 @@ vi.mock('sonner', () => ({ toast }))
 const { createNote, flush, markOnDisk } = await import('./notes')
 const { addEntries, libraryRefs } = await import('./isip')
 const { chipLabel, startRest, useRestStore } = await import('./workouts')
-const { parseLine } = await import('@/entries/parse')
+const { read } = await import('@/isip/read')
 
 const at = (d: string): number => new Date(`${d}T18:00:00`).getTime()
 const paragraph = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
@@ -37,7 +37,8 @@ describe('workouts', () => {
     const lifts = libraryRefs().filter((r) => r.entry.kind === 'lift')
     expect(lifts.map((r) => r.entry)).toMatchObject([{ weight: 55 }, { weight: 57.5 }])
 
-    const chip = (text: string) => chipLabel(parseLine(text, '2026-10-08', undefined, false, true)!)
+    // Read as Isip reads it: "bench" is Bench press, the name the earlier lines carry too
+    const chip = (text: string) => chipLabel(read({ text, day: '2026-10-08', createdAt: at('2026-10-08') })[0]!.entry)
     expect(chip('bench 60x5x3')).toBe('3×5 · 60kg · PR')
     expect(chip('bench 50x5x3')).toMatch(/^3×5 · 50kg · last .*5: 3×5 57.5kg$/)
   })

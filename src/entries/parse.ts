@@ -1,3 +1,4 @@
+import { categoryLabel } from './categories'
 import { readDates, toDate } from './dates'
 import type { DayKey, Repeat, When } from './dates'
 
@@ -19,9 +20,37 @@ import type { DayKey, Repeat, When } from './dates'
 export type Entry =
   | { kind: 'task'; text: string; when?: When; due?: When; remind?: number }
   | { kind: 'event'; text: string; when?: When; repeat?: Repeat; amount?: number; income?: boolean; remind?: number }
-  | { kind: 'money'; flow: 'out' | 'in' | 'move'; amount: number; account?: string; to?: string; text: string; day: DayKey }
+  | {
+      kind: 'money'
+      flow: 'out' | 'in' | 'move'
+      amount: number
+      account?: string
+      to?: string
+      text: string
+      day: DayKey
+      /** Set by the Isip reader (isip/read.ts): a category or Food sub-category ("Eating out"), meal, place, grocery Items. */
+      category?: string
+      meal?: Meal
+      merchant?: string
+      items?: Item[]
+      /** A grocery total minus what its Items add up to, when they differ. */
+      gap?: number
+    }
   | { kind: 'tick'; name: string; count: number; day: DayKey; skip?: true }
   | { kind: 'lift'; name: string; weight: number; unit?: 'lb'; reps: number; sets: number; rpe?: number; day: DayKey }
+
+export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'merienda'
+/** One priced thing in a grocery Reading ("eggs 98"). */
+export interface Item {
+  name: string
+  amount: number
+}
+
+/** The owner's corrections, by the word Isip saw: exercise ("incline db") and merchant ("sm") → the name to use. */
+export interface IsipAliases {
+  exercise: Record<string, string>
+  merchant: Record<string, string>
+}
 
 export interface EntryContext {
   /** The words that name accounts ("gcash"), lowercase. */
@@ -30,6 +59,9 @@ export interface EntryContext {
   ticks: string[]
   /** Display names for account words ("bpi" → "BPI Savings"). */
   names?: Record<string, string>
+  /** The Isip reader's corrections: aliases, and the category chosen for a word (`money:categories`). */
+  aliases?: IsipAliases
+  categories?: Record<string, string>
 }
 
 export const DEFAULT_CONTEXT: EntryContext = { accounts: ['cash', 'gcash', 'maya', 'bank'], ticks: [] }
@@ -48,7 +80,7 @@ export const entryContext = (): EntryContext => current
 const AMOUNT = /^(?:₱\s?|P|php\s?)(\d{1,3}(?:,\d{3})+|\d+)(\.\d{1,2})?(k)?(?=\s|$)/i
 const MONEY_LINE = /^(\+)?((?:₱\s?|P|[Pp][Hh][Pp]\s?)\d[\d,]*(?:\.\d{1,2})?k?)(?:\s+(.*))?$/
 
-function amountOf(token: string): number | undefined {
+export function amountOf(token: string): number | undefined {
   if (/^p\d/.test(token)) return undefined
   const m = AMOUNT.exec(token)
   if (!m) return undefined
@@ -74,21 +106,35 @@ function takeRemind(ws: string[]): [string[], number | undefined] {
 
 /**
  * "bench 60x5x3 @8", "squat 100kg x 5", "pullups x8x3" (bodyweight), "curl 25lb x12 @9",
- * "Bench Press (Barbell) 60x5" (Strong's names).
+ * "Bench Press (Barbell) 60x5" (Strong's names): weight × reps × sets.
+ * After a weight with its unit, or with the word "sets", sets come first:
+ * "bench 40kg 3x10", "40 kilos 3x8", "squat 3 sets of 5". "bw x 15" is bodyweight.
  * Unmarked, so only Isip Entries read it: in a Note "photo 4x6" is just words.
  */
-const LIFT = /^(\p{L}[\p{L}\d'’.,()\- ]*?)\s+(?:(\d+(?:\.\d+)?)\s?(kg|lbs?)?\s?)?[x×]\s?(\d+)(?:\s?[x×]\s?(\d+))?(?:\s+@\s?(\d+(?:\.5)?))?$/iu
+const UNIT = String.raw`(kgs?|kilos?|lbs?)`
+const RPE = String.raw`(?:\s+@\s?(\d+(?:\.5)?))?$`
+// No digits in a name: one would let "ohp 30kg 3x8, lat 45kg 3x10" read as a single lift
+const LIFT = new RegExp(String.raw`^(\p{L}[\p{L}'’.,()\- ]*?)\s+(?:(\d+(?:\.\d+)?)\s?${UNIT}?\s?|(?:bw|bodyweight)\s?)?[x×]\s?(\d+)(?:\s?[x×]\s?(\d+))?${RPE}`, 'iu')
+const LIFT_SETS = new RegExp(
+  String.raw`^(\p{L}[\p{L}'’.()\- ]*?)(?:\s+(\d+(?:\.\d+)?)\s?${UNIT})?\s+(\d+)\s?(?:([x×])|sets?\s+(?:of\s+)?(?:[x×]\s?)?)\s?(\d+)(?:\s?reps?)?${RPE}`,
+  'iu',
+)
 
 function parseLift(line: string, day: DayKey): Entry | null {
-  const m = LIFT.exec(line)
-  if (!m) return null
-  const weight = Number(m[2] ?? 0)
-  const lb = /^lb/i.test(m[3] ?? '')
-  const reps = Number(m[4])
-  const sets = Number(m[5] ?? 1)
-  const rpe = m[6] ? Number(m[6]) : undefined
-  if (weight > (lb ? 2200 : 1000) || reps < 1 || reps > 100 || sets < 1 || sets > 20 || (rpe !== undefined && (rpe < 1 || rpe > 10))) return null
-  return { kind: 'lift', name: m[1]!.trim(), weight, ...(lb ? { unit: 'lb' as const } : {}), reps, sets, ...(rpe !== undefined ? { rpe } : {}), day }
+  let name: string, weight: number, unit: string | undefined, reps: number, sets: number, rpe: string | undefined
+  const s = LIFT_SETS.exec(line)
+  // "3x10" with no weight before it stays weight × reps ("pullups 3x10" is not read as sets)
+  if (s && (s[2] || !s[5])) {
+    ;[name, weight, unit, sets, reps, rpe] = [s[1]!, Number(s[2] ?? 0), s[3], Number(s[4]), Number(s[6]), s[7]]
+  } else {
+    const m = LIFT.exec(line)
+    if (!m) return null
+    ;[name, weight, unit, reps, sets, rpe] = [m[1]!, Number(m[2] ?? 0), m[3], Number(m[4]), Number(m[5] ?? 1), m[6]]
+  }
+  const lb = /^lb/i.test(unit ?? '')
+  const r = rpe ? Number(rpe) : undefined
+  if (weight > (lb ? 2200 : 1000) || reps < 1 || reps > 100 || sets < 1 || sets > 20 || (r !== undefined && (r < 1 || r > 10))) return null
+  return { kind: 'lift', name: name.trim(), weight, ...(lb ? { unit: 'lb' as const } : {}), reps, sets, ...(r !== undefined ? { rpe: r } : {}), day }
 }
 
 /** A typed line: a checklist item's own text when `task`; `isip`: an Isip Entry, where an unmarked lift counts. */
@@ -180,7 +226,10 @@ export function parseLine(text: string, pinned: DayKey, ctx: EntryContext = curr
   return isip ? parseLift(line, pinned) : null
 }
 
-const NOT_MONEY = new Set([
+/** A lift read from one clause of an Isip Entry ("Bench 40kg 3x10"). */
+export const liftOf = parseLift
+
+export const NOT_MONEY = new Set([
   'h', 'hr', 'hrs', 'hour', 'hours', 'oras', 'min', 'mins', 'minute', 'minutes', 'minuto', 'sec', 'secs',
   'page', 'pages', 'pahina', 'pcs', 'pc', 'piece', 'pieces', 'km', 'kg', 'g', 'lbs', 'ml', 'l', 'x', 'times', 'beses',
   'glass', 'glasses', 'baso', 'cups', 'cup', 'steps', 'reps', 'sets', 'people', 'students', 'items', 'days', 'weeks',
@@ -284,7 +333,13 @@ export function entryLabel(e: Entry): string {
       )
     case 'money': {
       if (e.flow === 'move') return `${formatPeso(e.amount)} ${accountName(e.account!)} → ${accountName(e.to!)}`
-      return [`${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`, ...(e.account ? [accountName(e.account)] : [])].join(' · ')
+      return [
+        `${e.flow === 'in' ? '+' : '−'}${formatPeso(e.amount)}`,
+        ...(e.category ? [categoryLabel(e.category)] : []),
+        ...(e.merchant ? [e.merchant] : []),
+        ...(e.items ? [`${e.items.length} ${e.items.length === 1 ? 'item' : 'items'}${e.gap ? ` + ${formatPeso(e.gap)} unlisted` : ''}`] : []),
+        ...(e.account ? [accountName(e.account)] : []),
+      ].join(' · ')
     }
     case 'lift':
       return [`${e.sets}×${e.reps}`, formatWeight(e), ...(e.rpe !== undefined ? [`RPE ${e.rpe}`] : [])].join(' · ')

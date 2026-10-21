@@ -2,19 +2,19 @@ import { useState } from 'react'
 import { PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
-import { parseLine } from '@/entries/parse'
 import { ISIP } from '@/isip/copy'
+import { entryDay, read } from '@/isip/read'
 import { addEntries, deleteEntries } from '@/library/isip'
 import { chipLabel } from '@/library/workouts'
 import { cn } from '@/utils/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
-/** What a line will read as, for the chip beside the field. */
-export function previewLine(text: string): { kind: string; label: string } | null {
+/** What a line will read as first, for the chip beside the field; `suggested` when Isip will ask. */
+export function previewLine(text: string, now = Date.now()): { kind: string; label: string; suggested: boolean } | null {
   const line = text.trim()
-  const entry = line ? parseLine(line, dayKey(Date.now()), undefined, false, true) : null
-  const label = entry ? chipLabel(entry) : ''
-  return entry && label ? { kind: entry.kind, label } : null
+  const r = line ? read({ text: line, day: entryDay(line, dayKey(now)), createdAt: now })[0] : undefined
+  const label = r ? chipLabel(r.entry) : ''
+  return r && label ? { kind: r.entry.kind, label, suggested: r.status === 'suggested' } : null
 }
 
 /** Saves each line of `text` as an Isip Entry, with an Undo. */
@@ -64,7 +64,9 @@ export function QuickCapture({ className }: { className?: string }): React.React
         autoComplete="off"
         className="h-11 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
       />
-      {preview && <span className={`entry-chip entry-chip-${preview.kind} shrink-0`}>{preview.label}</span>}
+      {preview && (
+        <span className={cn(`entry-chip entry-chip-${preview.kind} shrink-0`, preview.suggested && 'entry-chip-suggested')}>{preview.label}</span>
+      )}
     </form>
   )
 }

@@ -3,6 +3,7 @@ import { dayKey } from '@/coach/study'
 import type { IsipEntry, Note, PageRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
 import type { DayKey } from './dates'
+import { counts, read } from '@/isip/read'
 import { entryContext, parseLine } from './parse'
 import type { Entry, EntryContext } from './parse'
 
@@ -35,6 +36,8 @@ export interface EntryRef {
   at: DayKey
   /** The Isip Entry's id. */
   isip?: string
+  /** The word a correction to this Reading is saved under (isip/read.ts). */
+  key?: string
   task?: TaskLine
 }
 
@@ -77,12 +80,13 @@ export function scanTasks(notes: Note[], pagesByNote: Record<string, PageRecord[
   return lines
 }
 
-/** What each Isip Entry says (lifts included: an Entry is never prose), in the order they were written. */
+/** What each Isip Entry says that counts (auto or confirmed Readings), in the order they were written. */
 export function isipRefs(entries: IsipEntry[], ctx: EntryContext = entryContext()): EntryRef[] {
-  return entries.flatMap((e) => {
-    const entry = parseLine(e.text, e.day, ctx, false, true)
-    return entry ? [{ entry, at: e.day, isip: e.id }] : []
-  })
+  return entries.flatMap((e) =>
+    read(e, ctx)
+      .filter(counts)
+      .map((r) => ({ entry: r.entry, at: e.day, isip: e.id, ...(r.key ? { key: r.key } : {}) })),
+  )
 }
 
 /** Every Reading: the Isip Entries', then the Tasks in Notes. */

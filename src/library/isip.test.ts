@@ -9,7 +9,8 @@ const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error:
 vi.mock('sonner', () => ({ toast }))
 
 const { createNote, flush, markOnDisk } = await import('./notes')
-const { addEntries, deleteEntries, editEntry, libraryRefs, loadIsip, restoreEntries } = await import('./isip')
+const { addEntries, decide, deleteEntries, editEntry, libraryRefs, loadIsip, restoreEntries, setAlias } = await import('./isip')
+await import('./context')
 const { markDone, skipOccurrence } = await import('./agenda')
 const { dump, restore } = await import('./snapshot')
 const { backupToSnapshot, importBackupFile, snapshotToZip } = await import('@/utils/exportImport')
@@ -26,7 +27,7 @@ beforeEach(async () => {
   await db.open()
   useNoteStore.setState({ notes: [], inkDocs: {}, hydrated: false })
   usePageStore.setState({ pagesByNote: {}, hydrated: false })
-  useIsipStore.setState({ entries: [] })
+  useIsipStore.setState({ entries: [], aliases: { exercise: {}, merchant: {} } })
   markOnDisk([])
   toast.error.mockClear()
 })
@@ -99,6 +100,43 @@ describe('reading', () => {
     skipOccurrence(libraryRefs()[0]!, '2026-10-10')
     markDone('haircut')
     expect(texts()).toEqual(['@ daily 6am gym skip oct 10', '✓ haircut'])
+  })
+})
+
+describe('the reader', () => {
+  it('a day word moves a new line back; an edit that adds one moves it too, unless the day was changed by hand', () => {
+    const [a, b] = addEntries('lunch 150 kahapon\n@ fri 2pm dentist', at('2026-10-08'))
+    expect([a!.day, b!.day]).toEqual(['2026-10-07', '2026-10-08'])
+    const [c] = addEntries('jeep 13', at('2026-10-08'))
+    editEntry(c!.id, { text: 'jeep 13 yesterday' })
+    editEntry(b!.id, { text: 'P85 jeep yesterday', day: '2026-10-01' })
+    expect(useIsipStore.getState().entries.map((e) => e.day)).toEqual(['2026-10-07', '2026-10-01', '2026-10-07'])
+  })
+
+  it('only counted Readings reach the views; Undo, confirm and back again are decisions on the Entry', async () => {
+    const [e] = addEntries('kape 120, spent 500', at('2026-10-08'))
+    const money = () => libraryRefs().map((r) => (r.entry.kind === 'money' ? r.entry.amount : 0))
+    expect(money()).toEqual([120])
+    decide(e!.id, 'spent 500', 'confirmed')
+    decide(e!.id, 'kape 120', 'dismissed')
+    expect(money()).toEqual([500])
+    decide(e!.id, 'kape 120', null)
+    expect(money()).toEqual([120, 500])
+    await flush()
+    expect((await db.isipEntries.get(e!.id))!.decisions).toEqual({ 'spent 500': 'confirmed' })
+  })
+
+  it('a name correction is an alias in meta, never an edit of the line, and it survives a reload', async () => {
+    const [e] = addEntries('incline db 12kg x 12', at('2026-10-08'))
+    setAlias('exercise', 'incline db', 'Incline DB press')
+    expect(libraryRefs()[0]!.entry).toMatchObject({ kind: 'lift', name: 'Incline DB press' })
+    expect(useIsipStore.getState().entries[0]!.text).toBe(e!.text)
+    await flush()
+    useIsipStore.setState({ aliases: { exercise: {}, merchant: {} } })
+    await loadIsip()
+    expect(useIsipStore.getState().aliases.exercise).toEqual({ 'incline db': 'Incline DB press' })
+    setAlias('exercise', 'incline db', '')
+    expect(libraryRefs()[0]!.entry).toMatchObject({ name: 'Incline dumbbell press' })
   })
 })
 

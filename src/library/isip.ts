@@ -1,8 +1,10 @@
 import { dayKey } from '@/coach/study'
 import { db } from '@/database/db'
 import { entryContext } from '@/entries/parse'
+import type { IsipAliases } from '@/entries/parse'
 import { scanEntries } from '@/entries/scan'
 import type { EntryRef } from '@/entries/scan'
+import { entryDay } from '@/isip/read'
 import { useIsipStore } from '@/store/isipStore'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
@@ -12,29 +14,52 @@ import { enqueue } from './notes'
 
 /*
   Isip keeps its own Entries: one typed line each, with the day it counts for.
-  This is the only writer of `isipEntries`. The text is the record: the views
-  re-read it (entries/scan.ts) and nothing read from it is stored. Writes take
-  the library's one queue: the store changes first, a failed write puts it
-  back and toasts.
+  This is the only writer of `isipEntries` and of Isip's `meta` rows (the
+  `isip:aliases` name corrections). The text is the record: the views re-read
+  it (isip/read.ts) and nothing read from it is stored, only the owner's
+  decisions on a Reading. Writes take the library's one queue: the store
+  changes first, a failed write puts it back and toasts.
 */
+
+const ALIASES_KEY = 'isip:aliases'
 
 const byTime = (a: IsipEntry, b: IsipEntry): number => a.createdAt - b.createdAt
 const setEntries = (fn: (es: IsipEntry[]) => IsipEntry[]): void => useIsipStore.setState((s) => ({ entries: fn(s.entries) }))
 const getEntry = (id: string): IsipEntry | undefined => useIsipStore.getState().entries.find((e) => e.id === id)
 
-/** Reads every Entry into the store (boot, and after a restore). They are short lines. */
+const names = (v: unknown): Record<string, string> =>
+  v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter((e): e is [string, string] => typeof e[1] === 'string' && !!e[1].trim())) : {}
+
+/** Reads every Entry (they are short lines) and the name corrections into the store (boot, and after a restore). */
 export async function loadIsip(): Promise<void> {
-  useIsipStore.setState({ entries: (await db.isipEntries.toArray()).sort(byTime) })
+  const [entries, aliases] = await Promise.all([db.isipEntries.toArray(), db.meta.get(ALIASES_KEY)])
+  const a = (aliases?.value ?? {}) as Partial<IsipAliases>
+  useIsipStore.setState({ entries: entries.sort(byTime), aliases: { exercise: names(a.exercise), merchant: names(a.merchant) } })
 }
 
-/** One Entry per non-empty line of `text` (a paste with several lines makes several), counting for `day`. */
+/** Puts `next` in place of `prev`, in the store and then on disk. */
+function replace(prev: IsipEntry, next: IsipEntry): void {
+  setEntries((es) => es.map((e) => (e.id === prev.id ? next : e)))
+  void enqueue(
+    async () => {
+      await db.isipEntries.put(next)
+    },
+    'save that line',
+    () => setEntries((es) => es.map((e) => (e.id === prev.id ? prev : e))),
+  )
+}
+
+/**
+ * One Entry per non-empty line of `text` (a paste with several lines makes several), counting for `day`,
+ * or the day a word in it names ("lunch 150 kahapon").
+ */
 export function addEntries(text: string, now = Date.now(), day = dayKey(now)): IsipEntry[] {
   const added = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
     // A millisecond apart, so a pasted list keeps its order through a delete and Undo
-    .map((line, i) => ({ id: createId(), text: line, day, createdAt: now + i, updatedAt: now + i }))
+    .map((line, i) => ({ id: createId(), text: line, day: entryDay(line, day), createdAt: now + i, updatedAt: now + i }))
   if (added.length === 0) return []
   const ids = new Set(added.map((e) => e.id))
   setEntries((es) => [...es, ...added])
@@ -48,22 +73,49 @@ export function addEntries(text: string, now = Date.now(), day = dayKey(now)): I
   return added
 }
 
-/** Changes an Entry's text or day. Its owner's decisions last only while their source text is still in the line. */
+const withDecisions = (e: IsipEntry, decisions: Array<[string, 'dismissed' | 'confirmed']>): IsipEntry => {
+  const { decisions: _, ...rest } = e
+  return decisions.length ? { ...rest, decisions: Object.fromEntries(decisions) } : rest
+}
+
+/**
+ * Changes an Entry's text or day. A new day word in the text moves it, unless the day was changed by hand too.
+ * Its owner's decisions last only while their source text is still in the line.
+ */
 export function editEntry(id: string, patch: { text?: string; day?: string }, now = Date.now()): void {
   const prev = getEntry(id)
   const text = patch.text?.replace(/\s*\n\s*/g, ' ').trim() ?? prev?.text
   if (!prev || !text) return
-  const next: IsipEntry = { ...prev, text, day: patch.day ?? prev.day, updatedAt: now }
+  let day = patch.day ?? prev.day
+  if (text !== prev.text && day === prev.day) {
+    const written = dayKey(prev.createdAt)
+    const moved = entryDay(text, written)
+    if (moved !== written) day = moved
+  }
   const kept = Object.entries(prev.decisions ?? {}).filter(([span]) => text.includes(span))
-  if (kept.length) next.decisions = Object.fromEntries(kept)
-  else delete next.decisions
-  setEntries((es) => es.map((e) => (e.id === id ? next : e)))
+  replace(prev, withDecisions({ ...prev, text, day, updatedAt: now }, kept))
+}
+
+/** The owner's say on one Reading, by its source text: `dismissed` (Undo), `confirmed`, or null to let Isip decide again. */
+export function decide(id: string, span: string, decision: 'dismissed' | 'confirmed' | null, now = Date.now()): void {
+  const prev = getEntry(id)
+  if (!prev) return
+  const others = Object.entries(prev.decisions ?? {}).filter(([s]) => s !== span)
+  replace(prev, withDecisions({ ...prev, updatedAt: now }, decision ? [...others, [span, decision]] : others))
+}
+
+/** Calls what Isip read as `word` by `name` from now on ("incline db" → "Incline DB press"); an empty name forgets it. Never edits an Entry. */
+export function setAlias(kind: keyof IsipAliases, word: string, name: string): void {
+  const prev = useIsipStore.getState().aliases
+  const { [word.toLowerCase()]: _, ...rest } = prev[kind]
+  const next: IsipAliases = { ...prev, [kind]: name.trim() ? { ...rest, [word.toLowerCase()]: name.trim() } : rest }
+  useIsipStore.setState({ aliases: next })
   void enqueue(
     async () => {
-      await db.isipEntries.put(next)
+      await db.meta.put({ key: ALIASES_KEY, value: next })
     },
-    'save that line',
-    () => setEntries((es) => es.map((e) => (e.id === id ? prev : e))),
+    'save that name',
+    () => useIsipStore.setState({ aliases: prev }),
   )
 }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
-import { balances, CATEGORIES, categoryOf, monthSummary, safeToSpend } from '@/entries/money'
+import { CATEGORIES, categoryLabel, categoryOf } from '@/entries/categories'
+import { balances, monthSummary, safeToSpend } from '@/entries/money'
 import type { Account, MoneyRef, SafeToSpend } from '@/entries/money'
 import { accountName, formatDay, formatPeso } from '@/entries/parse'
 import { addAccount, removeAccount, renameAccount, setBalance, setCategory, setKeep, useMoneyStore } from '@/library/money'
@@ -47,8 +48,8 @@ export function MoneyPage(): React.ReactNode {
           {month.lines.length > 0 && (
             <PlannerSection id="money-lines" title="Lines this month">
               <ul className={CARD}>
-                {month.lines.slice(0, 50).map((r) => (
-                  <MoneyLine key={r.isip} r={r} category={categoryOf(r.entry.text, categories)} />
+                {month.lines.slice(0, 50).map((r, i) => (
+                  <MoneyLine key={`${r.isip}-${i}`} r={r} category={r.entry.category ?? categoryOf(r.entry.text, categories)} />
                 ))}
               </ul>
             </PlannerSection>
@@ -283,7 +284,8 @@ function KeepRow({ keep }: { keep: number }): React.ReactNode {
 function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.ReactNode {
   const openEntry = useUIStore((s) => s.openEntry)
   const e = r.entry
-  const word = e.text.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  // A choice is saved under the merchant or first word Isip read
+  const word = r.key ?? e.text.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
   const sign = e.flow === 'in' ? '+' : e.flow === 'out' ? '−' : ''
   return (
     <li className="flex items-center border-b border-lineSoft last:border-b-0">
@@ -302,15 +304,15 @@ function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.Re
       </button>
       {e.flow === 'out' && word ? (
         <DropdownMenu
-          items={CATEGORIES.map((c) => ({ id: c, label: c, checked: c === category, onSelect: () => setCategory(word, c) }))}
+          items={CATEGORIES.map((c) => ({ id: c, label: categoryLabel(c), checked: c === category, onSelect: () => setCategory(word, c) }))}
           trigger={(props) => (
             <button
               {...props}
               type="button"
-              aria-label={`Category for “${word}”: ${category}`}
+              aria-label={`Category for “${word}”: ${categoryLabel(category)}`}
               className="mr-2 shrink-0 rounded-full border border-lineSoft px-2 py-0.5 text-[11px] font-medium text-muted hover:border-line hover:text-ink"
             >
-              {category}
+              {categoryLabel(category)}
             </button>
           )}
         />

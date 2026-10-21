@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_ACCOUNTS, balances, categoryOf, monthSummary, safeToSpend } from './money'
+import { categoryOf } from './categories'
+import { DEFAULT_ACCOUNTS, balances, monthSummary, safeToSpend } from './money'
 import { DEFAULT_CONTEXT, parseLine } from './parse'
 import type { EntryRef } from './scan'
 

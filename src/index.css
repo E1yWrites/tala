@@ -375,6 +375,9 @@
 }
 .entry-chip-event { background: rgb(var(--c-ballpoint-soft)); color: rgb(var(--c-ballpoint)); }
 .entry-chip-money { background: rgb(var(--c-raise)); color: rgb(var(--c-ink)); }
+/* A Reading Isip is unsure of ("confirm?"), and one its owner said not to count */
+.entry-chip.entry-chip-suggested { background: transparent; box-shadow: inset 0 0 0 1px rgb(var(--c-line)); color: rgb(var(--c-muted)); }
+.entry-chip.entry-chip-dismissed { background: transparent; color: rgb(var(--c-faint)); text-decoration: line-through; }
 .tiptap li > p { margin: 0; }
 .tiptap ul > li::marker { color: rgb(var(--c-muted)); }
 .tiptap ol > li::marker { color: rgb(var(--c-muted)); font-variant-numeric: tabular-nums; }

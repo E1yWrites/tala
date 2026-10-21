@@ -1,4 +1,5 @@
 import { agenda } from './agenda'
+import { categoryOf, topCategory } from './categories'
 import { addDays, toDate } from './dates'
 import type { DayKey } from './dates'
 import type { Entry } from './parse'
@@ -56,29 +57,6 @@ export function balances(refs: EntryRef[], accounts: Account[]): Map<string, num
   return out
 }
 
-/* ------------------------------- Categories -------------------------------- */
-
-export const CATEGORIES = ['Food', 'Transport', 'Bills & load', 'School', 'Groceries', 'Shopping', 'Health', 'Fun', 'Other'] as const
-
-const WORDS: Record<string, (typeof CATEGORIES)[number]> = {}
-const add = (cat: (typeof CATEGORIES)[number], words: string): void => {
-  for (const w of words.split(' ')) WORDS[w] = cat
-}
-add('Food', 'food lunch dinner breakfast almusal tanghalian hapunan merienda meryenda snack snacks kain ulam rice kanin coffee kape milktea jollibee mcdo chowking mang inasal kfc pizza drinks bread pandesal')
-add('Transport', 'jeep jeepney bus mrt lrt grab angkas joyride moveit tricycle trike taxi pamasahe fare gas gasolina parking toll ferry uv')
-add('Bills & load', 'load data globe smart dito tm gomo meralco kuryente electric tubig internet wifi pldt converge netflix spotify youtube rent upa bills bill')
-add('School', 'tuition print printing xerox photocopy book books school project supplies notebook pen ballpen')
-add('Groceries', 'grocery groceries palengke market puregold sm savemore')
-add('Shopping', 'shopee lazada shein clothes damit shoes sapatos')
-add('Health', 'medicine gamot doctor checkup dentist vitamins pharmacy')
-add('Fun', 'movie movies sine games game gift regalo date gala')
-
-/** A line's category: your choice for its first word, else Tala's guess, else Other. */
-export function categoryOf(text: string, chosen: Record<string, string>): string {
-  const word = text.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
-  return chosen[word] ?? WORDS[word] ?? 'Other'
-}
-
 /* ------------------------------- This month -------------------------------- */
 
 export interface MonthSummary {
@@ -101,7 +79,8 @@ export function monthSummary(refs: EntryRef[], month: string, chosen: Record<str
     if (e.flow === 'in') income += e.amount
     if (e.flow !== 'out') continue
     spent += e.amount
-    const c = categoryOf(e.text, chosen)
+    // Food's sub-categories count toward Food here
+    const c = topCategory(e.category ?? categoryOf(e.text, chosen))
     cats.set(c, (cats.get(c) ?? 0) + e.amount)
   }
   return { spent, income, byCategory: [...cats].sort((a, b) => b[1] - a[1]), lines }
