@@ -2,6 +2,30 @@
 
 All notable changes to Tala are documented here.
 
+## [2.2.0] - 2026-10-22
+
+Tala now organizes your day as well as your notes: type a line ("lunch 150", "bench 40kg 3x10", "dentist fri 2pm") and it is filed under Money, Workouts, Habits or Upcoming. No forms, no categories to pick, and it all runs on your device.
+
+### Added
+- **Isip, one box for your day**: the gold Write button (on the sidebar, and the centre of the phone's tab bar), Ctrl/⌘ Shift Space, or the installed app's "Write a line" shortcut opens it from anywhere. Enter saves; a pasted list saves one line each. Lines are kept apart from your notes.
+- **Tala reads plain lines**: spending ("kape 120", "lunch sa jollibee 189", "grocery 1,240 — eggs 98, milk 115"), income ("sweldo 8000"), transfers ("gcash to cash 500"), lifts ("bench 40kg 3x10", "pull ups bw x 10"), habits ("water 3", "nag-gym"), plans ("dentist fri 2pm") and reminders ("remind me to call mom fri"). English and Taglish dates; "kahapon" files the line under yesterday. The marker forms (`P150`, `@ fri 2pm`, `✓ water`) still work.
+- **Undo anything Tala read**: each line shows what Tala took from it as chips. Tap × to stop counting one; an unsure reading asks "confirm?" and counts only once you say so. Tapping a chip corrects the category, place or exercise name for next time, without changing your line.
+- **Today**: what is planned today, the day's lines (edit, move to another day, delete with Undo, ‹ › between days), habits still to do, safe to spend, open tasks and the notes to pick up again.
+- **Upcoming**: the next two weeks of plans, classes (`MWF 9-10:30 Calc`), repeats (every 15th, tuwing kinsenas at katapusan), dated checklist items from your notes ("[ ] essay due fri", which keeps meaning that Friday), and things due again (`every ~6w`). Skip or mark done in one tap. Reminders fire while Tala is open.
+- **Money**: balances per account (Cash, GCash, Maya, Bank, or your own), the month by category with Food split into groceries, eating out, coffee/snacks and delivery, and **safe to spend today**, counted to your next income and after the bills due before it.
+- **Habits**: tick by writing; strength that a missed day only dents, days off, habits kept a few days a week, and Study (from your writing time) as the first habit. A ✓ name you have not set up yet shows up with a one-tap Keep.
+- **Workouts**: every exercise with its last session and best estimated 1RM, PRs and "last time" on each lift, a rest timer, and a Strong-compatible CSV export.
+- **Insights, from plain counting**: your usual split per weekday, top weight per week, groceries vs eating out vs delivery, costs that come back (Plan it adds them as a bill), grocery price changes, and food spending on gym days. Bituin mentions each insight once; Quiet mode silences it.
+- **Learns what you usually write**: the box suggests your own lines as you type, and lines you write most days are one tap away under "Again". Only your own earlier lines are offered, and only on this device.
+- Search and the command palette find your Isip lines too.
+
+### Changed
+- The gold button is now Write; New note sits beside it on the sidebar and is a tab on phones. The phone tab bar is Notes, Today, Write, New, Search and You; Today leads to Upcoming, Tasks, Money, Habits and Workouts.
+- On tablet and desktop the planner views take the whole pane until you open a note from one.
+- Shorter first run: no profile-picture step, and the name is optional.
+- New share image and README banner in the app's colours, and a new site title and description: "Tala — write it once, find it organized".
+- Database schema v6 (adds the Isip lines; additive and tested). Backups carry your lines, accounts, habits and corrections. After this version opens your library, an older version of Tala can no longer open it.
+
 ## [2.1.0] - 2026-10-08
 
 Bug fixes and quality-of-life improvements.
