@@ -2,6 +2,27 @@
 
 All notable changes to Tala are documented here.
 
+## [2.1.0] - 2026-10-08
+
+Bug fixes and quality-of-life improvements.
+
+### Added
+- **Continuous scroll**: a note's pages stack in one scroll instead of showing one at a time, and a note reopens on the page you last had in view (per device).
+- **Insert pages in between**: a "+" between pages and after the last, plus "Insert page before/after" in the page menu. A new page copies the size and template of the page above it.
+- **Resizable sidebar and note list**: drag the handle, or focus it and use the arrow keys, Home/End; double-click resets. Dragging the sidebar narrow enough closes it and keeps its width for reopening.
+
+### Changed
+- Home, Tasks and Settings each have a sidebar toggle in their header, so a hidden sidebar is always one tap away (including on a tablet held upright).
+- Undo and redo cover the whole note across its pages.
+- Only one formatting toolbar is on screen: the page you are typing in, or else the page in view.
+- Larger touch targets for Type/Write, the zoom percentage, and the folder and tag controls under the title.
+- Each page's handwriting area is announced to screen readers as "Handwriting on page N", and the resize handles have a clearer keyboard focus ring.
+
+### Fixed
+- Apple Pencil strokes on iPad could stop short when iPadOS took the drag for Scribble, text selection, the magnifier or scrolling.
+- Long notes use less canvas memory on iPad, which could blank pages.
+- Typed text is saved when its page scrolls out of view.
+
 ## [2.0.0] - 2026-10-07
 
 Tala is rebuilt as a stylus-first, local-first notebook that installs as a web app (iPad Safari, Android Chrome) and still ships as a Windows desktop app. It continues from 1.0.0, not from 1.1.0: the 1.1.0 line was not carried forward (see "Not carried over" below).
