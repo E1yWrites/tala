@@ -1072,8 +1072,22 @@ async function nudgeSession(prefs) {
     await pg.keyboard.press('Enter')
     await wait(300)
   }
+  // …and the same coffee three mornings running
+  for (const n of [3, 2, 1]) {
+    await pg.fill('input[aria-label="Pick a day"]', daysAgo(n))
+    await wait(200)
+    await pg.fill(box, 'kape 120')
+    await pg.keyboard.press('Enter')
+    await wait(300)
+  }
   await pg.locator('section[aria-labelledby="home-entries"] button:text-is("Today")').click()
   await wait(200)
+  check('the box suggests your own lines as you type', (await pg.locator('form datalist option[value="kape 120"]').count()) >= 1)
+  const again = pg.locator('[role="group"][aria-label="Again"] button[aria-label="Write “kape 120” again"]')
+  check('what you usually write is one tap away', (await again.count()) === 1)
+  await again.click()
+  await wait(400)
+  check('…writes it for today, and the chip steps aside', (await pg.locator('section[aria-labelledby="home-entries"] li:has-text("kape 120")').count()) === 1 && (await again.count()) === 0)
   for (const line of ['sweldo 8000 bank', 'gcash to cash 500', 'remind me to call mom tomorrow 3pm']) {
     await pg.fill(box, line)
     await pg.keyboard.press('Enter')

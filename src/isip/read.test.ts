@@ -106,6 +106,52 @@ TABLE.push(
   ['ipon 500', []],
 )
 
+/* Common lines, generated to cover an ordinary Filipino day beyond the two sets above. */
+const money = (amount: number, extra: Record<string, unknown> = {}) => [{ status: 'auto', entry: { kind: 'money', amount, ...extra } }]
+const lift = (name: string, weight: number, sets: number, reps: number) => [{ status: 'auto', entry: { kind: 'lift', name, weight, sets, reps } }]
+TABLE.push(
+  ['tricycle 20', money(20, { category: 'Transport' })],
+  ['pamasahe 50', money(50, { category: 'Transport' })],
+  ['mrt 28', money(28, { category: 'Transport' })],
+  ['angkas 120', money(120, { category: 'Transport' })],
+  ['gas 1,000', money(1000, { category: 'Transport' })],
+  ['meralco 2,350', money(2350, { category: 'Bills & load' })],
+  ['wifi 1,299 pldt', money(1299, { category: 'Bills & load' })],
+  ['spotify 149', money(149, { category: 'Bills & load' })],
+  ['upa 5000', money(5000, { category: 'Bills & load' })],
+  ['gamot 85', money(85, { category: 'Health' })],
+  ['vitamins 450', money(450, { category: 'Health' })],
+  ['tuition 15,000', money(15000, { category: 'School' })],
+  ['print 30', money(30, { category: 'School' })],
+  ['shopee 599', money(599, { category: 'Shopping' })],
+  ['sine 350', money(350, { category: 'Fun' })],
+  ['regalo kay mama 800', money(800, { category: 'Fun' })],
+  ['milktea 120', money(120, { category: 'Coffee/snacks' })],
+  ['7-eleven 85', money(85, { category: 'Coffee/snacks' })],
+  ['mcdo 199', money(199, { category: 'Eating out' })],
+  ['almusal 80', money(80, { category: 'Food', meal: 'breakfast' })],
+  ['hapunan 250', money(250, { category: 'Food', meal: 'dinner' })],
+  ['ulam 120', money(120, { category: 'Food' })],
+  ['palengke 600', money(600, { category: 'Groceries' })],
+  ['foodpanda 350', money(350, { category: 'Delivery' })],
+  ['gym membership 1500', money(1500, { category: 'Fitness' })],
+  ['whey 1800', money(1800, { category: 'Fitness' })],
+  ['allowance 2000', money(2000, { flow: 'in' })],
+  ['refund 299 shopee', money(299, { flow: 'in' })],
+  ['deadlift 120kg 5x3', lift('Deadlift', 120, 5, 3)],
+  ['lat pulldown 50kg 3x12', lift('Lat pulldown', 50, 3, 12)],
+  ['rdl 60kg 3x8', lift('Romanian deadlift', 60, 3, 8)],
+  ['curls 12kg 3x12', lift('Bicep curl', 12, 3, 12)],
+  ['push ups x 20', lift('Push-up', 0, 1, 20)],
+  ['meeting tomorrow 10am', [{ status: 'auto', entry: { kind: 'event', text: 'meeting', when: { day: '2026-10-09', time: '10:00' } } }]],
+  ['bday ni ana sat 7pm', [{ status: 'auto', entry: { kind: 'event', when: { day: '2026-10-10', time: '19:00' } } }]],
+  ['remind me to pay rent fri', [{ status: 'auto', entry: { kind: 'event', text: 'pay rent', remind: 0 } }]],
+  ['ang init ngayon', []],
+  ['studied for 2 hours', []],
+  ['room 204 exam', []],
+  ['plank 60s', []],
+)
+
 describe('the phrase table', () => {
   it.each(TABLE)('%s', (line, expected) => {
     const got = readLine(line)

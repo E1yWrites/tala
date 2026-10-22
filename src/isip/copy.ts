@@ -26,6 +26,14 @@ export const ISIP = {
     saved: (n: number): string => (n === 1 ? 'Saved' : `${n} lines saved`),
     palette: (line: string): string => `Write in Isip: “${line}”`,
     forDay: (day: string): string => `Write it down for ${day}…`,
+    again: 'Again',
+    againLabel: (line: string): string => `Write “${line}” again`,
+    /** What the box suggests before you have written anything yourself: common lines to start from. */
+    starters: [
+      'lunch 150', 'kape 120', 'jeep 13', 'grab 200', 'load 99', 'merienda 50', 'groceries 1500', 'grabfood 300',
+      'baon 500', 'sweldo 8000', 'gcash to cash 500', 'bench 40kg 3x10', 'squats 3 sets of 10', 'pull ups bw x 10',
+      'remind me to ', 'dentist fri 2pm',
+    ],
   },
   day: {
     title: 'Written',

@@ -75,7 +75,7 @@ export function HomePage(): React.ReactNode {
         </>
       }
     >
-      <QuickCapture day={day === today ? undefined : day} />
+      <QuickCapture again day={day === today ? undefined : day} />
       <BituinNudge placement="card" className="" />
       <TodayAgenda />
       <DayEntries day={day} onDay={setDay} />
