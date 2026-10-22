@@ -104,7 +104,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   openModal(intent) {
     // Never stack duplicates of the same singleton modal
     if (
-      (intent.kind === 'palette' || intent.kind === 'search' || intent.kind === 'new-note') &&
+      (intent.kind === 'palette' || intent.kind === 'search' || intent.kind === 'new-note' || intent.kind === 'capture') &&
       get().modalStack.some((m) => m.intent.kind === intent.kind)
     ) {
       return

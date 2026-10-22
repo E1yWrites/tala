@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { ISIP } from '@/isip/copy'
 import { downloadBackup } from '@/utils/exportImport'
 import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -28,6 +29,11 @@ function wording(s: Suggestion): { title: string; body: string; action: string; 
     const c = BITUIN.nudge.resurface
     return { title: c.title, body: c.body(s.title, s.days), action: c.action, later: c.later }
   }
+  if (s.id === 'insight') {
+    // The corner chip shows only the title, so the insight itself is the title
+    const c = ISIP.bituin
+    return { title: s.text, body: c.body, action: c.action, later: c.later }
+  }
   if (s.id === 'backup') {
     const c = BITUIN.nudge.backup
     return { title: c.title, body: c.body(s.daysSince), action: c.action, later: c.later }
@@ -46,6 +52,9 @@ function run(s: Suggestion): void {
     const ui = useUIStore.getState()
     ui.setView({ kind: 'all' })
     ui.selectNote(s.noteId)
+    snoozeSuggestion(s)
+  } else if (s.id === 'insight') {
+    useUIStore.getState().setView({ kind: s.view })
     snoozeSuggestion(s)
   } else if (s.id === 'backup') void downloadBackup()
   else if (s.variant === 'android') void promptInstall()

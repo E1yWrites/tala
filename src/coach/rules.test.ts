@@ -13,6 +13,7 @@ const state = (patch: Omit<Partial<CoachState>, 'coach'> & { coach?: Partial<Coa
   wrapup: null,
   week: { key: '2026-10-05', studyDays: 0, goal: 4 },
   staleNote: null,
+  insight: null,
   ...patch,
   coach: { ...DEFAULT_COACH_PREFS, firstSeenAt: NOW - 2 * DAY, ...patch.coach },
 })
@@ -112,5 +113,13 @@ describe('the coach loop', () => {
     expect(nextSuggestion(state({ staleNote, coach: { firstSeenAt: NOW - 30 * DAY } }))?.id).toBe('backup')
     expect(nextSuggestion(state({ staleNote, wrapup, quietMode: true }))).toBeNull()
   })
-})
 
+  it('mentions an Isip insight once it unlocks: after good news, before reminders, even with no notes, never in Quiet mode', () => {
+    const insight = { key: 'price', view: 'money' as const, text: 'Eggs cost ₱8 more than last time.' }
+    const old = { firstSeenAt: NOW - 30 * DAY }
+    expect(nextSuggestion(state({ insight, coach: old }))).toEqual({ id: 'insight', ...insight })
+    expect(nextSuggestion(state({ insight, liveNotes: 0 }))?.id).toBe('insight')
+    expect(nextSuggestion(state({ insight, week: { key: '2026-10-05', studyDays: 4, goal: 4 } }))?.id).toBe('goal')
+    expect(nextSuggestion(state({ insight, quietMode: true }))).toBeNull()
+  })
+})

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { mentions } from '@/isip/insights'
+import { libraryRefs } from '@/library/isip'
 import { isEmptyNote } from '@/library/notes'
+import { useIsipStore } from '@/store/isipStore'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -8,7 +11,7 @@ import { canPromptInstall, detectEnv, onInstallAvailabilityChange } from './env'
 import { dismissWrapup, useStudyStore } from '@/library/study'
 import { displayTitle } from '@/utils/noteFilters'
 import { BACKUP_SNOOZE_DAYS, DAY, INSTALL_SNOOZE_DAYS, RESURFACE_AFTER_DAYS, RESURFACE_SNOOZE_DAYS, nextSuggestion, type CoachState, type Suggestion } from './rules'
-import { studyDaysThisWeek, weekKey } from './study'
+import { dayKey, studyDaysThisWeek, weekKey } from './study'
 
 /** True once at least one note exists for real (not trashed, not an untouched scratch card). */
 function hasRealNotes(): boolean {
@@ -52,6 +55,7 @@ export function useSuggestion(): Suggestion | null {
   const wrapup = useStudyStore((s) => s.wrapup)
   const studySeconds = useStudyStore((s) => s.seconds)
   const goal = useStudyStore((s) => s.goal)
+  const entries = useIsipStore((s) => s.entries)
 
   // The weekly backup clock starts at first launch
   useEffect(() => {
@@ -70,11 +74,12 @@ export function useSuggestion(): Suggestion | null {
         wrapup,
         week: { key: weekKey(now), studyDays: studyDaysThisWeek(studySeconds, now), goal },
         staleNote: liveNotes ? findStaleNote(now) : null,
+        insight: mentions(libraryRefs(), dayKey(now)).find((m) => !coach.insightsSeen.includes(m.key)) ?? null,
       })
     },
     // tick re-evaluates time-based rules
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liveNotes, coach, env, canInstall, quietMode, wrapup, studySeconds, goal, tick],
+    [liveNotes, coach, env, canInstall, quietMode, wrapup, studySeconds, goal, entries, tick],
   )
 }
 
@@ -86,5 +91,6 @@ export function snoozeSuggestion(s: Suggestion): void {
   else if (s.id === 'goal') setCoach({ goalCheeredWeek: s.week })
   else if (s.id === 'resurface') setCoach({ resurfaceSnoozeUntil: now + RESURFACE_SNOOZE_DAYS * DAY })
   else if (s.id === 'backup') setCoach({ backupSnoozeUntil: now + BACKUP_SNOOZE_DAYS * DAY })
+  else if (s.id === 'insight') setCoach({ insightsSeen: [...coach.insightsSeen, s.key] })
   else setCoach({ installSnoozeUntil: now + INSTALL_SNOOZE_DAYS * DAY, installDismissals: coach.installDismissals + 1 })
 }

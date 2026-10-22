@@ -3,6 +3,8 @@ import { Download, Timer } from 'lucide-react'
 import { e1rm, exercises, strongCsv } from '@/entries/workouts'
 import type { Exercise } from '@/entries/workouts'
 import { entryLabel, formatDay } from '@/entries/parse'
+import { ISIP } from '@/isip/copy'
+import { usualSplit, weeklyTops } from '@/isip/insights'
 import { askNotifications, notificationState } from '@/library/reminders'
 import { formatRest, startRest, stopRest, useRestStore } from '@/library/workouts'
 import { useEntries } from '@/components/Agenda/useAgenda'
@@ -19,9 +21,51 @@ const REST_CHOICES = [90, 120, 180]
 export function WorkoutsPage(): React.ReactNode {
   const { refs, today } = useEntries()
   const list = useMemo(() => exercises(refs), [refs])
+  const split = useMemo(() => usualSplit(refs), [refs])
+  const tops = useMemo(() => weeklyTops(refs), [refs])
 
   return (
-    <PlannerView label="Workouts" title="Workouts" note="From the lifts you write in Isip">
+    <PlannerView
+      label="Workouts"
+      title="Workouts"
+      note="From the lifts you write in Isip"
+      aside={
+        (split.length > 0 || tops.length > 0) && (
+          <>
+            {split.length > 0 && (
+              <PlannerSection id="workouts-split" title={ISIP.insight.split.title}>
+                <ul className={CARD}>
+                  {split.map((s) => (
+                    <li key={s.weekday} className="border-b border-lineSoft px-3.5 py-2.5 last:border-b-0">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="text-[14px] font-medium">{ISIP.insight.split.day(s.weekday)}</span>
+                        <span className="text-xs tabular-nums text-faint">{ISIP.insight.split.count(s.workouts)}</span>
+                      </span>
+                      <span className="block text-[13px] text-muted">{s.exercises.join(' · ')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </PlannerSection>
+            )}
+            {tops.length > 0 && (
+              <PlannerSection id="workouts-weekly" title={ISIP.insight.weekly.title}>
+                <ul className={CARD}>
+                  {tops.map((t) => (
+                    <li key={t.name} className="border-b border-lineSoft px-3.5 py-2.5 last:border-b-0">
+                      <span className="block text-[14px] font-medium">{t.name}</span>
+                      <span className="block text-[13px] tabular-nums text-muted">
+                        {t.weeks.map((w) => w.top).join(' → ')} {t.unit ?? 'kg'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 px-1 text-xs text-faint">{ISIP.insight.weekly.note}</p>
+              </PlannerSection>
+            )}
+          </>
+        )
+      }
+    >
       <QuickCapture />
       <RestTimer />
       <PlannerSection id="workouts-list" title="Exercises">

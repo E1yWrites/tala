@@ -30,6 +30,8 @@ import { cn } from '@/utils/cn'
 import { shortcut } from '@/utils/keys'
 import { captureLine, previewLine } from '@/components/QuickCapture'
 import { ISIP } from '@/isip/copy'
+import { formatDay } from '@/entries/parse'
+import { useIsipStore } from '@/store/isipStore'
 
 interface CommandEntry {
   id: string
@@ -66,6 +68,8 @@ export function CommandPalette(): React.ReactNode {
   const theme = useSettingsStore((s) => s.settings.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
 
+  const entries = useIsipStore((s) => s.entries)
+  const openEntry = useUIStore((s) => s.openEntry)
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
 
@@ -138,6 +142,25 @@ export function CommandPalette(): React.ReactNode {
     if (!line) return matches
     // Anything typed can be saved as an Isip Entry; it leads only when it reads as one,
     // so "settings" + Enter still opens Settings
+    // Entries that contain what was typed, newest first; one opens Today on its day
+    const q = line.toLowerCase()
+    const found: CommandEntry[] =
+      q.length < 2
+        ? []
+        : entries
+            .filter((e) => e.text.toLowerCase().includes(q))
+            .slice(-5)
+            .reverse()
+            .map((e) => ({
+              id: `entry-${e.id}`,
+              label: e.text,
+              hint: ISIP.search.hint(formatDay(e.day)),
+              icon: PenLine,
+              run: () => {
+                closeAllModals()
+                openEntry(e.id)
+              },
+            }))
     const preview = previewLine(line)
     const log: CommandEntry = {
       id: 'log',
@@ -149,8 +172,8 @@ export function CommandPalette(): React.ReactNode {
         captureLine(line)
       },
     }
-    return preview && !preview.suggested ? [log, ...matches] : [...matches, log]
-  }, [commands, query, closeAllModals])
+    return preview && !preview.suggested ? [log, ...matches, ...found] : [...matches, ...found, log]
+  }, [commands, query, closeAllModals, entries, openEntry])
 
   useEffect(() => setActiveIdx(0), [query])
 

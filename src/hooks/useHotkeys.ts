@@ -27,6 +27,7 @@ export const FOCUS_SEARCH_EVENT = 'tala:focus-search'
  *   Ctrl/⌘ K       search notes
  *   Ctrl/⌘ ⇧ F     search notes
  *   Ctrl/⌘ ⇧ P     command palette
+ *   Ctrl/⌘ ⇧ Space write a line in Isip
  *   Ctrl/⌘ ⇧ D     toggle dark mode
  *   Ctrl/⌘ S       force-save the open note
  *   Ctrl/⌘ ,       settings
@@ -124,6 +125,13 @@ export function useHotkeys(): void {
 
       // Shift-mod combos
       if (!e.shiftKey) return
+      // Windows IMEs toggle on Ctrl+Space and switch layouts on Ctrl+Shift alone, not on this; skip mid-composition anyway
+      if (e.code === 'Space') {
+        if (blocked || e.isComposing) return
+        e.preventDefault()
+        ui.openModal({ kind: 'capture' })
+        return
+      }
       switch (e.key.toLowerCase()) {
         case 'f': {
           if (blocked) return

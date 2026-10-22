@@ -4,6 +4,9 @@ import { CATEGORIES, categoryLabel, categoryOf } from '@/entries/categories'
 import { balances, monthSummary, safeToSpend } from '@/entries/money'
 import type { Account, MoneyRef, SafeToSpend } from '@/entries/money'
 import { accountName, formatDay, formatPeso } from '@/entries/parse'
+import { ISIP } from '@/isip/copy'
+import { foodMix, gymFood, priceChanges, recurring } from '@/isip/insights'
+import type { FoodMix, GymFood, PriceChange, Recurring } from '@/isip/insights'
 import { addAccount, removeAccount, renameAccount, setBalance, setCategory, setKeep, useMoneyStore } from '@/library/money'
 import { useEntries } from '@/components/Agenda/useAgenda'
 import { QuickCapture } from '@/components/QuickCapture'
@@ -23,6 +26,10 @@ export function MoneyPage(): React.ReactNode {
   const bal = useMemo(() => balances(refs, accounts), [refs, accounts])
   const month = useMemo(() => monthSummary(refs, today.slice(0, 7), categories), [refs, today, categories])
   const maxCat = month.byCategory[0]?.[1] ?? 1
+  const mix = useMemo(() => foodMix(refs, today), [refs, today])
+  const back = useMemo(() => recurring(refs), [refs])
+  const prices = useMemo(() => priceChanges(refs).slice(0, 8), [refs])
+  const gym = useMemo(() => gymFood(refs, today), [refs, today])
 
   return (
     <PlannerView
@@ -89,13 +96,115 @@ export function MoneyPage(): React.ReactNode {
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raise">
                   <div className="h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${amount / maxCat})` }} />
                 </div>
+                {cat === 'Food' && month.food.some(([sub]) => sub !== 'Food') && (
+                  <ul aria-label={ISIP.insight.food.byKind} className="mt-1.5 space-y-0.5 pl-3">
+                    {month.food.map(([sub, n]) => (
+                      <li key={sub} className="flex justify-between text-xs text-muted">
+                        <span>{sub === 'Food' ? ISIP.insight.food.other : sub}</span>
+                        <span className="tabular-nums">{formatPeso(n)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
             </ul>
           </div>
         )}
       </PlannerSection>
+
+      {mix && <FoodMixCard mix={mix} />}
+      {gym && <GymFoodCard gym={gym} />}
+      {back.length > 0 && <RecurringCard list={back} />}
+      {prices.length > 0 && <PricesCard list={prices} />}
     </PlannerView>
+  )
+}
+
+function FoodMixCard({ mix }: { mix: FoodMix }): React.ReactNode {
+  const c = ISIP.insight.food
+  const rows: Array<[string, number]> = [[c.groceries, mix.groceries], [c.eatingOut, mix.eatingOut], [c.delivery, mix.delivery]]
+  const max = Math.max(...rows.map((r) => r[1]), 1)
+  return (
+    <PlannerSection id="money-food-mix" title={c.title}>
+      <div className={cn(CARD, 'px-3.5 py-2')}>
+        <ul>
+          {rows.map(([label, n]) => (
+            <li key={label} className="py-1.5">
+              <div className="flex justify-between text-[13px]">
+                <span>{label}</span>
+                <span className="tabular-nums text-muted">{formatPeso(n)}</span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raise">
+                <div className="h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${n / max})` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="pb-1 pt-1.5 text-xs text-faint">{c.note}</p>
+      </div>
+    </PlannerSection>
+  )
+}
+
+function GymFoodCard({ gym }: { gym: GymFood }): React.ReactNode {
+  const c = ISIP.insight.gym
+  return (
+    <PlannerSection id="money-gym-food" title={c.title}>
+      <div className={cn(CARD, 'px-3.5 py-3')}>
+        <dl className="flex gap-8 text-[14px]">
+          {([[c.gym, gym.gym], [c.rest, gym.rest]] as const).map(([label, n]) => (
+            <div key={label}>
+              <dt className="text-xs text-muted">{label}</dt>
+              <dd className="font-semibold tabular-nums">
+                {formatPeso(Math.round(n))} <span className="text-xs font-normal text-faint">{c.perDay}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-1.5 text-xs text-faint">{c.note(gym.gymDays, gym.restDays)}</p>
+      </div>
+    </PlannerSection>
+  )
+}
+
+function RecurringCard({ list }: { list: Recurring[] }): React.ReactNode {
+  const c = ISIP.insight.recurring
+  return (
+    <PlannerSection id="money-recurring" title={c.title}>
+      <ul className={CARD}>
+        {list.map((r) => (
+          <li key={`${r.amount}|${r.category}`} className="flex min-h-12 items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[14px]">{r.text || categoryLabel(r.category)}</span>
+              <span className="block truncate text-xs text-faint">
+                {c.every(r.every)} · {c.next(formatDay(r.next))}
+              </span>
+            </span>
+            <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatPeso(r.amount)}</span>
+          </li>
+        ))}
+      </ul>
+    </PlannerSection>
+  )
+}
+
+function PricesCard({ list }: { list: PriceChange[] }): React.ReactNode {
+  const c = ISIP.insight.prices
+  return (
+    <PlannerSection id="money-prices" title={c.title}>
+      <ul className={CARD}>
+        {list.map((p) => (
+          <li key={p.name.toLowerCase()} className="flex min-h-12 items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[14px]">{p.name}</span>
+              <span className="block truncate text-xs text-faint">{c.change(p.last, p.prev)}</span>
+            </span>
+            <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatPeso(p.last)}</span>
+          </li>
+        ))}
+      </ul>
+    </PlannerSection>
   )
 }
 

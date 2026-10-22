@@ -64,6 +64,8 @@ export interface MonthSummary {
   income: number
   /** Spending per category, biggest first. */
   byCategory: Array<[string, number]>
+  /** Food's spending by sub-category ("Food" itself when none was read), biggest first. */
+  food: Array<[string, number]>
   /** The month's lines, newest first. */
   lines: MoneyRef[]
 }
@@ -75,15 +77,19 @@ export function monthSummary(refs: EntryRef[], month: string, chosen: Record<str
   let spent = 0
   let income = 0
   const cats = new Map<string, number>()
+  const food = new Map<string, number>()
+  const add = (m: Map<string, number>, k: string, n: number): void => void m.set(k, (m.get(k) ?? 0) + n)
   for (const { entry: e } of lines) {
     if (e.flow === 'in') income += e.amount
     if (e.flow !== 'out') continue
     spent += e.amount
-    // Food's sub-categories count toward Food here
-    const c = topCategory(e.category ?? categoryOf(e.text, chosen))
-    cats.set(c, (cats.get(c) ?? 0) + e.amount)
+    // Food's sub-categories count toward Food, and are split out under it
+    const leaf = e.category ?? categoryOf(e.text, chosen)
+    add(cats, topCategory(leaf), e.amount)
+    if (topCategory(leaf) === 'Food') add(food, leaf, e.amount)
   }
-  return { spent, income, byCategory: [...cats].sort((a, b) => b[1] - a[1]), lines }
+  const biggest = (m: Map<string, number>): Array<[string, number]> => [...m].sort((a, b) => b[1] - a[1])
+  return { spent, income, byCategory: biggest(cats), food: biggest(food), lines }
 }
 
 /* ------------------------------ Safe to spend ------------------------------ */

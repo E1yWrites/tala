@@ -196,6 +196,7 @@ export const isSameView = (a: ViewRef, b: ViewRef): boolean =>
 export type ModalIntent =
   | { kind: 'new-note' }
   | { kind: 'palette' }
+  | { kind: 'capture' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
   | { kind: 'folder-editor'; folderId?: string; parentId?: string }

@@ -6,6 +6,8 @@ import { ISIP } from '@/isip/copy'
 import { entryDay, read } from '@/isip/read'
 import { addEntries, deleteEntries } from '@/library/isip'
 import { chipLabel } from '@/library/workouts'
+import { useUIStore } from '@/store/uiStore'
+import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
@@ -27,7 +29,7 @@ export function captureLine(text: string): void {
 }
 
 /** The one Isip box: "P150 lunch gcash", "@ 2pm dentist", "bench 60x5x3", or just words. Enter saves; a pasted list saves a line each. */
-export function QuickCapture({ className }: { className?: string }): React.ReactNode {
+export function QuickCapture({ className, autoFocus, onSaved }: { className?: string; autoFocus?: boolean; onSaved?: () => void }): React.ReactNode {
   const [text, setText] = useState('')
   const preview = previewLine(text)
   const narrow = useMediaQuery('(max-width: 479px)')
@@ -43,6 +45,7 @@ export function QuickCapture({ className }: { className?: string }): React.React
         if (!text.trim()) return
         captureLine(text)
         setText('')
+        onSaved?.()
       }}
     >
       <PenLine size={16} className="shrink-0 text-faint" aria-hidden="true" />
@@ -57,8 +60,10 @@ export function QuickCapture({ className }: { className?: string }): React.React
           const el = e.currentTarget
           captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length))
           setText('')
+          onSaved?.()
         }}
         placeholder={narrow ? ISIP.capture.placeholderShort : ISIP.capture.placeholder}
+        autoFocus={autoFocus}
         aria-label={ISIP.capture.label}
         enterKeyHint="done"
         autoComplete="off"
@@ -68,5 +73,15 @@ export function QuickCapture({ className }: { className?: string }): React.React
         <span className={cn(`entry-chip entry-chip-${preview.kind} shrink-0`, preview.suggested && 'entry-chip-suggested')}>{preview.label}</span>
       )}
     </form>
+  )
+}
+
+/** The capture box on its own, from anywhere: Ctrl+Shift+Space, or Write on the phone's tab bar. */
+export function CaptureModal(): React.ReactNode {
+  const close = useUIStore((s) => s.closeModal)
+  return (
+    <Modal title={ISIP.capture.title} onClose={close} size="md" align="top">
+      <QuickCapture autoFocus onSaved={close} />
+    </Modal>
   )
 }

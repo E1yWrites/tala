@@ -1,4 +1,4 @@
-import { CalendarCheck, NotebookText, Plus, Search } from 'lucide-react'
+import { CalendarCheck, NotebookText, PenLine, Plus, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -8,13 +8,14 @@ import { Avatar } from '@/components/UI/Avatar'
 import { DropdownMenu } from '@/components/UI/DropdownMenu'
 import { cn } from '@/utils/cn'
 import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
+import { ISIP } from '@/isip/copy'
 
 /** Height of the bar itself; the page above reserves this plus the safe area. */
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
  * Phone bottom bar on the green rail: Notes, Today (with Upcoming, Tasks, Money, Habits and Workouts inside),
- * the gold New note, Search, and the profile menu (Settings lives under the
+ * the gold New note, Write (a line in Isip), Search, and the profile menu (Settings lives under the
  * picture). Left-handed mode mirrors it.
  */
 export function MobileNav(): React.ReactNode {
@@ -58,6 +59,7 @@ export function MobileNav(): React.ReactNode {
         </button>
       </div>
 
+      <NavTab label={ISIP.capture.tab} icon={PenLine} active={false} onClick={() => openModal({ kind: 'capture' })} />
       <NavTab label="Search" icon={Search} active={false} onClick={() => openModal({ kind: 'search' })} />
 
       <div className="flex flex-1 items-stretch [&>div]:flex-1">
