@@ -117,6 +117,8 @@ export interface CoachPrefs {
   resurfaceSnoozeUntil: number
   /** Week (see coach/study.ts weekKey) whose goal has already been cheered. */
   goalCheeredWeek: string | null
+  /** Isip insights Bituin has already mentioned (isip/insights.ts `Mention.key`). */
+  insightsSeen: string[]
 }
 
 export const DEFAULT_COACH_PREFS: CoachPrefs = {
@@ -127,6 +129,7 @@ export const DEFAULT_COACH_PREFS: CoachPrefs = {
   installDismissals: 0,
   resurfaceSnoozeUntil: 0,
   goalCheeredWeek: null,
+  insightsSeen: [],
 }
 
 function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
@@ -141,6 +144,7 @@ function sanitizeCoachPrefs(raw: unknown): CoachPrefs {
     installDismissals: count(r.installDismissals),
     resurfaceSnoozeUntil: time(r.resurfaceSnoozeUntil) ?? 0,
     goalCheeredWeek: typeof r.goalCheeredWeek === 'string' && r.goalCheeredWeek ? r.goalCheeredWeek : null,
+    insightsSeen: Array.isArray(r.insightsSeen) ? r.insightsSeen.filter((k): k is string => typeof k === 'string').slice(0, 50) : [],
   }
 }
 

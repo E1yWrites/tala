@@ -3,6 +3,7 @@ import type { JSONContent } from '@tiptap/core'
 import { db } from '@/database/db'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
+import { useIsipStore } from '@/store/isipStore'
 import type { InkDoc } from '@/types/ink'
 import type { InkDocRecord, Note, PageRecord, PdfRecord } from '@/types/models'
 import { docToPlainText } from '@/utils/doc'
@@ -89,7 +90,8 @@ const isScratch = (noteId: string): boolean => {
 
 let tail: Promise<unknown> = Promise.resolve()
 
-function enqueue(job: () => Promise<void>, what: string, undo?: () => void): Promise<boolean> {
+/** Runs `job` after every earlier write; a failure runs `undo` and toasts. The library's one queue (library/isip.ts uses it too). */
+export function enqueue(job: () => Promise<void>, what: string, undo?: () => void): Promise<boolean> {
   const run = tail.then(job).then(
     () => true,
     (err) => {
@@ -401,18 +403,21 @@ export async function emptyTrash(): Promise<void> {
   if (ids.length > 0) await deleteForever(ids)
 }
 
-/** Erases every note, page, ink doc, blob and recording. Folders, tags and settings stay. */
+/** Erases every note, page, ink doc, blob, recording and Isip Entry. Folders, tags, settings and `meta` stay. */
 export async function clearAll(): Promise<void> {
   await flush()
   const notes = useNoteStore.getState().notes
   const ink = inkDocs()
   const pages = usePageStore.getState().pagesByNote
+  const { entries } = useIsipStore.getState()
   useNoteStore.setState({ notes: [], inkDocs: {} })
   usePageStore.setState({ pagesByNote: {} })
+  useIsipStore.setState({ entries: [] })
+  const tables = [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks, db.isipEntries]
   await enqueue(
     async () => {
-      await db.transaction('rw', [db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks], async () => {
-        await Promise.all([db.notes, db.pages, db.inkDocs, db.pdfs, db.blobs, db.recordings, db.audioChunks].map((t) => t.clear()))
+      await db.transaction('rw', tables, async () => {
+        await Promise.all(tables.map((t) => t.clear()))
       })
       onDisk = new Set()
     },
@@ -420,6 +425,7 @@ export async function clearAll(): Promise<void> {
     () => {
       useNoteStore.setState({ notes, inkDocs: ink })
       usePageStore.setState({ pagesByNote: pages })
+      useIsipStore.setState({ entries })
     },
   )
 }

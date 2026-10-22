@@ -1,5 +1,7 @@
-/** Where Tala is running, as far as data safety cares. */
-export type Platform = 'ios' | 'android' | 'desktop' | 'tauri'
+import { isNative } from '@/utils/native'
+
+/** Where Tala is running, as far as data safety cares. `capacitor` is the App Store app. */
+export type Platform = 'ios' | 'android' | 'desktop' | 'tauri' | 'capacitor'
 
 export interface CoachEnv {
   platform: Platform
@@ -13,7 +15,8 @@ interface NavLike {
   maxTouchPoints?: number
 }
 
-export function detectPlatform(nav: NavLike, tauri: boolean): Platform {
+export function detectPlatform(nav: NavLike, tauri: boolean, native = false): Platform {
+  if (native) return 'capacitor' // before the iPad/iPhone checks: the app is not a Safari tab
   if (tauri) return 'tauri'
   if (/iPad|iPhone|iPod/.test(nav.userAgent)) return 'ios'
   // iPadOS 13+ reports itself as a Mac with a touch screen
@@ -25,9 +28,10 @@ export function detectPlatform(nav: NavLike, tauri: boolean): Platform {
 /** Reads the real browser. Safe to call during render; returns a desktop tab outside one. */
 export function detectEnv(): CoachEnv {
   if (typeof window === 'undefined') return { platform: 'desktop', standalone: false }
-  const platform = detectPlatform(navigator, '__TAURI_INTERNALS__' in window)
+  const platform = detectPlatform(navigator, '__TAURI_INTERNALS__' in window, isNative())
   const standalone =
     platform === 'tauri' ||
+    platform === 'capacitor' ||
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as { standalone?: boolean }).standalone === true
   return { platform, standalone }

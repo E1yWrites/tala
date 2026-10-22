@@ -1,160 +1,107 @@
 <p align="center">
-  <img src="assets/tala-banner.jpg" alt="Tala — Pagtatala, made simple." width="100%" />
+  <img src="assets/tala-banner.jpg" alt="Tala: write it once, Tala sorts it out. Typed lines filed as spending, workouts, plans and habits." width="100%" />
+</p>
+
+<p align="center">
+  <img src="public/app-icon.png" alt="Tala logo" width="96" />
 </p>
 
 <h1 align="center">Tala</h1>
 
 <p align="center">
-  <strong>Pagtatala, made simple.</strong><br/>
-  A stylus-first, local-first notebook: typed notes, handwriting and PDF markup on the same pages.
+  <strong>Pagtatala, made simple. Write it once, find it organized.</strong><br/>
+  Type a line about your day (“lunch 150”, “bench 60x5x3”, “dentist fri 2pm”) and Tala files it
+  under money, workouts, habits and your calendar. No forms, no categories to pick.
+  Typed notes, handwriting and PDF markup live alongside it, all on your device.
 </p>
 
 <p align="center">
-  <a href="https://tala.lorenzmalabanan.com/"><strong>Open Tala in your browser</strong></a> ·
-  <a href="https://github.com/E1yWrites/tala/releases/latest">Windows download</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://tala.lorenzmalabanan.com/"><img src="https://img.shields.io/badge/Try%20it-tala.lorenzmalabanan.com-1f2937?logo=googlechrome&logoColor=white" alt="Live app" /></a>
+  <a href="https://github.com/E1yWrites/tala/releases/latest"><img src="https://img.shields.io/github/v/release/E1yWrites/tala?label=release" alt="Latest release" /></a>
+  <a href="https://github.com/E1yWrites/tala/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/E1yWrites/tala/ci.yml?label=CI" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/E1yWrites/tala" alt="MIT license" /></a>
+  <a href="https://github.com/E1yWrites/tala/stargazers"><img src="https://img.shields.io/github/stars/E1yWrites/tala?style=flat" alt="Stars" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/E1yWrites/tala/releases/latest"><img src="https://img.shields.io/github/v/release/E1yWrites/tala?label=Latest%20Release" alt="Latest Release" /></a>
-  <a href="https://github.com/E1yWrites/tala/blob/main/LICENSE"><img src="https://img.shields.io/github/license/E1yWrites/tala" alt="License" /></a>
-  <a href="https://github.com/E1yWrites/tala"><img src="https://img.shields.io/github/stars/E1yWrites/tala?style=social" alt="Stars" /></a>
+  <img src="https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Tiptap-3-0f172a?logo=tiptap&logoColor=white" alt="Tiptap" />
+  <img src="https://img.shields.io/badge/Dexie-IndexedDB-f59e0b" alt="Dexie / IndexedDB" />
+  <img src="https://img.shields.io/badge/Zustand-5-433e38" alt="Zustand" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3-06b6d4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri&logoColor=white" alt="Tauri 2" />
+  <img src="https://img.shields.io/badge/Capacitor-8-119eff?logo=capacitor&logoColor=white" alt="Capacitor 8" />
+  <img src="https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Playwright-e2e-2ead33?logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/PWA-offline-5a0fc8?logo=pwa&logoColor=white" alt="PWA" />
 </p>
 
 ---
 
-No account, no server, no tracking. Notes are stored on your device, work offline,
-and leave it only when *you* export a backup. Install it as a web app on an iPad,
-Android tablet or phone, or as a desktop app on Windows.
-
-<p align="center">
-  <img src="assets/screenshot-write.jpg" alt="A lecture note in Write mode: typed notes on a white page with blue ink circling a line, a highlighted heading, and the pen dock on the page's edge" width="100%" />
-</p>
-
-## Get Tala
-
-### Web app (iPad, Android, desktop browsers)
-
-Open **[tala.lorenzmalabanan.com](https://tala.lorenzmalabanan.com/)**. After the first visit it works offline.
-
-- **iPad / iPhone (Safari):** Share → Add to Home Screen. Safari can clear storage for sites that are not installed, so do this before you rely on it.
-- **Android (Chrome):** menu → Install app.
-
-### Windows
-
-Installers are on the [latest release](https://github.com/E1yWrites/tala/releases/latest):
-
-| Format | File | Best for |
-| --- | --- | --- |
-| .exe (NSIS) | `Tala_2.0.0_x64-setup.exe` | Standard Windows installer |
-| .msi | `Tala_2.0.0_x64_en-US.msi` | Managed or silent install (`msiexec /i`) |
-
-The installers are not code-signed. Each release has a `SHA256SUMS` file; check your download with:
-
-```bash
-sha256sum -c SHA256SUMS --ignore-missing
-```
-
-### Linux and macOS
-
-No prebuilt installers. Build them with Tauri (see [Development](#development)), or use the web app.
-
----
+No account, no server, no tracking. Notes live in your browser's IndexedDB, work
+offline, and leave your device only when *you* export them.
 
 ## Features
 
-- **Pages** — a note is an ordered stack of pages; each page owns its typed text and its handwriting. A page strip with thumbnails lets you jump and drag pages into a new order.
-- **Type | Write** — one switch in the header. Typing is a Tiptap editor (headings, lists, task lists, quotes, code, links, images); writing puts the pen tools in a dock on the page's edge (a bottom row on phones). Switching never moves the text under your handwriting.
-- **Handwriting** — pen, pencil, highlighter, eraser and a free-form lasso (recolour, duplicate). Pinch zoom and pan, a wet-ink pen with no visible lag, palm rejection while the pen is down, and left-handed mirroring.
-- **Snap to shape** — rest the pen at the end of a stroke and a line, circle/ellipse, rectangle or triangle replaces it.
-- **PDFs** — import keeps the original; pages render on demand, also offline. **Export annotated PDF** draws your ink as vectors over the original pages.
-- **Lecture audio** — record while you write. Audio is saved in 5-second chunks, so a crash costs seconds, not the lecture; tap a stroke drawn while recording to hear the audio from just before it.
-- **Bituin, the study coach** — a rule-based star mascot (no AI) with a weekly goal that never resets your progress, session wrap-ups, and nudges to reopen notes you haven't looked at in a week. Quiet mode silences it.
-- **Home and the week** — the tasks still open across your notes, "Pick up where you left off", and a week constellation in the sidebar: one star per study day.
-- **Organise** — folders, coloured tags, stars, pins, archive and trash with restore; catalogue numbers (№ 001, № 002, …) and lists grouped by day; a Tasks view across the library; instant search and a command palette.
-- **Your data** — `.tala` backups (merge or replace; older `.json` backups still import), a weekly backup nudge, the share sheet on phones and tablets, and a safety copy of an older library before it is upgraded.
-- **Built for tablet and desktop first** — colours from the app icon (forest-green sidebar, star-yellow New note, white pages on a light green dotted ground), dark mode to match, and a phone layout with a tab bar and 44 px touch targets.
-- **Experimental, off by default** — handwriting search with the browser's built-in recogniser (ChromeOS and some Android; not iPad Safari).
+- **Pages**: a note is an ordered list of pages, each with its own typed text and handwriting; continuous scroll, page strip, templates.
+- **Ink**: pressure-aware pen, highlighter and pencil, lasso, undo, zoom, snap-to-shape, wet-ink rendering.
+- **PDF**: import and annotate pages, export a note back to PDF (ink as vector paths).
+- **Lecture audio**: record while you write; tap a stroke to replay what was said.
+- **Pagtatala entries**: type `P150 lunch gcash`, `@ thu 2pm dentist`, `[ ] essay due fri` or `✓ water 3` and the page becomes the record. English and Taglish dates.
+- **Planner**: Today, Upcoming, Tasks, Money (safe to spend), Habits and Workouts, all re-read from your lines. No separate database.
+- **Organize**: folders, tags, stars, pins, archive, trash, instant search, command palette.
+- **Your data**: `.tala` zip backups (merge or replace), device-only storage, light/dark themes.
 
-<p align="center">
-  <img src="assets/screenshot-home.jpg" alt="Tala's home screen: a forest-green sidebar with folders and the week constellation, open tasks from across notes, and recent notes with catalogue numbers" width="100%" />
-</p>
+## Try it
 
-### Keyboard shortcuts
+Open **<https://tala.lorenzmalabanan.com/>** and install it from your browser (iPad Safari, Android Chrome, desktop Chrome/Edge).
 
-`Mod` is ⌘ on Mac and iPad, Ctrl elsewhere.
+Windows installers are on the [Releases](https://github.com/E1yWrites/tala/releases/latest) page. They are not code-signed: check them against the `SHA256SUMS` file attached to each release.
 
-| Keys | Action |
-| --- | --- |
-| `Mod N` / `Alt N` | New note |
-| `Mod K` / `Mod Shift F` | Search notes |
-| `Mod Shift P` | Command palette |
-| `Mod S` | Force save |
-| `Mod B` | Show or hide the sidebar (bold while typing) |
-| `Mod Shift D` | Toggle dark mode |
-| `Mod ,` | Settings |
-| `/` | Focus list search |
-| `Esc` | Close dialog |
+```bash
+sha256sum -c SHA256SUMS
+```
 
-*(Some browsers reserve `Ctrl N`; use `Alt N` there.)*
+## Develop
 
----
-
-## Development
+Node 18+ (CI uses 20).
 
 ```bash
 git clone https://github.com/E1yWrites/tala.git
 cd tala
-npm install
-npm run dev        # dev server, http://localhost:5173
-npm run build      # typecheck + production build → dist/
-npm run preview    # serve dist/, http://localhost:4173
-npm run typecheck  # tsc --noEmit
-npm test           # Vitest: migrations, write path, backups, canvas math, PDF export
+npm ci
+npm run dev        # http://localhost:5173
+npm run typecheck  # strict; unused code fails
+npm test           # Vitest (fake-indexeddb)
+npm run build      # typecheck + production build -> dist/
+npm run preview    # http://localhost:4173
+npm run test:e2e   # Playwright flows against a running preview (build first)
 ```
 
-`npm run test:smoke` and `npm run test:e2e` drive a real browser with Playwright against a running `npm run preview`.
-
-### Desktop app (Tauri v2)
-
-The same web app in a native shell (WebView2 on Windows, WebKitGTK on Linux; no bundled Chromium).
-Notes live in the webview's IndexedDB under the `com.lanz.tala` identifier.
+### Desktop (Tauri v2)
 
 ```bash
-# one-time prerequisites (Debian/Ubuntu)
+# Debian/Ubuntu prerequisites
 sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-npm run app:dev     # native window (starts vite itself)
-npm run app:build   # installers → src-tauri/target/release/bundle/
+npm run app:dev     # native window with HMR
+npm run app:build   # installers -> src-tauri/target/release/bundle/
 ```
 
-### Architecture
+An iOS build via Capacitor lives in `ios/` and is dormant until App Store launch.
 
-React 19 + Vite + Tiptap + Zustand, stored in IndexedDB with Dexie. No backend, no router.
+## How it is put together
 
-```
-src/
-+-- library/      # the only code that writes note data: notes, pages, ink, PDFs,
-|                 # recordings, backups, boot and migrations
-+-- database/     # Dexie schema (v5, additive migrations from v2)
-+-- canvas/       # zoom/pinch geometry, lasso, wet ink, snap-to-shape, thumbnails
-+-- coach/        # Bituin's rules and copy
-+-- components/   # NoteEditor (Tiptap + ink stack), NoteList, Sidebar, Modals, layout
-+-- store/        # Zustand state (no actions; the library updates it)
-+-- hooks/ utils/ types/
-```
+`src/library/` is the only code that writes note data. Stores are plain state, and library calls update them optimistically, then persist through one serialized queue. Details, gotchas and the data model are in [CLAUDE.md](CLAUDE.md); design decisions are in [docs/adr](docs/adr).
 
-- **One writer.** Components call library functions; the library updates the stores optimistically, persists through one serialized queue, and rolls back with a toast if a write fails.
-- **Scratch cards stay in memory.** A note with no title, text or ink is never written until it earns content.
-- **PDFs keep their bytes.** Pages render from the original on demand; export copies the original pages and draws ink as vector paths in a worker.
-- **Migrations are additive and tested** against seeded old databases; a pre-upgrade copy of the library is kept in a separate database.
+## Contributing and security
 
-See [CLAUDE.md](CLAUDE.md) for the detailed model (pages, ink keyed by page id, backups, lecture audio).
-
----
+Issues and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, see [SECURITY.md](SECURITY.md). Privacy: [public/privacy.html](public/privacy.html).
 
 ## License
 
-[MIT](LICENSE) — (c) 2026 e1yu
+[MIT](LICENSE) © 2026 e1yu

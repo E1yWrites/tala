@@ -99,6 +99,19 @@ export interface MetaRecord {
   value: unknown
 }
 
+/** One line typed into Isip. The text is the record: what it says is re-read from it, never stored. */
+export interface IsipEntry {
+  id: string
+  text: string
+  /** The day it counts for, `YYYY-MM-DD`: the capture day unless changed by hand. */
+  day: string
+  /** Epoch ms; relative words count from it. */
+  createdAt: number
+  updatedAt: number
+  /** The owner's say on a Reading, keyed by the Reading's source text, so an edit elsewhere in the line keeps it. */
+  decisions?: Record<string, 'dismissed' | 'confirmed'>
+}
+
 /** The original PDF a note was imported from; the bytes live in `blobs`. */
 export interface PdfRecord {
   noteId: string
@@ -163,6 +176,10 @@ export type ViewKind =
   | 'folder'
   | 'tag'
   | 'tasks'
+  | 'agenda'
+  | 'money'
+  | 'habits'
+  | 'workouts'
   | 'settings'
 
 export interface ViewRef {
@@ -179,6 +196,7 @@ export const isSameView = (a: ViewRef, b: ViewRef): boolean =>
 export type ModalIntent =
   | { kind: 'new-note' }
   | { kind: 'palette' }
+  | { kind: 'capture' }
   | { kind: 'search' }
   | { kind: 'share'; noteId: string }
   | { kind: 'folder-editor'; folderId?: string; parentId?: string }

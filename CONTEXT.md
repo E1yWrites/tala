@@ -11,5 +11,21 @@
 - **Wrap-up**: Bituin's short summary at the end of a Session.
 - **Quiet mode**: the setting that silences Bituin's reactions and reminders.
 - **Recording**: lecture audio captured while writing, lined up with Ink by time.
-- **Task**: a checklist item in a Page's typed text; the Tasks tab lists them across the Library.
+- **Task**: a checklist item in a Page's typed text, optionally dated (`[ ] essay due fri`); the Tasks tab lists them across the Library.
 - **Backup**: a `.tala` file holding the Library.
+- **Isip**: the part of Tala that keeps Entries and reads them; also the rail group holding Today, Upcoming, Tasks, Money, Habits and Workouts.
+- **Entry**: one line typed into Isip, with the day it counts for. The text is the record; edits re-read it. _Avoid_: record, log, item.
+- **Reading**: what Isip takes from an Entry: an expense, an event, a tick or a lift. One Entry can hold several. _Avoid_: log.
+- **Item**: one priced thing in a grocery Reading (`eggs 98`).
+- **Workout**: the lifts of one day. _Avoid_: session (Session already means writing on a Note).
+- **Today**: the Home view: what Entries and dated Tasks put on today, the day's Entries, and undated open Tasks.
+- **Upcoming**: the next days of the Agenda, then every Due-again item.
+- **Due-again**: an Entry repeated from when it was last done (`@ haircut every ~6w`), not on fixed dates.
+- **Reminder**: an alert asked for on an Entry or a dated Task with `!` or `!15m`; Bituin never sends one.
+- **Account**: where money sits (Cash, GCash, BPI), named in a line by its one word (`P150 lunch gcash`).
+- **Safe to spend**: today's share of what the Accounts hold, less what is kept aside and the bills due before the next income.
+- **Habit**: something kept up on a number of days a week, ticked with `✓ name` Entries; Study is the first, counted from writing time.
+- **Strength**: how steadily a Habit is kept, 0–100%; a miss dents it, nothing resets it.
+- **Day off**: `✓ gym skip`, a day that leaves a Habit's Strength alone. _Avoid_: missed day.
+- **Lift**: a kind of Reading, `bench 60x5x3 @8`: weight × reps × sets, with RPE if given.
+- **Rest timer**: the countdown between sets on the Workouts view; it alerts while Tala is open.

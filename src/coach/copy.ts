@@ -8,12 +8,12 @@ export const BITUIN = {
   name: 'Bituin',
 
   home: {
-    line: 'Ready when you are.',
+    line: 'Write anything. I’ll sort it out.',
   },
 
   welcome: {
-    title: 'Kumusta! I’m Bituin.',
-    body: 'I live in the corner of Tala. I’ll cheer when you study and stay out of your way when you write.',
+    title: 'Ka-musta! I’m Bituin.',
+    body: 'I live in the corner of Tala. I’ll cheer when you study, tell you what your lines add up to, and stay out of your way when you write.',
   },
 
   empty: {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-07T05:53:13+00:00",
+  "generatedAt": "2026-10-09T04:56:22+00:00",
   "title": "Design System: Tala",
   "extensions": {
     "colorMeta": {
@@ -748,7 +748,7 @@
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "Pane titles, Tala wordmark, placeholder heads."
+        "purpose": "Pane and planner view titles, the Safe-to-spend sentence, Tala wordmark, placeholder heads; Today's greeting 26px from 768px."
       },
       "title": {
         "displayName": "Title",
@@ -764,7 +764,7 @@
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Spaced uppercase labels heading list groups (FOLDERS, TODAY)."
+        "purpose": "Spaced uppercase labels heading list groups: PLANNER, NOTEBOOK, FOLDERS, TAGS on the rail, day groups, planner card groups."
       },
       "catalogue": {
         "displayName": "Catalogue",
@@ -777,6 +777,10 @@
       "code": {
         "displayName": "Code",
         "purpose": "Inline code and code blocks inside a page only."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Money inside planner cards: account totals, month Spent and In, money-line amounts."
       }
     },
     "shadows": [
@@ -835,13 +839,28 @@
         "name": "reduced-motion",
         "value": "animation/transition-duration: 1ms",
         "purpose": "prefers-reduced-motion collapses all motion; Bituin also stills while pen mode is on."
+      },
+      {
+        "name": "press-scale-planner",
+        "value": "scale(0.97) over 150ms ease-out",
+        "purpose": "Planner rows, row actions, hub tabs and the habit counter; the round habit Done check presses to 0.94."
+      },
+      {
+        "name": "tick-draw",
+        "value": "220ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "A habit's check draws itself once, only at the moment it turns done."
+      },
+      {
+        "name": "rest-drain",
+        "value": "linear, the rest length",
+        "purpose": "The 3px rest-timer bar drains with scaleX on the compositor; hidden under reduced motion."
       }
     ],
     "breakpoints": [
       {
         "name": "mobile",
         "value": "max-width: 767px",
-        "purpose": "One pane, bottom tab bar, no dot grid."
+        "purpose": "One pane, bottom tab bar (Notes, Today, New note, Search, You), no dot grid."
       },
       {
         "name": "tablet",
@@ -851,12 +870,22 @@
       {
         "name": "desktop",
         "value": "1024px",
-        "purpose": "Docked 232px rail, 300px list, editor."
+        "purpose": "Docked 232px rail, 300px list, editor; the planner hub strip is hidden from here up."
       },
       {
         "name": "xl",
         "value": "1280px",
         "purpose": "List pane widens to 360px."
+      },
+      {
+        "name": "planner-wide",
+        "value": "@container planner (min-width: 848px)",
+        "purpose": "Planner frame widens to 1120px: split views 7fr / 5fr, one-column views a 720px column on the same edge."
+      },
+      {
+        "name": "habit-wide",
+        "value": "@container habits (min-width: 560px)",
+        "purpose": "Habit row puts name, week dots, strength and Done on one line."
       }
     ],
     "layout": {
@@ -865,7 +894,11 @@
       "listWidth": "300px (360px at xl)",
       "sheetMaxWidth": "720px",
       "dotGrid": "1px line-soft dots on a 24px pitch, tablet and up",
-      "touchTarget": "44px on coarse pointers"
+      "touchTarget": "44px on coarse pointers",
+      "plannerFrame": "720px column; 1120px from the 848px planner container, 7fr / 5fr when a view has a side column",
+      "plannerBody": "shelf colour, 12px side padding on phones, 24px from 768px, groups 24px apart",
+      "plannerTabs": "below 1024px: 36px pills (40px on touch), scroll-padding 1.5rem, 28px edge-fade mask",
+      "touchBaseline": "hoverOnlyWhenSupported; inputs 16px on coarse pointers; touch-action: manipulation and no label selection on controls"
     }
   },
   "components": [
@@ -921,9 +954,9 @@
       "name": "Rail Navigation",
       "kind": "nav",
       "refersTo": "rail-nav-item",
-      "description": "Forest-green rail items; active fills rail-active and the icon turns star yellow.",
-      "html": "<nav class=\"ds-rail\"><p class=\"ds-rail-label\">Library</p><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 6h4M2 10h4M2 14h4M2 18h4\"/><rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><path d=\"M9.5 8h5M9.5 12H16M9.5 16H14\"/></svg><span>Home</span></a><a class=\"ds-nav\" aria-current=\"page\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 6h4M2 10h4M2 14h4M2 18h4\"/><rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><path d=\"M9.5 8h5M9.5 12H16M9.5 16H14\"/></svg><span>All Notes</span><em>8</em></a><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 6h4M2 10h4M2 14h4M2 18h4\"/><rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><path d=\"M9.5 8h5M9.5 12H16M9.5 16H14\"/></svg><span>Tasks</span><em>7</em></a></nav>",
-      "css": ".ds-rail{width:232px;padding:12px;background:rgb(var(--c-rail));display:flex;flex-direction:column;gap:2px;font-family:'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif} .ds-rail-label{margin:4px 10px 6px;font:600 10.5px/1.4 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;letter-spacing:.14em;text-transform:uppercase;color:rgb(var(--c-rail-muted))} .ds-nav{display:flex;align-items:center;gap:12px;height:36px;padding:0 10px;border-radius:8px;color:rgb(var(--c-rail-fg) / .9);font:500 14px/1 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;text-decoration:none;transition:background-color 100ms} .ds-nav svg{color:rgb(var(--c-rail-muted))} .ds-nav span{flex:1} .ds-nav em{font-style:normal;font-size:12px;font-variant-numeric:tabular-nums;color:rgb(var(--c-rail-muted))} .ds-nav:hover{background:rgb(var(--c-rail-active) / .6);color:rgb(var(--c-rail-fg))} .ds-nav[aria-current=page]{background:rgb(var(--c-rail-active));color:rgb(var(--c-rail-fg))} .ds-nav[aria-current=page] svg{color:rgb(var(--c-gold))} .ds-nav:focus-visible{outline:2px solid rgb(var(--c-ballpoint));outline-offset:2px}"
+      "description": "Forest-green rail grouped under small-caps PLANNER and NOTEBOOK labels; active fills rail-active and the icon turns star yellow.",
+      "html": "<nav class=\"ds-rail\"><p class=\"ds-rail-label\">Planner</p><a class=\"ds-nav\" aria-current=\"page\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg><span>Today</span></a><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg><span>Upcoming</span></a><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg><span>Tasks</span><em>7</em></a><p class=\"ds-rail-label\">Notebook</p><a class=\"ds-nav\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 6h4M2 10h4M2 14h4M2 18h4\"/><rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/></svg><span>All Notes</span><em>8</em></a></nav>",
+      "css": ".ds-rail{width:232px;padding:12px;background:rgb(var(--c-rail));display:flex;flex-direction:column;gap:2px;font-family:'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif} .ds-rail-label{margin:14px 10px 4px;font:600 10.5px/1.4 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;letter-spacing:.14em;text-transform:uppercase;color:rgb(var(--c-rail-muted))} .ds-nav{display:flex;align-items:center;gap:12px;height:36px;padding:0 10px;border-radius:8px;color:rgb(var(--c-rail-fg) / .9);font:500 14px/1 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;text-decoration:none;transition:background-color 100ms} .ds-nav svg{color:rgb(var(--c-rail-muted))} .ds-nav span{flex:1} .ds-nav em{font-style:normal;font-size:12px;font-variant-numeric:tabular-nums;color:rgb(var(--c-rail-muted))} .ds-nav:hover{background:rgb(var(--c-rail-active) / .6);color:rgb(var(--c-rail-fg))} .ds-nav[aria-current=page]{background:rgb(var(--c-rail-active));color:rgb(var(--c-rail-fg))} .ds-nav[aria-current=page] svg{color:rgb(var(--c-gold))} .ds-nav:focus-visible{outline:2px solid rgb(var(--c-ballpoint));outline-offset:2px}"
     },
     {
       "name": "Catalogue Row",
@@ -948,11 +981,35 @@
       "description": "Vertical floating tool dock on the editor's right edge.",
       "html": "<div class=\"ds-dock\" role=\"toolbar\" aria-label=\"Pen tools\"><button aria-pressed=\"true\" aria-label=\"Pen\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 20h9\"/><path d=\"M16.4 3.6a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z\"/></svg></button><button aria-label=\"Eraser\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21\"/><path d=\"M22 21H7M5 11l9 9\"/></svg></button><hr><button aria-label=\"Colour\"><span class=\"ds-swatch\"></span></button></div>",
       "css": ".ds-dock{display:flex;flex-direction:column;align-items:center;gap:4px;width:52px;padding:6px;border:1px solid rgb(var(--c-line-soft));border-radius:14px;background:rgb(var(--c-panel));box-shadow:var(--shadow-float)} .ds-dock button{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:rgb(var(--c-muted));cursor:pointer;transition:background-color 100ms,color 100ms} .ds-dock button:hover{background:rgb(var(--c-raise));color:rgb(var(--c-ink))} .ds-dock button[aria-pressed=true]{background:rgb(var(--c-selected));color:rgb(var(--c-ink))} .ds-dock button:active{transform:scale(.95)} .ds-dock button:focus-visible{outline:2px solid rgb(var(--c-ballpoint));outline-offset:2px} .ds-dock hr{width:24px;margin:4px 0;border:0;border-top:1px solid rgb(var(--c-line-soft))} .ds-swatch{width:24px;height:24px;border-radius:9999px;background:rgb(var(--c-ballpoint));box-shadow:inset 0 0 0 2px rgb(255 255 255 / .85),0 0 0 1.5px rgb(var(--c-ink))}"
+    },
+    {
+      "name": "Planner Hub Strip",
+      "kind": "nav",
+      "refersTo": "planner-tab",
+      "description": "Below 1024px: one tap between the six planner views; the active tab changes colour only.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Planner\"><button class=\"ds-tab\" aria-current=\"page\">Today</button><button class=\"ds-tab\">Upcoming</button><button class=\"ds-tab\">Tasks</button><button class=\"ds-tab\">Money</button><button class=\"ds-tab\">Habits</button><button class=\"ds-tab\">Workouts</button></nav>",
+      "css": ".ds-tabs{display:flex;gap:4px;max-width:340px;overflow-x:auto;scrollbar-width:none;scroll-padding-inline:1.5rem;-webkit-mask-image:linear-gradient(to left,transparent,black 28px);mask-image:linear-gradient(to left,transparent,black 28px);background:rgb(var(--c-shelf));padding:4px 0} .ds-tab{flex-shrink:0;height:36px;padding:0 14px;border:0;border-radius:9999px;background:transparent;color:rgb(var(--c-muted));font:500 13.5px/1 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;cursor:pointer;transition:background-color 150ms ease-out,color 150ms ease-out,transform 150ms ease-out} .ds-tab:hover{background:rgb(var(--c-raise));color:rgb(var(--c-ink))} .ds-tab:active{transform:scale(.97)} .ds-tab[aria-current=page]{background:rgb(var(--c-accent));color:rgb(var(--c-accent-fg))} .ds-tab:focus-visible{outline:2px solid rgb(var(--c-ballpoint));outline-offset:2px}"
+    },
+    {
+      "name": "Safe to Spend",
+      "kind": "card",
+      "refersTo": "safe-to-spend",
+      "description": "The day stated as a sentence, never red, with the runway of days to the next income.",
+      "html": "<div class=\"ds-safe\"><p class=\"ds-safe-fig\"><span>₱205</span> <em>to spend today</em></p><p class=\"ds-safe-note\">₱180 a day until the 15th · sweldo</p><div class=\"ds-runway\"><i class=\"ds-rw-today\"></i><i></i><i></i><i></i><i></i><i></i><i></i><i class=\"ds-rw-end\"></i></div><p class=\"ds-safe-meta\">Spent today ₱95 · bills before then ₱300</p></div>",
+      "css": ".ds-safe{max-width:360px;padding:14px 16px;background:rgb(var(--c-panel));border:1px solid rgb(var(--c-line-soft));border-radius:10px;font-family:'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;color:rgb(var(--c-ink))} .ds-safe-fig{margin:0;font-size:21px;font-weight:700;line-height:1.375;letter-spacing:-.02em} .ds-safe-fig span{font-variant-numeric:tabular-nums} .ds-safe-fig em{font-style:normal;font-weight:600;color:rgb(var(--c-muted))} .ds-safe-note{margin:2px 0 0;font-size:13px;color:rgb(var(--c-muted))} .ds-runway{position:relative;margin-top:12px;height:12px;display:flex;align-items:center;justify-content:space-between} .ds-runway::before{content:'';position:absolute;left:4px;right:4px;top:50%;height:1px;background:rgb(var(--c-line-soft))} .ds-runway i{position:relative;width:6px;height:6px;border-radius:9999px;background:rgb(var(--c-line) / .6)} .ds-runway .ds-rw-today{width:12px;height:12px;box-sizing:border-box;border:2px solid rgb(var(--c-accent));background:rgb(var(--c-accent))} .ds-runway .ds-rw-end{width:10px;height:10px;box-sizing:border-box;border:1.5px solid rgb(var(--c-accent));background:rgb(var(--c-panel))} .ds-safe-meta{margin:8px 0 0;font-size:12px;font-variant-numeric:tabular-nums;color:rgb(var(--c-faint))}"
+    },
+    {
+      "name": "Habit Row",
+      "kind": "custom",
+      "refersTo": "habit-done",
+      "description": "Name, week dots, strength and a round Done check; Study done days are star-yellow stars.",
+      "html": "<ul class=\"ds-habits\"><li class=\"ds-habit\"><span class=\"ds-h-name\">Water<small>every day</small></span><ol class=\"ds-h-dots\"><li class=\"on\"></li><li class=\"on\"></li><li></li><li class=\"on\"></li><li class=\"later\"></li><li class=\"later\"></li><li class=\"later\"></li></ol><span class=\"ds-h-str\">72%<small>strength</small></span><button class=\"ds-h-done\" aria-pressed=\"false\" aria-label=\"Water: done today?\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg></button></li><li class=\"ds-habit\"><span class=\"ds-h-name\">Read<small>3 times a week</small></span><ol class=\"ds-h-dots\"><li class=\"on\"></li><li></li><li></li><li></li><li class=\"later\"></li><li class=\"later\"></li><li class=\"later\"></li></ol><span class=\"ds-h-str\">new<small>first week</small></span><button class=\"ds-h-done\" aria-pressed=\"true\" aria-label=\"Read: done today\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg></button></li></ul>",
+      "css": ".ds-habits{list-style:none;margin:0;padding:0;max-width:600px;background:rgb(var(--c-panel));border:1px solid rgb(var(--c-line-soft));border-radius:10px;overflow:hidden;font-family:'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;color:rgb(var(--c-ink))} .ds-habit{display:grid;grid-template-columns:minmax(0,1fr) auto 3.5rem 4rem;align-items:center;column-gap:8px;padding:8px 14px;border-bottom:1px solid rgb(var(--c-line-soft))} .ds-habit:last-child{border-bottom:0} .ds-h-name{font-size:14px;font-weight:500;display:flex;flex-direction:column} .ds-h-name small,.ds-h-str small{font-weight:400;color:rgb(var(--c-faint))} .ds-h-name small{font-size:12px} .ds-h-str small{font-size:10.5px} .ds-h-dots{display:flex;gap:6px;list-style:none;margin:0;padding:0} .ds-h-dots li{width:14px;height:14px;box-sizing:border-box;border-radius:9999px;border:1.5px solid rgb(var(--c-line))} .ds-h-dots li.on{border-color:rgb(var(--c-accent));background:rgb(var(--c-accent))} .ds-h-dots li.later{border-color:rgb(var(--c-line-soft))} .ds-h-str{display:flex;flex-direction:column;align-items:flex-end;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2} .ds-h-done{justify-self:end;display:grid;place-items:center;width:36px;height:36px;border-radius:9999px;border:1.5px solid rgb(var(--c-line));background:transparent;color:rgb(var(--c-faint));cursor:pointer;transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out,transform 150ms ease-out} .ds-h-done:hover{border-color:rgb(var(--c-ink));color:rgb(var(--c-ink))} .ds-h-done:active{transform:scale(.94)} .ds-h-done[aria-pressed=true]{border-color:rgb(var(--c-accent));background:rgb(var(--c-accent));color:rgb(var(--c-accent-fg))} .ds-h-done:focus-visible{outline:2px solid rgb(var(--c-ballpoint));outline-offset:2px}"
     }
   ],
   "narrative": {
     "northStar": "Planisphere",
-    "overview": "Tala's library is a star atlas. A forest-green rail, cut from the app icon's tile, is the instrument you steer by; the notes it charts sit on a pale green chart ground, and each page is a white sheet laid on that chart, the loudest thing on screen. The student's week is plotted in the rail as a small constellation: a Study day lights a star, the lit days join with a line, today waits as a dashed ring. Every note carries a catalogue number (№ 024) the way a star carries its entry in a catalogue.\n\nThe world is quiet and exact rather than cute. One typeface, Hanken Grotesk, does all the work, with hierarchy made by size and weight alone. Panes are divided by one-pixel seams, not shadows; shadows are kept for things that genuinely float (the pen dock, menus, dialogs). Colour carries meaning: green acts and selects, star yellow marks stars, ballpoint blue is ink, links and focus, red is destructive. Density is a study desk at tablet scale: rows are tight enough to scan a term of notes, controls grow to 44 px under a finger or stylus.\n\nThe released world (doodle icons, Kalam and Patrick Hand display type, Inter, a scrapbook mood) is retired by owner decision, and the generic grey-card notes shell is refused. Bituin, the star mascot, and the name Tala are the only pinned brand assets.",
+    "overview": "Tala's library is a star atlas. A forest-green rail, cut from the app icon's tile, is the instrument you steer by; the notes it charts sit on a pale green chart ground, and each page is a white sheet laid on that chart, the loudest thing on screen. The student's week is plotted in the rail as a small constellation: a Study day lights a star, the lit days join with a line, today waits as a dashed ring. Every note carries a catalogue number (№ 024) the way a star carries its entry in a catalogue.\n\nThe world is quiet and exact rather than cute. One typeface, Hanken Grotesk, does all the work, with hierarchy made by size and weight alone. Panes are divided by one-pixel seams, not shadows; shadows are kept for things that genuinely float (the pen dock, menus, dialogs). Colour carries meaning: green acts and selects, star yellow marks stars, ballpoint blue is ink, links and focus, red is destructive. Density is a study desk at tablet scale: rows are tight enough to scan a term of notes, controls grow to 44 px under a finger or stylus.\n\nThe planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the same atlas read as a logbook: one frame for all six views, small-caps groups over white seamed cards on the shelf, figures said in sentences rather than shouted in red. Habits plot their week as dots the way the rail plots Study days as stars, and money's remaining days run out as a line of points to the next income day.\n\nThe released world (doodle icons, Kalam and Patrick Hand display type, Inter, a scrapbook mood) is retired by owner decision, and the generic grey-card notes shell is refused. Bituin, the star mascot, and the name Tala are the only pinned brand assets.",
     "keyCharacteristics": [
       "Forest-green rail (both themes) with pale green text; the one star-yellow New note button sits at its top.",
       "Green-tinted chart ground with a 24 px coordinate dot grid behind white page sheets (tablet and up).",
@@ -960,12 +1017,13 @@
       "Catalogue numbers (№ 001) on every note row, in creation order.",
       "One-pixel seams between panes and rows; shadows only on floating tools and the page sheet.",
       "The week as a constellation of star-yellow Study days; missing a day is a faint point, never red.",
+      "One planner frame for six views: a 21 px title, a muted note line, a pill strip where the rail is not docked, then small-caps groups over white seamed cards.",
       "Lucide line icons throughout; no doodles, no handwriting fonts."
     ],
     "rules": [
       {
         "name": "The One Star Rule",
-        "body": "Star yellow means a star: Bituin, Study days, starred notes, and the single New note button. On the rail it also marks \"you are here\" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.",
+        "body": "Star yellow means a star: Bituin, Study days (in the rail's constellation and as Study's done days on the Habits list), starred notes, and the single New note button. Every other habit's done day is a green dot. On the rail it also marks \"you are here\" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.",
         "section": "colors"
       },
       {
@@ -976,6 +1034,11 @@
       {
         "name": "The Ballpoint Rule",
         "body": "Blue belongs to the pen: ink, caret, links and the focus ring. It never fills a control, so focus is always distinguishable from selection.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plain Figures Rule",
+        "body": "Red is for destroying things, not for money or habits. Spending past today's share, a negative account balance and a missed habit day stay in ink, muted or faint tones; the words carry the news.",
         "section": "colors"
       },
       {
@@ -992,6 +1055,11 @@
         "name": "The Small-Caps Label Rule",
         "body": "Spaced uppercase labels only head a group of list items. They never sit above a headline as a kicker.",
         "section": "typography"
+      },
+      {
+        "name": "The Same Edge Rule",
+        "body": "Every planner view starts its title, strip and first card on the same left edge, so switching views never moves the eye.",
+        "section": "layout"
       },
       {
         "name": "The Chart Ground Rule",
@@ -1012,7 +1080,11 @@
       "Do set every count, time and number with tabular figures.",
       "Do give every control a 44 px target on coarse pointers and the ballpoint focus ring everywhere.",
       "Do use Lucide line icons at 15 to 18 px (20 px in the mobile tab bar), thickening the stroke only for the active state.",
-      "Do mirror the pen dock and the mobile tab bar for left-handed users."
+      "Do mirror the pen dock and the mobile tab bar for left-handed users.",
+      "Do build every planner view from the shared frame: small-caps group label, white 10 px card with a one-pixel seam, seam-divided rows of at least 44 px.",
+      "Do say money as a sentence (\"₱205 to spend today\", \"₱221 over today's share\") and set every figure in tabular type.",
+      "Do keep the planner hub strip colour-only: tile green fill for the active tab, muted text for the rest, a faded edge where it can scroll.",
+      "Do gate hover styles to hover-capable pointers and keep form fields at 16 px on coarse pointers."
     ],
     "donts": [
       "Don't use star yellow for anything that is not a star, New note, or the rail's active and profile marks: no yellow badges, hovers, banners or second buttons.",
@@ -1020,6 +1092,8 @@
       "Don't bring back doodle icons, Kalam, Patrick Hand or Inter; Hanken Grotesk is the only face.",
       "Don't build the library as a grid of grey cards with drop shadows; it is a seamed catalogue on the shelf.",
       "Don't show a missed study day in red or as a loss; it is a faint point.",
+      "Don't colour overspending, a negative balance or a missed habit day red, and don't score a habit under a week old; it is \"new\".",
+      "Don't put a label above a money figure or set account names and tags in monospace; the sentence and the Hanken figure carry it.",
       "Don't animate Bituin or anything decorative while pen mode is on, and honour reduced motion (animations collapse to 1 ms).",
       "Don't add per-component `dark:` colour overrides when a token exists.",
       "Don't put the dot grid inside a sheet, on the rail, in the list or on phones."

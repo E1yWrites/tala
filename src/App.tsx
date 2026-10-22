@@ -5,6 +5,7 @@ import { toast, Toaster } from 'sonner'
 import { Bituin } from '@/coach/Bituin'
 import { bootApp } from '@/library/boot'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useUIStore } from '@/store/uiStore'
 import { AppShell } from '@/components/layout/AppShell'
 
 /** Removes the index.html splash with a short fade. */
@@ -88,6 +89,11 @@ export default function App(): React.ReactNode {
       .then(() => {
         clearTimeout(slowTimer)
         setReady(true)
+        // The installed app's "Write a line" shortcut (manifest.webmanifest) opens the capture box
+        if (new URLSearchParams(window.location.search).has('write')) {
+          window.history.replaceState(null, '', window.location.pathname)
+          useUIStore.getState().openModal({ kind: 'capture' })
+        }
       })
       .catch((err) => {
         console.error('[tala] boot failed', err)

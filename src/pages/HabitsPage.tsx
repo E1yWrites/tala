@@ -1,0 +1,323 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, ChevronRight, Plus } from 'lucide-react'
+import { EMPTY_LOG, habitLogs, habitRule, habitStatus, studyHabit, untracked } from '@/entries/habits'
+import type { DayState, Habit, HabitLog, HabitStatus } from '@/entries/habits'
+import { formatTime } from '@/entries/parse'
+import { addHabit, habitNameProblem, removeHabit, skipHabit, tickHabit, updateHabit, useHabitStore } from '@/library/habits'
+import type { HabitInput } from '@/library/habits'
+import { setWeeklyGoal, useStudyStore } from '@/library/study'
+import { useEntries } from '@/components/Agenda/useAgenda'
+import { QuickCapture } from '@/components/QuickCapture'
+import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
+import { starPath } from '@/coach/WeekConstellation'
+import { ISIP } from '@/isip/copy'
+import { cn } from '@/utils/cn'
+
+const field = 'h-9 min-w-0 flex-1 rounded-control border border-lineSoft bg-canvas px-2.5 text-sm text-ink'
+const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+/** Strength is shown once a habit has this many days behind it. */
+const WEEK_OF_HISTORY = 7
+const STATE_WORDS: Record<DayState, string> = ISIP.habits.states
+
+/** Each habit with its week and strength, from the ✓ lines; Study (from writing time) comes first. */
+export function HabitsPage(): React.ReactNode {
+  const { refs, today } = useEntries()
+  const habits = useHabitStore((s) => s.habits)
+  const seconds = useStudyStore((s) => s.seconds)
+  const goal = useStudyStore((s) => s.goal)
+  const logs = useMemo(() => habitLogs(refs), [refs])
+  const [study, studyLog] = useMemo(() => studyHabit(seconds, goal, today), [seconds, goal, today])
+  const loose = useMemo(() => untracked(refs, habits, today), [refs, habits, today])
+
+  return (
+    <PlannerView label={ISIP.habits.title} title={ISIP.habits.title} note={ISIP.habits.note}>
+      <QuickCapture />
+      <PlannerSection id="habits-list" title={ISIP.habits.week}>
+        <ul className={cn(CARD, 'habit-list')}>
+          <HabitRow habit={study} log={studyLog} today={today} study />
+          {habits.map((h) => (
+            <HabitRow key={h.id} habit={h} log={logs.get(h.name.toLowerCase()) ?? EMPTY_LOG} today={today} />
+          ))}
+          <AddHabit />
+        </ul>
+        <p className="mt-2 px-1 text-xs text-muted">
+          {ISIP.habits.how}
+        </p>
+      </PlannerSection>
+      {loose.length > 0 && (
+        <PlannerSection id="habits-untracked" title={ISIP.habits.untracked}>
+          <ul className={CARD}>
+            {loose.map((u) => (
+              <li key={u.name.toLowerCase()} className="flex min-h-12 items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-medium">{u.name}</span>
+                  <span className="block truncate text-xs text-faint">{ISIP.habits.ticked(u.days)}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addHabit({ name: u.name, days: u.perWeek, target: u.target })}
+                  aria-label={ISIP.habits.trackLabel(u.name)}
+                  className="min-h-9 shrink-0 rounded-control border border-lineSoft px-3 text-xs font-semibold transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11"
+                >
+                  {ISIP.habits.track}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PlannerSection>
+      )}
+    </PlannerView>
+  )
+}
+
+function HabitRow({ habit, log, today, study = false }: { habit: Habit; log: HabitLog; today: string; study?: boolean }): React.ReactNode {
+  const s = useMemo(() => habitStatus(habit, log, today), [habit, log, today])
+  const [open, setOpen] = useState(false)
+  const rule = study ? ISIP.habits.studyRule(habitRule(habit)) : habitRule(habit)
+  return (
+    <li className="habit-row border-b border-lineSoft last:border-b-0">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={ISIP.habits.edit(habit.name)}
+          className="habit-name flex min-h-11 min-w-0 items-center gap-2 text-left"
+        >
+          <ChevronRight size={14} className={cn('shrink-0 text-faint transition-transform', open && 'rotate-90')} aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-medium">{habit.name}</span>
+            <span className="block truncate text-xs text-faint">
+              {rule}
+              {habit.remind && ` · ${formatTime(habit.remind)}`}
+            </span>
+          </span>
+        </button>
+        <Strength status={s} />
+        {!study && (
+          <span className="habit-done">
+            <DoneButton habit={habit} status={s} />
+          </span>
+        )}
+      <WeekDots days={s.days} name={habit.name} today={today} stars={study} />
+      {open && (
+        <div className="habit-form">
+          {study ? <StudyForm onDone={() => setOpen(false)} /> : <EditHabit habit={habit} status={s} onDone={() => setOpen(false)} />}
+        </div>
+      )}
+    </li>
+  )
+}
+
+/** How steadily it is kept, said in words; a habit under a week old is just "new", never a low score. */
+function Strength({ status }: { status: HabitStatus }): React.ReactNode {
+  const young = status.age < WEEK_OF_HISTORY
+  return (
+    <span className="habit-strength flex flex-col items-end leading-tight">
+      <span className={cn('text-xs tabular-nums', young ? 'text-faint' : 'font-semibold text-ink')}>
+        {young ? ISIP.habits.new : `${Math.round(status.strength * 100)}%`}
+      </span>
+      <span className="text-[10.5px] text-faint">{young ? ISIP.habits.firstWeek : ISIP.habits.strength}</span>
+    </span>
+  )
+}
+
+/** ✓ for a yes/no habit; +1 (with the count) for a measurable one. Writes today's `✓ name N` Entry. */
+export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatus }): React.ReactNode {
+  // Draw the check only when it turns done here, not every time the list opens
+  const wasDone = useRef(status.done)
+  const justDone = status.done && !wasDone.current
+  useEffect(() => {
+    wasDone.current = status.done
+  }, [status.done])
+  if (habit.target > 1) {
+    return (
+      <button
+        type="button"
+        onClick={() => tickHabit(habit.name)}
+        aria-label={ISIP.habits.oneMore(habit.name, status.count, habit.target)}
+        className={cn(
+          'flex h-9 shrink-0 items-center gap-1 rounded-control border px-2.5 text-xs font-semibold tabular-nums transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] [@media(pointer:coarse)]:h-11',
+          status.done ? 'border-accent bg-accent text-accent-fg' : 'border-lineSoft text-ink hover:border-line',
+        )}
+      >
+        {status.count}/{habit.target}
+        <Plus size={13} aria-hidden="true" />
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => tickHabit(habit.name)}
+      disabled={status.done}
+      aria-label={ISIP.habits.doneToday(habit.name, status.done)}
+      aria-pressed={status.done}
+      className={cn(
+        'grid size-9 shrink-0 place-items-center rounded-full border-[1.5px] transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.94] [@media(pointer:coarse)]:size-11',
+        status.done ? 'border-accent bg-accent text-accent-fg' : 'border-line text-faint hover:border-ink hover:text-ink',
+      )}
+    >
+      <Check size={16} strokeWidth={2.4} aria-hidden="true" className={justDone ? 'tick-draw' : undefined} />
+    </button>
+  )
+}
+
+/** Monday..Sunday. A done day fills green; Study's done days are the rail constellation's stars. */
+function WeekDots({ days, name, today, stars = false }: { days: HabitStatus['days']; name: string; today: string; stars?: boolean }): React.ReactNode {
+  return (
+    <ol aria-label={ISIP.habits.thisWeek(name)} className="habit-dots flex gap-1.5">
+      {days.map((d, i) => (
+        <li key={d.day} className="flex flex-col items-center gap-0.5">
+          {stars && d.state === 'done' ? (
+            <svg viewBox="0 0 14 14" className="size-3.5" role="img" aria-label={`${DAY_LETTERS[i]}: ${STATE_WORDS[d.state]}`}>
+              <path d={starPath(7, 7.4, 7)} fill="rgb(var(--c-gold))" />
+            </svg>
+          ) : (
+            <span
+              aria-label={`${DAY_LETTERS[i]}: ${STATE_WORDS[d.state]}`}
+              className={cn(
+                'size-3.5 rounded-full border-[1.5px] transition-colors duration-150',
+                d.state === 'done' && 'border-accent bg-accent',
+                d.state === 'part' && 'border-accent bg-accent/30',
+                d.state === 'off' && 'border-dashed border-line',
+                d.state === 'none' && 'border-line',
+                d.state === 'later' && 'border-lineSoft',
+              )}
+            />
+          )}
+          <span className={cn('text-[10.5px] leading-none', d.day === today ? 'font-bold text-ink' : 'text-faint')} aria-hidden="true">
+            {DAY_LETTERS[i]}
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function HabitFields({ value, onChange }: { value: HabitInput; onChange: (v: HabitInput) => void }): React.ReactNode {
+  return (
+    <>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="w-20 shrink-0">{ISIP.habits.fields.name}</span>
+        <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} aria-label={ISIP.habits.fields.nameLabel} placeholder={ISIP.habits.fields.namePlaceholder} className={field} />
+      </label>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="w-20 shrink-0">{ISIP.habits.fields.often}</span>
+        <DaysSelect value={value.days} onChange={(days) => onChange({ ...value, days })} />
+      </label>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="w-20 shrink-0">{ISIP.habits.fields.target}</span>
+        <input
+          inputMode="numeric"
+          value={value.target === 1 ? '' : String(value.target)}
+          onChange={(e) => onChange({ ...value, target: Number(e.target.value.replace(/\D/g, '')) || 1 })}
+          placeholder={ISIP.habits.fields.targetPlaceholder}
+          aria-label={ISIP.habits.fields.targetLabel}
+          className={field}
+        />
+      </label>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="w-20 shrink-0">{ISIP.habits.fields.remind}</span>
+        <input type="time" value={value.remind ?? ''} onChange={(e) => onChange({ ...value, remind: e.target.value || undefined })} aria-label={ISIP.habits.fields.remindLabel} className={field} />
+      </label>
+    </>
+  )
+}
+
+function DaysSelect({ value, onChange, ariaLabel = ISIP.habits.fields.days }: { value: number; onChange: (n: number) => void; ariaLabel?: string }): React.ReactNode {
+  return (
+    <select value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={ariaLabel} className={field}>
+      {[7, 6, 5, 4, 3, 2, 1].map((n) => (
+        <option key={n} value={n}>
+          {habitRule({ days: n, target: 1 })}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function EditHabit({ habit, status, onDone }: { habit: Habit; status: HabitStatus; onDone: () => void }): React.ReactNode {
+  const [value, setValue] = useState<HabitInput>(habit)
+  const [error, setError] = useState('')
+  return (
+    <form
+      className="space-y-2 pb-1 pt-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!updateHabit(habit.id, value)) return setError(habitNameProblem(value.name, habit.id) ?? '')
+        onDone()
+      }}
+    >
+      <HabitFields value={value} onChange={setValue} />
+      <p className="text-xs text-faint">{ISIP.habits.renameNote}</p>
+      {error && <p className="text-xs text-danger">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => removeHabit(habit.id)} className="text-xs font-medium text-danger hover:underline">
+          {ISIP.habits.remove}
+        </button>
+        {status.due && (
+          <button type="button" onClick={() => (skipHabit(habit.name), onDone())} className="text-xs font-medium text-muted hover:text-ink hover:underline">
+            {ISIP.habits.dayOff}
+          </button>
+        )}
+        <button type="submit" className="ml-auto rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg">
+          {ISIP.habits.save}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function StudyForm({ onDone }: { onDone: () => void }): React.ReactNode {
+  const goal = useStudyStore((s) => s.goal)
+  return (
+    <div className="space-y-2 pb-1 pt-2">
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="w-20 shrink-0">{ISIP.habits.fields.often}</span>
+        <DaysSelect value={goal} onChange={(n) => (setWeeklyGoal(n), onDone())} ariaLabel={ISIP.habits.fields.studyDays} />
+      </label>
+      <p className="text-xs text-faint">{ISIP.habits.studyNote}</p>
+    </div>
+  )
+}
+
+function AddHabit(): React.ReactNode {
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState<HabitInput>({ name: '', days: 7, target: 1 })
+  const [error, setError] = useState('')
+  if (!open) {
+    return (
+      <li>
+        <button type="button" onClick={() => setOpen(true)} className="flex min-h-12 w-full items-center gap-2 px-3.5 text-left text-sm text-faint hover:bg-raise hover:text-ink">
+          <Plus size={14} aria-hidden="true" />
+          {ISIP.habits.add}
+        </button>
+      </li>
+    )
+  }
+  return (
+    <li>
+      <form
+        className="space-y-2 px-3.5 py-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!addHabit(value)) return setError(habitNameProblem(value.name) ?? '')
+          setValue({ name: '', days: 7, target: 1 })
+          setError('')
+          setOpen(false)
+        }}
+      >
+        <HabitFields value={value} onChange={setValue} />
+        {error && <p className="text-xs text-danger">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={() => setOpen(false)} className="text-xs font-medium text-muted hover:text-ink">
+            {ISIP.habits.cancel}
+          </button>
+          <button type="submit" className="rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg">
+            {ISIP.habits.addSubmit}
+          </button>
+        </div>
+      </form>
+    </li>
+  )
+}

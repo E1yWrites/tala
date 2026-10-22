@@ -2,6 +2,7 @@ import Dexie from 'dexie'
 import { toast } from 'sonner'
 import { SAFETY_DB } from '@/database/db'
 import { snapshotToZip } from '@/utils/exportImport'
+import { downloadBlob } from '@/utils/markdown'
 import { dump } from './snapshot'
 
 /*
@@ -85,14 +86,7 @@ export async function downloadSafetyCopy(): Promise<void> {
   try {
     const copy = (await safety.table('copies').get('pre-v4')) as SafetyCopy | undefined
     if (!copy) return
-    const url = URL.createObjectURL(copy.zip)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'tala-before-upgrade.tala'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    downloadBlob('tala-before-upgrade.tala', copy.zip)
   } finally {
     safety.close()
   }

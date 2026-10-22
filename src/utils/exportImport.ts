@@ -3,6 +3,7 @@ import type {
   BlobRecord,
   Folder,
   InkDocRecord,
+  IsipEntry,
   MetaRecord,
   Note,
   PageRecord,
@@ -16,6 +17,8 @@ import JSZip from 'jszip'
 import { toast } from 'sonner'
 import { BITUIN } from '@/coach/copy'
 import { detectEnv } from '@/coach/env'
+import { downloadBlob } from '@/utils/markdown'
+import { shareFile } from '@/utils/native'
 import { usePrefsStore } from '@/store/prefsStore'
 import { flush } from '@/library/notes'
 import { dump, restore, type Snapshot } from '@/library/snapshot'
@@ -35,16 +38,35 @@ export interface BackupFile {
   pdfs?: PdfRecord[]
   /** Lecture audio rows (metadata only: the audio itself is never inside a backup). */
   recordings?: RecordingRecord[]
-  /** Study days and the weekly goal. */
+  /** Study days, the weekly goal, money and habit settings. */
   meta?: MetaRecord[]
+  /** The lines typed into Isip. */
+  isipEntries?: IsipEntry[]
   /** Binary payloads: the bytes are separate zip entries named `blobs/<id>`. */
   blobs?: Array<{ id: string; type: string }>
   /** Runtime only (filled by importBackupFile from the zip entries); never serialized. */
   blobData?: BlobRecord[]
 }
 
-/** The JSON half of a backup. Blob bytes travel as separate zip entries. */
-function snapshotToBackup(s: Snapshot): BackupFile {
+/** A parsed backup as library rows, ready for `restore()`. */
+export function backupToSnapshot(backup: BackupFile): Partial<Snapshot> {
+  return {
+    notes: backup.notes,
+    folders: backup.folders,
+    tags: backup.tags,
+    settings: backup.settings ? [backup.settings] : [],
+    inkDocs: backup.inkDocs,
+    pages: backup.pages,
+    pdfs: backup.pdfs,
+    blobs: backup.blobData,
+    recordings: backup.recordings,
+    meta: backup.meta,
+    isipEntries: backup.isipEntries,
+  }
+}
+
+/** The JSON half of a backup. Blob bytes travel as separate zip entries (or files, in the mirror). */
+export function snapshotToBackup(s: Snapshot): BackupFile {
   return {
     app: 'tala',
     version: 3,
@@ -58,6 +80,7 @@ function snapshotToBackup(s: Snapshot): BackupFile {
     pdfs: s.pdfs,
     recordings: s.recordings,
     meta: s.meta,
+    isipEntries: s.isipEntries,
     blobs: s.blobs.map((b) => ({ id: b.id, type: b.data.type })),
   }
 }
@@ -98,7 +121,11 @@ export async function downloadBackup(): Promise<void> {
 
   let shared = false
   const { platform } = detectEnv()
-  if (platform === 'ios' || platform === 'android') {
+  if (platform === 'capacitor') {
+    // The app has no downloads: the share sheet is the only way out (Files, AirDrop, a chat)
+    if (!(await shareFile(name, blob))) return
+    shared = true
+  } else if (platform === 'ios' || platform === 'android') {
     const file = new File([blob], name, { type: 'application/octet-stream' })
     if (navigator.canShare?.({ files: [file] })) {
       try {
@@ -111,16 +138,7 @@ export async function downloadBackup(): Promise<void> {
       }
     }
   }
-  if (!shared) {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  if (!shared) downloadBlob(name, blob)
   usePrefsStore.getState().setCoach({ lastBackupAt: Date.now(), backupSnoozeUntil: 0 })
   toast.success(shared ? BITUIN.reaction.backupShared : BITUIN.reaction.backupDone)
 }
@@ -211,6 +229,9 @@ export function parseBackup(text: string): BackupFile {
     ? (b.meta as unknown[]).filter((m): m is MetaRecord => isObj(m) && isStr(m.key) && 'value' in m)
         .map((m) => ({ key: m.key, value: m.value }))
     : []
+  const isipEntries = Array.isArray(b.isipEntries)
+    ? (b.isipEntries as unknown[]).map(normalizeIsipEntry).filter((e): e is IsipEntry => e !== null)
+    : []
 
   return {
     ...(b as BackupFile),
@@ -225,6 +246,26 @@ export function parseBackup(text: string): BackupFile {
     blobs,
     recordings,
     meta,
+    isipEntries,
+  }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** One Isip Entry, or null: it needs an id, a line and the day it counts for. */
+function normalizeIsipEntry(raw: unknown): IsipEntry | null {
+  if (!isObj(raw) || !isStr(raw.id) || typeof raw.text !== 'string' || typeof raw.day !== 'string' || !DAY.test(raw.day)) return null
+  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now()
+  const decisions = isObj(raw.decisions)
+    ? Object.fromEntries(Object.entries(raw.decisions).filter((d): d is [string, 'dismissed' | 'confirmed'] => d[1] === 'dismissed' || d[1] === 'confirmed'))
+    : {}
+  return {
+    id: raw.id,
+    text: raw.text.replace(/\s*\n\s*/g, ' ').trim(),
+    day: raw.day,
+    createdAt,
+    updatedAt: typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt,
+    ...(Object.keys(decisions).length ? { decisions } : {}),
   }
 }
 
@@ -399,21 +440,7 @@ export async function restoreBackup(
   backup: BackupFile,
   mode: 'merge' | 'replace',
 ): Promise<{ notes: number; folders: number; tags: number }> {
-  await restore(
-    {
-      notes: backup.notes,
-      folders: backup.folders,
-      tags: backup.tags,
-      settings: backup.settings ? [backup.settings] : [],
-      inkDocs: backup.inkDocs,
-      pages: backup.pages,
-      pdfs: backup.pdfs,
-      blobs: backup.blobData,
-      recordings: backup.recordings,
-      meta: backup.meta,
-    },
-    mode,
-  )
+  await restore(backupToSnapshot(backup), mode)
   // Dynamic: boot -> safety -> this module would otherwise be an import cycle
   const { hydrateAll } = await import('@/library/boot')
   await hydrateAll()

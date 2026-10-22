@@ -14,6 +14,8 @@ import type { PageRecord } from '@/types/models'
 import type { InkDoc, InkStroke } from '@/types/ink'
 import { cn } from '@/utils/cn'
 import { processImageFile } from '@/utils/image'
+import { dayKey } from '@/coach/study'
+import { EntryLines } from './entryLines'
 import { EditorToolbar } from './EditorToolbar'
 import { ReadingView } from './ReadingView'
 import { InkLayer } from './ink/InkLayer'
@@ -159,6 +161,7 @@ function TypedPage({
         TaskItem.configure({ nested: true }),
         ImageExtension,
         TaskSyntaxInput,
+        EntryLines.configure({ fallback: dayKey(page.createdAt) }),
         Placeholder.configure({
           placeholder:
             'Start writing…   "# " heading · "- " list · "[ ] " task · "> " quote · "```" code',

@@ -6,15 +6,20 @@ import {
   Archive,
   CheckSquare,
   ChevronRight,
-  Home,
+  CalendarCheck,
+  CalendarDays,
   MoreHorizontal,
   NotebookText,
   PanelLeft,
+  PenLine,
   Plus,
   Search,
   Settings as SettingsIcon,
   Star,
   Trash2,
+  Wallet,
+  Repeat,
+  Dumbbell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Avatar } from '../UI/Avatar'
@@ -35,6 +40,7 @@ import { useTick } from '@/hooks/useTick'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
 import { shortcut } from '@/utils/keys'
+import { ISIP } from '@/isip/copy'
 
 /** Initials on the rail: a star-yellow chip, readable on green in both themes. */
 const RAIL_AVATAR = 'border-transparent bg-gold font-semibold text-gold-fg'
@@ -107,12 +113,25 @@ export function Sidebar({
   const quietMode = usePrefsStore((s) => s.quietMode)
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
 
-  const primaryItems: NavItemSpec[] = [
-    { id: 'home', label: 'Home', icon: Home },
+  // The planner reads the lines of every note; the notebook is the notes themselves
+  const plannerItems: NavItemSpec[] = [
+    { id: 'home', label: 'Today', icon: CalendarCheck },
+    { id: 'agenda', label: 'Upcoming', icon: CalendarDays },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
+    { id: 'money', label: 'Money', icon: Wallet },
+    { id: 'habits', label: 'Habits', icon: Repeat },
+    { id: 'workouts', label: 'Workouts', icon: Dumbbell },
+  ]
+  const notebookItems: NavItemSpec[] = [
     { id: 'all', label: 'All Notes', icon: NotebookText, count: counts.all },
     { id: 'favorites', label: 'Starred', icon: Star, count: counts.favorites },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: openTasks },
   ]
+  const navList = (items: NavItemSpec[]): ReactNode =>
+    items.map((item) => (
+      <li key={item.id}>
+        <NavItemButton item={item} active={activeView.kind === item.id} onSelect={() => navigate({ kind: item.id as ViewKind })} />
+      </li>
+    ))
 
   const topTags = useMemo(
     () =>
@@ -150,27 +169,38 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* New note: the one gold control */}
-      <button
-        type="button"
-        onClick={() => openModal({ kind: 'new-note' })}
-        className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-card bg-gold text-[15px] font-semibold text-gold-fg transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.98]"
-      >
-        <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
-        New note
-      </button>
+      {/* Write a line: the one gold control, since writing it down is the first thing; a new note sits beside it */}
+      <div className="mt-4 flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            if (variant === 'drawer') setSidebarDrawer(false)
+            openModal({ kind: 'capture' })
+          }}
+          aria-keyshortcuts="Control+Shift+Space"
+          className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-card bg-gold text-[15px] font-semibold text-gold-fg transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.98]"
+        >
+          <PenLine size={17} strokeWidth={2.4} aria-hidden="true" />
+          {ISIP.capture.title}
+        </button>
+        <Tooltip label="New note" side="bottom">
+          <button
+            type="button"
+            onClick={() => openModal({ kind: 'new-note' })}
+            aria-label="New note"
+            className="grid size-11 shrink-0 place-items-center rounded-card border border-rail-line text-rail-fg transition-[background-color,transform] duration-150 hover:bg-rail-active active:scale-[0.98]"
+          >
+            <Plus size={18} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </Tooltip>
+      </div>
 
-      <div className="-mx-1 mt-4 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
-        <ul className="flex flex-col gap-0.5">
-          {primaryItems.map((item) => (
-            <li key={item.id}>
-              <NavItemButton
-                item={item}
-                active={activeView.kind === item.id}
-                onSelect={() => navigate({ kind: item.id as ViewKind })}
-              />
-            </li>
-          ))}
+      <div className="-mx-1 mt-2 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
+        <SectionHeader label={ISIP.rail} className="mt-2" />
+        <ul className="mt-1 flex flex-col gap-0.5">{navList(plannerItems)}</ul>
+        <SectionHeader label="Notebook" />
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {navList(notebookItems)}
           <li>
             <NavItemButton
               item={{ id: 'search', label: 'Search', icon: Search }}
@@ -527,13 +557,15 @@ function SectionHeader({
   label,
   actionLabel,
   onAction,
+  className = 'mt-5',
 }: {
   label: string
   actionLabel?: string
   onAction?: () => void
+  className?: string
 }): ReactNode {
   return (
-    <div className="mt-5 flex items-center justify-between px-2.5">
+    <div className={cn('flex min-h-7 items-center justify-between px-2.5', className)}>
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-rail-muted">{label}</p>
       {onAction && (
         <Tooltip label={actionLabel ?? ''}>

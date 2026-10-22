@@ -14,7 +14,13 @@ import { keepSafetyCopy, settleSafetyCopy } from './safety'
 import { requestPersistence } from './storage'
 import { interruptStale, formatDuration } from './recordings'
 import { loadStudy } from './study'
+import { loadMoney } from './money'
+import { loadHabits } from './habits'
+import { loadIsip } from './isip'
+import './context'
 import { startInkIndexer } from './inkText'
+import { restoreIfEvicted, startMirror } from './mirror'
+import { startReminders } from './reminders'
 import { toast } from 'sonner'
 
 /**
@@ -89,6 +95,9 @@ export async function load(): Promise<void> {
   applyThemeToDom(settings.theme)
   useSettingsStore.setState({ settings })
   await loadStudy().catch((err) => console.error('[tala] could not load study days', err))
+  await loadMoney().catch((err) => console.error('[tala] could not load money settings', err))
+  await loadHabits().catch((err) => console.error('[tala] could not load habits', err))
+  await loadIsip().catch((err) => console.error('[tala] could not load Isip', err))
 
   // An import/restore can wipe the folder or tag the user is looking at —
   // fall back to All Notes instead of lingering on a ghost view.
@@ -112,11 +121,19 @@ let bootPromise: Promise<void> | null = null
 export function bootApp(): Promise<void> {
   bootPromise ??= (async () => {
     const copied = await keepSafetyCopy()
+    // App Store app: iOS may have cleared the webview's storage while Tala was closed
+    const recovered = await restoreIfEvicted().catch((err) => {
+      console.error('[tala] could not restore the on-device copy', err)
+      return false
+    })
     await load()
+    if (recovered) toast.success('Your notes were restored from Tala’s copy on this device.')
+    startMirror()
     await settleSafetyCopy(copied)
     await announceInterruptedRecordings()
     void requestPersistence()
     startInkIndexer()
+    startReminders()
   })()
   return bootPromise
 }

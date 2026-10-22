@@ -29,7 +29,7 @@ const note = (id: string, patch: Partial<Note> = {}): Note => ({
 const ink = { version: 1, width: 700, strokes: [{ id: 's1' }] }
 
 /** Opens a raw database exactly as an older release declared it. */
-async function seedOld(version: 1 | 2 | 3 | 4, fill: (old: Dexie) => Promise<void>): Promise<void> {
+async function seedOld(version: 1 | 2 | 3 | 4 | 5, fill: (old: Dexie) => Promise<void>): Promise<void> {
   db.close()
   await Dexie.delete('tala')
   const old = new Dexie('tala')
@@ -44,6 +44,7 @@ async function seedOld(version: 1 | 2 | 3 | 4, fill: (old: Dexie) => Promise<voi
     old.version(3).stores({ folders: 'id, name, parentId', pages: 'id, noteId, [noteId+index]', pdfs: 'noteId' })
   }
   if (version >= 4) old.version(4).stores({ blobs: 'id' })
+  if (version >= 5) old.version(5).stores({ recordings: 'id, noteId', audioChunks: '[recordingId+seq], recordingId', meta: 'key' })
   await old.open()
   await fill(old)
   old.close()
@@ -99,8 +100,8 @@ describe('upgradePages', () => {
   })
 })
 
-describe('Dexie upgrade to v5', () => {
-  it('v2 → v5: every note gets a page 1 with a copy of its text; ink is untouched', async () => {
+describe('Dexie upgrade to the current version', () => {
+  it('v2 → v6: every note gets a page 1 with a copy of its text; ink is untouched', async () => {
     await seedOld(2, async (old) => {
       await old.table('notes').bulkPut([
         note('typed', { content: doc('lecture one') }),
@@ -111,7 +112,7 @@ describe('Dexie upgrade to v5', () => {
     })
 
     await db.open()
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
 
     const pages = await db.pages.toArray()
     expect(pages.map((p) => p.id).sort()).toEqual(['blank', 'inked', 'typed'])
@@ -178,7 +179,7 @@ describe('Dexie v4 → v5', () => {
     })
 
     await db.open()
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
     expect((await db.pages.get('kept'))!.text).toBe('still here')
     expect(await db.blobs.count()).toBe(1)
 
@@ -192,5 +193,32 @@ describe('Dexie v4 → v5', () => {
     expect(await db.audioChunks.where('recordingId').equals('r1').count()).toBe(2)
     await db.meta.put({ key: 'coach:weeklyGoal', value: 4 })
     expect((await db.meta.get('coach:weeklyGoal'))!.value).toBe(4)
+  })
+})
+
+describe('Dexie v5 → v6', () => {
+  it('adds isipEntries, found by day, and leaves every v5 table alone', async () => {
+    await seedOld(5, async (old) => {
+      await old.table('notes').put(note('kept', { content: doc('P150 lunch') }))
+      await old.table('pages').put({ id: 'kept', noteId: 'kept', index: 0, template: 'blank', content: doc('P150 lunch'), text: 'P150 lunch', createdAt: 1, updatedAt: 1 })
+      await old.table('recordings').put({ id: 'r1', noteId: 'kept', startedAt: 1, durationMs: 5000, mime: 'audio/webm', status: 'complete', chunkCount: 1, bytes: 1 })
+      await old.table('audioChunks').put({ recordingId: 'r1', seq: 0, data: new Blob(['a']) })
+      await old.table('meta').put({ key: 'money:keep', value: 500 })
+    })
+
+    await db.open()
+    expect(db.verno).toBe(6)
+    expect((await db.pages.get('kept'))!.text).toBe('P150 lunch')
+    expect(await db.recordings.count()).toBe(1)
+    expect(await db.audioChunks.where('recordingId').equals('r1').count()).toBe(1)
+    expect((await db.meta.get('money:keep'))!.value).toBe(500)
+    // nothing is copied out of the pages: Notes are for notes
+    expect(await db.isipEntries.count()).toBe(0)
+
+    await db.isipEntries.bulkPut([
+      { id: 'e1', text: 'P150 lunch', day: '2026-10-08', createdAt: 1, updatedAt: 1 },
+      { id: 'e2', text: 'kape 120', day: '2026-10-09', createdAt: 2, updatedAt: 2 },
+    ])
+    expect((await db.isipEntries.where('day').equals('2026-10-09').toArray()).map((e) => e.id)).toEqual(['e2'])
   })
 })

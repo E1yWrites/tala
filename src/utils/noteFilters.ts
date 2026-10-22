@@ -9,6 +9,10 @@ export function notesForView(notes: Note[], view: ViewRef): Note[] {
   switch (view.kind) {
     case 'home':
     case 'tasks':
+    case 'agenda':
+    case 'money':
+    case 'habits':
+    case 'workouts':
     case 'settings':
       return []
     case 'all':
@@ -100,7 +104,7 @@ export function viewMeta(
 ): ViewMeta {
   switch (view.kind) {
     case 'home':
-      return { title: 'Home', description: null }
+      return { title: 'Today', description: null }
     case 'all':
       return { title: 'All Notes', description: null }
     case 'favorites':
@@ -123,6 +127,14 @@ export function viewMeta(
     }
     case 'tasks':
       return { title: 'Tasks', description: null }
+    case 'agenda':
+      return { title: 'Upcoming', description: null }
+    case 'money':
+      return { title: 'Money', description: null }
+    case 'habits':
+      return { title: 'Habits', description: null }
+    case 'workouts':
+      return { title: 'Workouts', description: null }
     case 'settings':
       return { title: 'Settings', description: null }
   }

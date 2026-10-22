@@ -1,4 +1,4 @@
-import { CheckSquare, NotebookText, Plus, Search } from 'lucide-react'
+import { CalendarCheck, NotebookText, PenLine, Plus, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -7,13 +7,16 @@ import { downloadBackup } from '@/utils/exportImport'
 import { Avatar } from '@/components/UI/Avatar'
 import { DropdownMenu } from '@/components/UI/DropdownMenu'
 import { cn } from '@/utils/cn'
+import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
+import { ISIP } from '@/isip/copy'
 
 /** Height of the bar itself; the page above reserves this plus the safe area. */
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
- * Phone bottom bar on the green rail: Notes, Tasks, the gold New note, Search, and the
- * profile menu (Settings lives under the picture). Left-handed mode mirrors it.
+ * Phone bottom bar on the green rail: Notes, Today (with Upcoming, Tasks, Money, Habits and Workouts inside),
+ * the gold Write (a line in Isip, the first thing to do), New note, Search, and the profile menu (Settings lives under the
+ * picture). Left-handed mode mirrors it.
  */
 export function MobileNav(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
@@ -24,8 +27,9 @@ export function MobileNav(): React.ReactNode {
   const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
   const profile = useSettingsStore((s) => s.settings.profile)
 
-  // Every library view (all, starred, folders, tags, ...) counts as the Notes tab
-  const notesActive = activeView.kind !== 'tasks' && activeView.kind !== 'settings'
+  // The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the Today tab; every library view is Notes
+  const todayActive = PLANNER_VIEWS.has(activeView.kind)
+  const notesActive = !todayActive && activeView.kind !== 'settings'
 
   return (
     <nav
@@ -42,24 +46,20 @@ export function MobileNav(): React.ReactNode {
         active={notesActive}
         onClick={() => setView({ kind: 'all' })}
       />
-      <NavTab
-        label="Tasks"
-        icon={CheckSquare}
-        active={activeView.kind === 'tasks'}
-        onClick={() => setView({ kind: 'tasks' })}
-      />
+      <NavTab label="Today" icon={CalendarCheck} active={todayActive} onClick={() => setView({ kind: 'home' })} />
 
       <div className="flex flex-1 items-start justify-center">
         <button
           type="button"
-          onClick={() => openModal({ kind: 'new-note' })}
-          aria-label="New note"
+          onClick={() => openModal({ kind: 'capture' })}
+          aria-label={ISIP.capture.label}
           className="-mt-5 grid size-14 place-items-center rounded-full bg-gold text-gold-fg shadow-raise ring-4 ring-rail transition-transform active:scale-95"
         >
-          <Plus size={26} strokeWidth={2.4} aria-hidden="true" />
+          <PenLine size={24} strokeWidth={2.4} aria-hidden="true" />
         </button>
       </div>
 
+      <NavTab label="New" ariaLabel="New note" icon={Plus} active={false} onClick={() => openModal({ kind: 'new-note' })} />
       <NavTab label="Search" icon={Search} active={false} onClick={() => openModal({ kind: 'search' })} />
 
       <div className="flex flex-1 items-stretch [&>div]:flex-1">
@@ -99,11 +99,14 @@ export function MobileNav(): React.ReactNode {
 
 function NavTab({
   label,
+  ariaLabel,
   icon: Icon,
   active,
   onClick,
 }: {
   label: string
+  /** When the visible word is short for something longer ("New" for "New note"). */
+  ariaLabel?: string
   icon: LucideIcon
   active: boolean
   onClick: () => void
@@ -112,6 +115,7 @@ function NavTab({
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',

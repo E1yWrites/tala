@@ -17,9 +17,14 @@ import { Modal } from '@/components/UI/Modal'
 import { Kbd } from '@/components/UI/Kbd'
 import { TagChip } from '@/components/UI/TagChip'
 import { cn } from '@/utils/cn'
+import { formatDay } from '@/entries/parse'
+import { ISIP } from '@/isip/copy'
+import { searchEntries } from '@/library/isip'
+import { useIsipStore } from '@/store/isipStore'
+import type { IsipEntry } from '@/types/models'
 
 /**
- * Spotlight-style search over titles, content, tags and folders.
+ * Spotlight-style search over titles, content, tags and folders, then the Isip lines that match.
  * Arrow keys navigate, Enter opens, Esc closes.
  */
 export function SearchModal(): React.ReactNode {
@@ -41,17 +46,23 @@ export function SearchModal(): React.ReactNode {
   )
   const hits = useMemo(() => runSearch(docs, query), [docs, query])
   const results: Note[] = query.trim() ? hits.map((h) => h.note) : recentNotes(notes)
+  const isip = useIsipStore((s) => s.entries)
+  const lines = useMemo(() => searchEntries(isip, query), [isip, query])
+  const openEntry = useUIStore((s) => s.openEntry)
+  const total = results.length + lines.length
 
   useEffect(() => setActiveIdx(0), [query])
 
   // Keep the active row visible while arrowing past the scrolled edge
-  const activeId = results[activeIdx]?.id
+  const activeId = activeIdx < results.length ? `search-result-${results[activeIdx]?.id}` : `search-entry-${lines[activeIdx - results.length]?.id}`
   useEffect(() => {
-    if (!activeId) return
-    document
-      .getElementById(`search-result-${activeId}`)
-      ?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(activeId)?.scrollIntoView({ block: 'nearest' })
   }, [activeId])
+
+  function chooseEntry(e: IsipEntry): void {
+    closeAllModals()
+    openEntry(e.id)
+  }
 
   function choose(noteId: string): void {
     const note = notes.find((n) => n.id === noteId)
@@ -72,14 +83,16 @@ export function SearchModal(): React.ReactNode {
     if (e.nativeEvent.isComposing) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      if (results.length > 0) setActiveIdx((i) => Math.min(i + 1, results.length - 1))
+      if (total > 0) setActiveIdx((i) => Math.min(i + 1, total - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      if (results.length > 0) setActiveIdx((i) => Math.max(i - 1, 0))
+      if (total > 0) setActiveIdx((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       const pick = results[activeIdx]
+      const line = lines[activeIdx - results.length]
       if (pick) choose(pick.id)
+      else if (line) chooseEntry(line)
     }
   }
 
@@ -98,14 +111,12 @@ export function SearchModal(): React.ReactNode {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notes…"
+          placeholder="Search notes and Isip…"
           aria-label="Search notes"
           role="combobox"
           aria-expanded
           aria-controls="search-results-list"
-          aria-activedescendant={
-            results[activeIdx] ? `search-result-${results[activeIdx]!.id}` : undefined
-          }
+          aria-activedescendant={total > 0 ? activeId : undefined}
           autoComplete="off"
           spellCheck={false}
           className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-faint"
@@ -118,9 +129,9 @@ export function SearchModal(): React.ReactNode {
         role="listbox"
         aria-label="Search results"
       >
-        {results.length === 0 ? (
+        {total === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted">
-            No notes match &ldquo;{query}&rdquo;
+            Nothing matches &ldquo;{query}&rdquo;
           </p>
         ) : (
           <>
@@ -140,6 +151,27 @@ export function SearchModal(): React.ReactNode {
                 onChoose={() => choose(note.id)}
               />
             ))}
+            {lines.length > 0 && (
+              <p className="px-2.5 pt-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">{ISIP.search.heading}</p>
+            )}
+            {lines.map((e, i) => (
+              <button
+                key={e.id}
+                type="button"
+                id={`search-entry-${e.id}`}
+                role="option"
+                aria-selected={results.length + i === activeIdx}
+                onMouseMove={() => setActiveIdx(results.length + i)}
+                onClick={() => chooseEntry(e)}
+                className={cn(
+                  'flex w-full items-baseline gap-3 rounded-control px-2.5 py-2 text-left transition',
+                  results.length + i === activeIdx ? 'bg-selected text-selected-ink' : 'hover:bg-canvas',
+                )}
+              >
+                <Highlighted text={e.text} query={query} className="min-w-0 flex-1 truncate text-[13px]" />
+                <span className="shrink-0 text-[11px] tabular-nums text-faint">{formatDay(e.day)}</span>
+              </button>
+            ))}
           </>
         )}
       </div>
@@ -155,7 +187,7 @@ export function SearchModal(): React.ReactNode {
           </Kbd>{' '}
           open
         </span>
-        <span className="ml-auto">{results.length} result{results.length === 1 ? '' : 's'}</span>
+        <span className="ml-auto">{total} result{total === 1 ? '' : 's'}</span>
       </div>
     </Modal>
   )

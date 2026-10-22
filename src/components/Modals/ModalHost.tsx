@@ -10,6 +10,7 @@ import { MoveNoteModal } from './MoveNoteModal'
 import { TagEditorModal } from './TagEditorModal'
 import { ProfilePictureModal } from './ProfilePictureModal'
 import { InstallGuideModal } from './InstallGuideModal'
+import { CaptureModal } from '@/components/QuickCapture'
 
 function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
   switch (intent.kind) {
@@ -32,6 +33,8 @@ function ModalFor({ intent }: { intent: ModalIntent }): React.ReactNode {
       return <NewNoteModal />
     case 'palette':
       return <CommandPalette />
+    case 'capture':
+      return <CaptureModal />
     case 'search':
       return <SearchModal />
     case 'share':

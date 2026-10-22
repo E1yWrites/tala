@@ -1,3 +1,4 @@
+import type { Mention } from '@/isip/insights'
 import type { CoachPrefs } from '@/store/prefsStore'
 import type { CoachEnv } from './env'
 import type { Wrapup } from './study'
@@ -25,6 +26,7 @@ export type Suggestion =
   | { id: 'install'; variant: 'ios' | 'android' | 'android-menu' }
   | { id: 'backup'; daysSince: number }
   | { id: 'resurface'; noteId: string; title: string; days: number }
+  | ({ id: 'insight' } & Mention)
 
 export interface CoachState {
   now: number
@@ -40,17 +42,23 @@ export interface CoachState {
   week: { key: string; studyDays: number; goal: number }
   /** The most recently edited live note that has sat untouched, or null. */
   staleNote: { id: string; title: string; updatedAt: number } | null
+  /** An Isip insight that has unlocked and Bituin has not mentioned yet, or null. */
+  insight: Mention | null
 }
 
 export function nextSuggestion(s: CoachState): Suggestion | null {
-  // Quiet mode silences reminders; nothing is suggested without notes to protect
-  if (s.quietMode || s.liveNotes < 1) return null
+  // Quiet mode silences reminders and Isip's mentions
+  if (s.quietMode) return null
+  const insight: Suggestion | null = s.insight ? { id: 'insight', ...s.insight } : null
+  // Nothing else is suggested without notes to protect; Isip alone is enough for an insight
+  if (s.liveNotes < 1) return insight
 
   // Good news first: it is about what the owner just did
   if (s.wrapup && s.now - s.wrapup.at < WRAPUP_FRESH_MS) return { id: 'wrapup', ...s.wrapup }
   if (s.week.studyDays >= s.week.goal && s.coach.goalCheeredWeek !== s.week.key) {
     return { id: 'goal', days: s.week.studyDays, goal: s.week.goal, week: s.week.key }
   }
+  if (insight) return insight
 
   // Protected storage next: an evicted library can't be backed up
   const wantsInstall =

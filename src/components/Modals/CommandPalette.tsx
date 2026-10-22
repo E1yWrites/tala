@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Archive,
   ArrowLeftRight,
+  CalendarDays,
   Command,
   FileText,
   FolderPlus,
@@ -9,11 +10,15 @@ import {
   Import,
   Moon,
   Notebook,
+  PenLine,
   Pin,
   Settings,
   Bookmark,
   Sun,
   Trash2,
+  Wallet,
+  Repeat,
+  Dumbbell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePrefsStore } from '@/store/prefsStore'
@@ -23,6 +28,11 @@ import { downloadBackup } from '@/utils/exportImport'
 import { Modal } from '@/components/UI/Modal'
 import { cn } from '@/utils/cn'
 import { shortcut } from '@/utils/keys'
+import { captureLine, previewLine } from '@/components/QuickCapture'
+import { ISIP } from '@/isip/copy'
+import { formatDay } from '@/entries/parse'
+import { useIsipStore } from '@/store/isipStore'
+import { searchEntries } from '@/library/isip'
 
 interface CommandEntry {
   id: string
@@ -59,6 +69,8 @@ export function CommandPalette(): React.ReactNode {
   const theme = useSettingsStore((s) => s.settings.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
 
+  const entries = useIsipStore((s) => s.entries)
+  const openEntry = useUIStore((s) => s.openEntry)
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
 
@@ -84,7 +96,11 @@ export function CommandPalette(): React.ReactNode {
           openModal({ kind: 'search' })
         },
       },
-      { id: 'go-home', label: 'Go to Home', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
+      { id: 'go-home', label: 'Go to Today', icon: Home, run: () => { closeAllModals(); setView({ kind: 'home' }) } },
+      { id: 'go-agenda', label: 'Go to Upcoming', icon: CalendarDays, run: () => { closeAllModals(); setView({ kind: 'agenda' }) } },
+      { id: 'go-money', label: 'Go to Money', icon: Wallet, run: () => { closeAllModals(); setView({ kind: 'money' }) } },
+      { id: 'go-habits', label: 'Go to Habits', icon: Repeat, run: () => { closeAllModals(); setView({ kind: 'habits' }) } },
+      { id: 'go-workouts', label: 'Go to Workouts', icon: Dumbbell, run: () => { closeAllModals(); setView({ kind: 'workouts' }) } },
       { id: 'go-all', label: 'Go to All Notes', icon: Notebook, run: () => { closeAllModals(); setView({ kind: 'all' }) } },
       { id: 'go-favorites', label: 'Go to Favorites', icon: Bookmark, run: () => { closeAllModals(); setView({ kind: 'favorites' }) } },
       { id: 'go-pinned', label: 'Go to Pinned', icon: Pin, run: () => { closeAllModals(); setView({ kind: 'pinned' }) } },
@@ -118,12 +134,39 @@ export function CommandPalette(): React.ReactNode {
   )
 
   const filtered = useMemo(() => {
-    return commands
+    const matches = commands
       .map((c) => ({ c, score: fuzzyScore(query.trim(), c.label) }))
       .filter((x) => x.score >= 0)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.c)
-  }, [commands, query])
+    const line = query.trim()
+    if (!line) return matches
+    // Anything typed can be saved as an Isip Entry; it leads only when it reads as one,
+    // so "settings" + Enter still opens Settings
+    // Entries that contain what was typed, newest first; one opens Today on its day
+    const found: CommandEntry[] = searchEntries(entries, line, 5).map((e) => ({
+      id: `entry-${e.id}`,
+      label: e.text,
+      hint: ISIP.search.hint(formatDay(e.day)),
+      icon: PenLine,
+      run: () => {
+        closeAllModals()
+        openEntry(e.id)
+      },
+    }))
+    const preview = previewLine(line)
+    const log: CommandEntry = {
+      id: 'log',
+      label: ISIP.capture.palette(line),
+      hint: preview?.label,
+      icon: PenLine,
+      run: () => {
+        closeAllModals()
+        captureLine(line)
+      },
+    }
+    return preview && !preview.suggested ? [log, ...matches, ...found] : [...matches, ...found, log]
+  }, [commands, query, closeAllModals, entries, openEntry])
 
   useEffect(() => setActiveIdx(0), [query])
 

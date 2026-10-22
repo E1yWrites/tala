@@ -10,6 +10,8 @@ import type { Config } from 'tailwindcss'
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
+  // Touch fakes a hover on tap and leaves it stuck; hover: utilities apply only where a pointer hovers
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       fontFamily: {
