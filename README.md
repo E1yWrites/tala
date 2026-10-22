@@ -2,183 +2,105 @@
   <img src="assets/tala-banner.jpg" alt="Tala — Pagtatala, made simple." width="100%" />
 </p>
 
+<p align="center">
+  <img src="public/app-icon.png" alt="Tala logo" width="96" />
+</p>
+
 <h1 align="center">Tala</h1>
 
 <p align="center">
   <strong>Pagtatala, made simple.</strong><br/>
-  A thoughtful, doodle-inspired note-taking workspace for capturing ideas, thoughts, and everything worth remembering.
+  A local-first notebook for typed notes, handwriting, PDF annotation and the small
+  records of daily life: tasks, events, money, habits and workouts.
 </p>
 
 <p align="center">
-  <a href="https://github.com/E1yWrites/tala/releases/latest"><img src="https://img.shields.io/github/v/release/E1yWrites/tala?label=Latest%20Release" alt="Latest Release" /></a>
-  <a href="https://github.com/E1yWrites/tala/blob/main/LICENSE"><img src="https://img.shields.io/github/license/E1yWrites/tala" alt="License" /></a>
-  <a href="https://github.com/E1yWrites/tala"><img src="https://img.shields.io/github/stars/E1yWrites/tala?style=social" alt="Stars" /></a>
+  <a href="https://tala.lorenzmalabanan.com/"><img src="https://img.shields.io/badge/Try%20it-tala.lorenzmalabanan.com-1f2937?logo=googlechrome&logoColor=white" alt="Live app" /></a>
+  <a href="https://github.com/E1yWrites/tala/releases/latest"><img src="https://img.shields.io/github/v/release/E1yWrites/tala?label=release" alt="Latest release" /></a>
+  <a href="https://github.com/E1yWrites/tala/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/E1yWrites/tala/ci.yml?label=CI" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/E1yWrites/tala" alt="MIT license" /></a>
+  <a href="https://github.com/E1yWrites/tala/stargazers"><img src="https://img.shields.io/github/stars/E1yWrites/tala?style=flat" alt="Stars" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Tiptap-3-0f172a?logo=tiptap&logoColor=white" alt="Tiptap" />
+  <img src="https://img.shields.io/badge/Dexie-IndexedDB-f59e0b" alt="Dexie / IndexedDB" />
+  <img src="https://img.shields.io/badge/Zustand-5-433e38" alt="Zustand" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3-06b6d4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri&logoColor=white" alt="Tauri 2" />
+  <img src="https://img.shields.io/badge/Capacitor-8-119eff?logo=capacitor&logoColor=white" alt="Capacitor 8" />
+  <img src="https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Playwright-e2e-2ead33?logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/PWA-offline-5a0fc8?logo=pwa&logoColor=white" alt="PWA" />
 </p>
 
 ---
 
-No account, no server, no tracking. Your notes work offline and stay on your device
-until *you* export them — in the browser or as a native desktop app.
+No account, no server, no tracking. Notes live in your browser's IndexedDB, work
+offline, and leave your device only when *you* export them.
 
----
+## Features
 
-## Download
+- **Pages**: a note is an ordered list of pages, each with its own typed text and handwriting; continuous scroll, page strip, templates.
+- **Ink**: pressure-aware pen, highlighter and pencil, lasso, undo, zoom, snap-to-shape, wet-ink rendering.
+- **PDF**: import and annotate pages, export a note back to PDF (ink as vector paths).
+- **Lecture audio**: record while you write; tap a stroke to replay what was said.
+- **Pagtatala entries**: type `P150 lunch gcash`, `@ thu 2pm dentist`, `[ ] essay due fri` or `✓ water 3` and the page becomes the record. English and Taglish dates.
+- **Planner**: Today, Upcoming, Tasks, Money (safe to spend), Habits and Workouts, all re-read from your lines. No separate database.
+- **Organize**: folders, tags, stars, pins, archive, trash, instant search, command palette.
+- **Your data**: `.tala` zip backups (merge or replace), device-only storage, light/dark themes.
 
-Pre-built installers are available on the [Releases](https://github.com/E1yWrites/tala/releases/latest) page.
+## Try it
 
-### Windows
+Open **<https://tala.lorenzmalabanan.com/>** and install it from your browser (iPad Safari, Android Chrome, desktop Chrome/Edge).
 
-| Format | File | Best for |
-| --- | --- | --- |
-| .exe (NSIS) | `Tala_1.0.0_x64-setup.exe` | Standard Windows installer |
-| .msi | `Tala_1.0.0_x64_en-US.msi` | Enterprise / silent install (`msiexec /i`) |
-
-### Linux
-
-| Format | File | Best for |
-| --- | --- | --- |
-| AppImage | `Tala_1.0.0_amd64.AppImage` | Any Linux distro (no install needed) |
-| .deb | `Tala_1.0.0_amd64.deb` | Debian, Ubuntu, Pop!_OS, Linux Mint |
-| .rpm | `Tala-1.0.0-1.x86_64.rpm` | Fedora, RHEL, openSUSE |
-
-### Verify your download
-
-Each release includes SHA-256 checksums. After downloading, verify file integrity:
+Windows installers are on the [Releases](https://github.com/E1yWrites/tala/releases/latest) page. They are not code-signed: check them against the `SHA256SUMS` file attached to each release.
 
 ```bash
-# Download the checksum file from the release page, then:
 sha256sum -c SHA256SUMS
 ```
 
-Or verify a single file manually:
+## Develop
 
-```bash
-sha256sum Tala_1.0.0_x64-setup.exe
-# Compare the output hash against the one listed in SHA256SUMS
-```
-
-> **Note:** The installers are not code-signed. Verify the SHA-256 checksum to confirm the file has not been tampered with.
-
----
-
-## Quick start (development)
+Node 18+ (CI uses 20).
 
 ```bash
 git clone https://github.com/E1yWrites/tala.git
 cd tala
-npm install
-npm run dev        # start dev server (http://localhost:5173)
-npm run build      # typecheck + production build → dist/
-npm run preview    # serve the production build (http://localhost:4173)
-npm run typecheck  # tsc --noEmit
+npm ci
+npm run dev        # http://localhost:5173
+npm run typecheck  # strict; unused code fails
+npm test           # Vitest (fake-indexeddb)
+npm run build      # typecheck + production build -> dist/
+npm run preview    # http://localhost:4173
+npm run test:e2e   # Playwright flows against a running preview (build first)
 ```
 
-## Desktop app (Tauri v2)
-
-The same web app wrapped in a native shell (system WebKitGTK on Linux, WebView2 on Windows — no bundled Chromium).
-Notes persist in the webview's IndexedDB profile keyed by the `com.lanz.tala` identifier.
+### Desktop (Tauri v2)
 
 ```bash
-# one-time prerequisites (Debian/Ubuntu)
+# Debian/Ubuntu prerequisites
 sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-npm run app:dev     # native window with HMR (starts vite itself)
-npm run app:build   # typecheck + build + release compile → installers
+npm run app:dev     # native window with HMR
+npm run app:build   # installers -> src-tauri/target/release/bundle/
 ```
 
-Build artifacts land in `src-tauri/target/release/bundle/`:
-`.deb`, `.rpm` and `.AppImage` (Linux); `.exe` and `.msi` (Windows).
+An iOS build via Capacitor lives in `ios/` and is dormant until App Store launch.
 
----
+## How it is put together
 
-## Features
+`src/library/` is the only code that writes note data. Stores are plain state, and library calls update them optimistically, then persist through one serialized queue. Details, gotchas and the data model are in [CLAUDE.md](CLAUDE.md); design decisions are in [docs/adr](docs/adr).
 
-- **Dashboard home** — greeting, live stats, quick actions, pinned & recently-edited rows
-- **Rich editor** — headings, lists (incl. checkboxes), quotes, code blocks with copy,
-  links, images (upload / paste / drag), inline markdown as you type, word count, saved indicator
-- **Templates** — lecture notes, meeting notes, to-do list, journal, brain dump, code notes...
-- **Pen presets** — six named writing styles (Marker, Brush Pen, Pencil, Fine Pencil, Highlighter, Ballpoint) with inline width dots
-- **Multi-select** — batch trash, delete forever, and selection across all surfaces (live, archive, trash)
-- **Long-press preview** — floating card with note metadata, tags, task progress, and quick actions
-- **Organize** — folders, colored tags, favorites, pins, archive; sort & density controls;
-  grid or list layout; filter by tag / favorites
-- **Instant search** — spotlight modal over titles, body text, tags and folders with highlighting
-- **Command palette** (`Ctrl+Shift+P`) — jump anywhere, run any action
-- **Trash with restore** — soft-delete notes or the whole trash; archive is one keystroke away
-- **Distraction-free mode** — collapse everything but the editor
-- **Light / dark / auto theme**, persisted before first paint (no flash)
-- **Responsive** — three-pane desktop → drawer tablet → single-pane mobile with bottom nav
-- **Keyboard-first** — see below
-- **Data ownership** — export/import JSON backups (merge or replace), storage usage readout
-- **Animated theme toggle** — sun ↔ moon with smooth CSS transitions
-- **Doodle-inspired brand** — playful, personal, modern
+## Contributing and security
 
-### Keyboard shortcuts
-
-| Keys | Action |
-| --- | --- |
-| `Ctrl/Command N` / `Alt N` | New note (template picker) |
-| `Ctrl/Command K` / `Ctrl/Command Shift F` | Search notes |
-| `Ctrl/Command Shift P` | Command palette |
-| `Ctrl/Command S` | Force save |
-| `Ctrl/Command Shift D` | Toggle dark mode |
-| `Ctrl/Command ,` | Settings |
-| `/` | Focus list search |
-| `Esc` | Close dialog / exit focus mode / exit multi-select |
-| `Ctrl B` / `I` / `U` / `E` | Bold / italic / underline / inline code |
-
-*(Some browsers reserve `Ctrl N`; use `Alt N` there.)*
-
----
-
-## Architecture
-
-```
-src/
-+-- components/
-|   +-- Brand/                    # TalaMark SVG logo
-|   +-- Dashboard/HomeView        # stats, pinned/recent rows, quick actions
-|   +-- Modals/*                  # template picker, spotlight search, palette, share...
-|   +-- NoteEditor/*              # Tiptap setup, toolbar, ink layer, pen palette
-|   +-- NoteList/*                # list/grid panel, rows, per-note menus, preview card
-|   +-- Sidebar/                  # nav tree, folders, tags, collapse, profile
-|   +-- UI/                       # Button, Modal, DropdownMenu, Tooltip, TagChip, ThemeToggle...
-|   +-- layout/                   # AppShell (responsive panes), MobileNav
-+-- database/
-|   +-- db.ts                     # Dexie schema (notes/folders/tags/settings)
-|   +-- hydration.ts              # DB → stores bootstrap
-|   +-- repositories/             # THE ONLY code touching IndexedDB.
-|                                 # Swap for a REST backend without touching UI.
-+-- data/                         # defaults, templates, seed content, doc builders
-+-- hooks/                        # useMediaQuery, useHotkeys, useLongPress
-+-- pages/                        # HomePage, LibraryPage (+ presets), SettingsPage
-+-- store/                        # Zustand: notes, folders, tags, settings, ui
-+-- types/models.ts               # domain models — single source of truth
-+-- utils/                        # cn, dates, doc, search, markdown, image, backup
-```
-
-Key decisions:
-
-- **Optimistic updates everywhere**: stores mutate first, IndexedDB persists after;
-  failures roll the state back and toast.
-- **Autosave with debounce** in the editor plus `Ctrl S` force-save; a `beforeunload`
-  flush guards against closing mid-debounce.
-- **Search scores** title > tag > folder > body, recomputed in-memory per keystroke.
-- **Theme is applied pre-React** by an inline script reading `localStorage`, so dark
-  mode never flashes.
-
----
-
-## Roadmap ideas
-
-- Service-worker installability for true offline shell caching
-- Note backlinks / wiki-links, export single note as PDF
-- Cross-device sync
-
----
+Issues and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, see [SECURITY.md](SECURITY.md). Privacy: [public/privacy.html](public/privacy.html).
 
 ## License
 
-[MIT](LICENSE) — (c) 2026 e1yu
+[MIT](LICENSE) © 2026 e1yu

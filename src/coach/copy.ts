@@ -12,7 +12,7 @@ export const BITUIN = {
   },
 
   welcome: {
-    title: 'Kumusta! I’m Bituin.',
+    title: 'Ka-musta! I’m Bituin.',
     body: 'I live in the corner of Tala. I’ll cheer when you study and stay out of your way when you write.',
   },
 
