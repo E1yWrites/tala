@@ -4,7 +4,7 @@ import type { DayKey } from './dates'
 import type { EntryRef } from './scan'
 
 /*
-  Habits, read from the ✓ lines on every page. Pure: the definitions come in as
+  Habits, read from the ✓ lines in Isip. Pure: the definitions come in as
   arguments (library/habits.ts keeps them in `meta`).
 
   Strength is Loop Habit Tracker's score: every day pulls it toward that day's
@@ -49,6 +49,42 @@ export function habitLogs(refs: EntryRef[]): Map<string, HabitLog> {
     else log.counts.set(e.day, (log.counts.get(e.day) ?? 0) + e.count)
   }
   return out
+}
+
+export interface Untracked {
+  /** As written the last time. */
+  name: string
+  /** Days ticked in the last 4 weeks. */
+  days: number
+  /** What tracking it would start with: days a week, and a day's usual count. */
+  perWeek: number
+  target: number
+}
+
+/**
+ * ✓ names ticked in the last 4 weeks that are not habits yet, most days
+ * first, so one tap can keep them. Nothing has to be set up before ticking.
+ */
+export function untracked(refs: EntryRef[], habits: Habit[], today: DayKey): Untracked[] {
+  const from = addDays(today, -27)
+  const known = new Set([STUDY_ID, ...habits.map((h) => h.name.toLowerCase())])
+  const by = new Map<string, { name: string; counts: Map<DayKey, number> }>()
+  for (const { entry: e } of refs) {
+    if (e.kind !== 'tick' || e.skip || e.day < from || e.day > today || known.has(e.name.toLowerCase())) continue
+    const k = e.name.toLowerCase()
+    const t = by.get(k) ?? { name: e.name, counts: new Map() }
+    t.name = e.name
+    t.counts.set(e.day, (t.counts.get(e.day) ?? 0) + e.count)
+    by.set(k, t)
+  }
+  return [...by.values()]
+    .map(({ name, counts }) => {
+      const days = [...counts.keys()].sort()
+      const span = Math.min(28, Math.round((toDate(today).getTime() - toDate(days[0]!).getTime()) / 86_400_000) + 1)
+      const avg = [...counts.values()].reduce((a, b) => a + b, 0) / counts.size
+      return { name, days: days.length, perWeek: Math.min(7, Math.max(1, Math.round((days.length * 7) / Math.max(7, span)))), target: Math.max(1, Math.round(avg)) }
+    })
+    .sort((a, b) => b.days - a.days || a.name.localeCompare(b.name))
 }
 
 /** Each day's value from `from` to `to`, 0..1. */

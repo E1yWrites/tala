@@ -18,17 +18,17 @@ const first = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 export const ISIP = {
   capture: {
     title: 'Write in Isip',
-    tab: 'Write',
     label: 'Write a line in Isip',
-    placeholder: 'Write it down…  P150 lunch · @ 2pm dentist · bench 60x5x3',
-    placeholderShort: 'Write it down…  P150 lunch · @ 2pm',
+    placeholder: 'Write anything…  lunch 150 · dentist fri 2pm · bench 60x5x3',
+    placeholderShort: 'Write anything…  lunch 150',
     saved: (n: number): string => (n === 1 ? 'Saved' : `${n} lines saved`),
     palette: (line: string): string => `Write in Isip: “${line}”`,
+    forDay: (day: string): string => `Write it down for ${day}…`,
   },
   day: {
     title: 'Written',
     empty: 'Nothing written this day.',
-    emptyToday: 'Lines you write above land here: “P150 lunch gcash”, “@ fri 2pm dentist”, “✓ water”.',
+    emptyToday: 'What you write above lands here, sorted: “lunch 150 gcash”, “dentist fri 2pm”, “bench 60x5x3”, “✓ water”.',
     prev: 'Day before',
     next: 'Day after',
     today: 'Today',
@@ -91,8 +91,39 @@ export const ISIP = {
     mix: (g: number, e: number, d: number): string => `Food, last 4 weeks: ${peso(g)} groceries, ${peso(e)} eating out, ${peso(d)} delivery.`,
     gym: (g: number, r: number): string => `On gym days food comes to ${peso(g)} a day; on other days, ${peso(r)}.`,
   },
+  empty: {
+    today: 'Nothing planned. Write “dentist fri 2pm” above, or “[ ] essay fri” in a note.',
+    upcoming: 'Write a line with a time above (“dentist fri 2pm”, “@ MWF 9-10:30 Calc 1” for a class), or a dated task in a note (“[ ] essay due fri”).',
+    money: 'No spending yet this month. Write “lunch 150” above; add “gcash” to say where it came from.',
+  },
+  habits: {
+    note: 'From every ✓ line you write in Isip',
+    how: 'Write a habit’s name above to tick it: “water 3”, “gym kahapon”; “✓ stretch” starts a new one, “✓ gym skip” is a day off. Strength grows as you keep it; a missed day dents it and nothing resets it.',
+    untracked: 'Ticked, not kept yet',
+    ticked: (days: number): string => `${days} ${days === 1 ? 'day' : 'days'} in the last 4 weeks`,
+    track: 'Keep',
+    trackLabel: (name: string): string => `Keep “${name}” as a habit`,
+  },
   search: {
+    heading: 'In Isip',
     hint: (day: string): string => `Isip · ${day}`,
+  },
+  /** First run: what Tala is, said type-first. */
+  onboarding: {
+    headline: 'Write it once. Tala sorts it out.',
+    promises: [
+      'Type a line about your day: “lunch 150”, “bench 40kg 3x10”, “dentist fri 2pm”. No forms, no categories.',
+      'Tala files it under Money, Workouts, Habits and Upcoming, and you can undo anything it read.',
+      'Notes too: type, write with a pen, and mark up PDF slides, even offline.',
+      'No account. Everything stays on this device unless you back it up.',
+    ],
+    nameNote: 'Only for the greeting. You can leave it empty.',
+    tipsIntro: 'Three things worth knowing:',
+    tips: [
+      ['Just write', 'The gold Write button (or Ctrl+Shift+Space) takes a line from anywhere. Tala reads it; tap a chip to fix what it got wrong.'],
+      ['Notes', 'New note for lectures and longer thoughts. Tap Write in a note for the pen.'],
+      ['Back up', 'Everything lives on this device only. Save a backup from Settings now and then.'],
+    ] as Array<[string, string]>,
   },
   undo: 'Undo',
 } as const

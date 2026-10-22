@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
+import { formatDay } from '@/entries/parse'
 import { ISIP } from '@/isip/copy'
 import { entryDay, read } from '@/isip/read'
 import { addEntries, deleteEntries } from '@/library/isip'
@@ -12,16 +13,17 @@ import { cn } from '@/utils/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 /** What a line will read as first, for the chip beside the field; `suggested` when Isip will ask. */
-export function previewLine(text: string, now = Date.now()): { kind: string; label: string; suggested: boolean } | null {
+export function previewLine(text: string, now = Date.now(), day = dayKey(now)): { kind: string; label: string; suggested: boolean } | null {
   const line = text.trim()
-  const r = line ? read({ text: line, day: entryDay(line, dayKey(now)), createdAt: now })[0] : undefined
+  const r = line ? read({ text: line, day: entryDay(line, day), createdAt: now })[0] : undefined
   const label = r ? chipLabel(r.entry) : ''
   return r && label ? { kind: r.entry.kind, label, suggested: r.status === 'suggested' } : null
 }
 
-/** Saves each line of `text` as an Isip Entry, with an Undo. */
-export function captureLine(text: string): void {
-  const added = addEntries(text)
+/** Saves each line of `text` as an Isip Entry (for `day`, else today), with an Undo. */
+export function captureLine(text: string, day?: string): void {
+  const now = Date.now()
+  const added = addEntries(text, now, day ?? dayKey(now))
   if (added.length === 0) return
   toast.success(ISIP.capture.saved(added.length), {
     action: { label: ISIP.undo, onClick: () => deleteEntries(added.map((e) => e.id)) },
@@ -29,9 +31,20 @@ export function captureLine(text: string): void {
 }
 
 /** The one Isip box: "P150 lunch gcash", "@ 2pm dentist", "bench 60x5x3", or just words. Enter saves; a pasted list saves a line each. */
-export function QuickCapture({ className, autoFocus, onSaved }: { className?: string; autoFocus?: boolean; onSaved?: () => void }): React.ReactNode {
+export function QuickCapture({
+  className,
+  autoFocus,
+  onSaved,
+  day,
+}: {
+  className?: string
+  autoFocus?: boolean
+  onSaved?: () => void
+  /** The day lines count for when no word in them says another; today when left out. */
+  day?: string
+}): React.ReactNode {
   const [text, setText] = useState('')
-  const preview = previewLine(text)
+  const preview = previewLine(text, Date.now(), day)
   const narrow = useMediaQuery('(max-width: 479px)')
 
   return (
@@ -43,7 +56,7 @@ export function QuickCapture({ className, autoFocus, onSaved }: { className?: st
       onSubmit={(e) => {
         e.preventDefault()
         if (!text.trim()) return
-        captureLine(text)
+        captureLine(text, day)
         setText('')
         onSaved?.()
       }}
@@ -58,11 +71,11 @@ export function QuickCapture({ className, autoFocus, onSaved }: { className?: st
           if (!/\n/.test(pasted.trim())) return
           e.preventDefault()
           const el = e.currentTarget
-          captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length))
+          captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length), day)
           setText('')
           onSaved?.()
         }}
-        placeholder={narrow ? ISIP.capture.placeholderShort : ISIP.capture.placeholder}
+        placeholder={day ? ISIP.capture.forDay(formatDay(day)) : narrow ? ISIP.capture.placeholderShort : ISIP.capture.placeholder}
         autoFocus={autoFocus}
         aria-label={ISIP.capture.label}
         enterKeyHint="done"

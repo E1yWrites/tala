@@ -148,6 +148,13 @@ export function restoreEntries(entries: IsipEntry[]): void {
   )
 }
 
+/** Entries holding `query` (2 characters or more), newest first. */
+export function searchEntries(entries: IsipEntry[], query: string, limit = 8): IsipEntry[] {
+  const q = query.trim().toLowerCase()
+  if (q.length < 2) return []
+  return entries.filter((e) => e.text.toLowerCase().includes(q)).slice(-limit).reverse()
+}
+
 let memo: { notes: unknown; pages: unknown; isip: unknown; ctx: unknown; refs: EntryRef[] } | null = null
 
 /** Every Reading (Isip Entries, then the Tasks in Notes), re-read only when one of them or the parser's words changed. */

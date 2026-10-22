@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronRight, Plus } from 'lucide-react'
-import { EMPTY_LOG, habitLogs, habitRule, habitStatus, studyHabit } from '@/entries/habits'
+import { EMPTY_LOG, habitLogs, habitRule, habitStatus, studyHabit, untracked } from '@/entries/habits'
 import type { DayState, Habit, HabitLog, HabitStatus } from '@/entries/habits'
 import { formatTime } from '@/entries/parse'
 import { addHabit, habitNameProblem, removeHabit, skipHabit, tickHabit, updateHabit, useHabitStore } from '@/library/habits'
@@ -10,6 +10,7 @@ import { useEntries } from '@/components/Agenda/useAgenda'
 import { QuickCapture } from '@/components/QuickCapture'
 import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 import { starPath } from '@/coach/WeekConstellation'
+import { ISIP } from '@/isip/copy'
 import { cn } from '@/utils/cn'
 
 const field = 'h-9 min-w-0 flex-1 rounded-control border border-lineSoft bg-canvas px-2.5 text-sm text-ink'
@@ -26,9 +27,10 @@ export function HabitsPage(): React.ReactNode {
   const goal = useStudyStore((s) => s.goal)
   const logs = useMemo(() => habitLogs(refs), [refs])
   const [study, studyLog] = useMemo(() => studyHabit(seconds, goal, today), [seconds, goal, today])
+  const loose = useMemo(() => untracked(refs, habits, today), [refs, habits, today])
 
   return (
-    <PlannerView label="Habits" title="Habits" note="From every ✓ line in your notes">
+    <PlannerView label="Habits" title="Habits" note={ISIP.habits.note}>
       <QuickCapture />
       <PlannerSection id="habits-list" title="This week">
         <ul className={cn(CARD, 'habit-list')}>
@@ -39,10 +41,31 @@ export function HabitsPage(): React.ReactNode {
           <AddHabit />
         </ul>
         <p className="mt-2 px-1 text-xs text-muted">
-          Tick in the field above: “✓ water 3”, “✓ gym kahapon”, or a day off, “✓ gym skip”. Strength grows as you keep it; a missed day dents it and
-          nothing resets it.
+          {ISIP.habits.how}
         </p>
       </PlannerSection>
+      {loose.length > 0 && (
+        <PlannerSection id="habits-untracked" title={ISIP.habits.untracked}>
+          <ul className={CARD}>
+            {loose.map((u) => (
+              <li key={u.name.toLowerCase()} className="flex min-h-12 items-center gap-3 border-b border-lineSoft px-3.5 py-2 last:border-b-0">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-medium">{u.name}</span>
+                  <span className="block truncate text-xs text-faint">{ISIP.habits.ticked(u.days)}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addHabit({ name: u.name, days: u.perWeek, target: u.target })}
+                  aria-label={ISIP.habits.trackLabel(u.name)}
+                  className="min-h-9 shrink-0 rounded-control border border-lineSoft px-3 text-xs font-semibold transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11"
+                >
+                  {ISIP.habits.track}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PlannerSection>
+      )}
     </PlannerView>
   )
 }

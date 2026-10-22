@@ -10,11 +10,11 @@ Installable PWA first: iPadOS Safari home-screen app and Android Chrome. The sam
 
 ## Users
 
-Students first: they capture lectures by hand and by keyboard and mark up slides and PDFs, mostly on a tablet with a stylus. Isip widens this to anyone who wants a record of their day without the work: people who log workouts, groceries, meals and spending by just writing a line, and will not fill in a form or pick a category. The job: write it once, and find it organized later.
+Anyone who wants a record of their day without the work, students first: people who log spending, workouts, habits and plans by just writing a line, and will not fill in a form, pick a category or press through menus; the same people capture lectures by hand and by keyboard and mark up slides and PDFs, often on a tablet with a stylus. The job: write it once, and find it organized later. Ease of use outranks options: if a thing can be read from what was typed, it is never asked for.
 
 ## Product Purpose
 
-A local-first notebook that keeps typed text, handwriting and PDF markup in one place, with no account and no server; beside it, Isip turns lines typed about the day (`P150 lunch`, `@ fri 2pm dentist`, `✓ water`) into organized records. Success means ink feels instant, notes are never lost, and studying feels encouraging rather than guilt-driven.
+A local-first tracker and notebook: Isip turns lines typed about the day (`lunch 150`, `dentist fri 2pm`, `water 3`, `bench 40kg 3x10`) into money, plans, habits and workouts, with no marker, form or category to choose; notes keep typed text, handwriting and PDF markup in the same app. No account and no server. Success means ink feels instant, notes are never lost, and studying feels encouraging rather than guilt-driven.
 
 ## Positioning
 
@@ -29,12 +29,12 @@ Lecture halls and desks: pen in hand, slides on screen, patchy or no network. No
 - Notes made of Pages; each Page owns its typed text and its Ink. PDF import keeps the original and renders pages on demand, also offline. Folders, tags, search, `.tala` backup and restore, a desktop shell.
 - Decided for later phases: pinch zoom, page strip, lasso, snap-to-shape, PDF export, lecture audio with safety nets, a Tasks tab, library thumbnails, a coach loop (weekly goal where missing a day resets nothing; a Study day is 5 minutes of writing or marking up; a Session ends after 10 minutes without writing or when the Note closes).
 - Notes are for notes. Isip keeps its own Entries, one typed line each, and Today, Upcoming, Money, Habits and Workouts read them; Tasks also lists the checklist items in Notes. A view's buttons write Entries.
-- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Today / Search plus a large new-note button; Today is the planner's hub, with a strip to Upcoming, Tasks, Money, Habits and Workouts; Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor; the sidebar groups ISIP above NOTEBOOK, and a planner view takes the whole pane until a line opens its note beside it.
+- Constraints: no backend, no router, no account, no AI in v1, PWA only in v1. Phone navigation is Notes / Today / New / Search plus a large gold Write button; Today is the planner's hub, with a strip to Upcoming, Tasks, Money, Habits and Workouts; Starred lives inside Notes; Settings sits under the profile picture. Tablet and desktop keep sidebar + list + editor; the sidebar groups ISIP above NOTEBOOK, and a planner view takes the whole pane until a line opens its note beside it.
 - Bituin rules: never over the page while writing; only a small corner chip after the pen has paused about 2 seconds; never during a stroke; never takes focus; a global Quiet mode silences reactions and reminders.
 
 ## Brand Commitments
 
-- Name: Tala (Tagalog for "star"). Tagline in `package.json`: "Pagtatala, made simple."
+- Name: Tala (Tagalog for "star", and "a note, a record": talaan, pagtatala). Kept on 2026-10-22 when Tala grew from a notebook into a tracker, because the word already means writing things down. Tagline in `package.json`: "Pagtatala, made simple."; English line: "Write it once, find it organized."
 - Mascot: Bituin, a yellow star with a green cap that reads TALA. Art in `src/assets/bituin/` (`bituin.png`, `bituin-blink.png`, transparent PNG).
 - Voice: English with light Filipino touches. The owner reviews every Filipino line; all Bituin strings live in one file so they can be reviewed together.
 - Visual world (owner decision, 2026-10-07 redesign): only Bituin and the name Tala are pinned. The earlier green/gold/blue roles, Inter, Patrick Hand and Kalam were released; the current world is "Planisphere" (the library as a star atlas), documented in DESIGN.md.
@@ -51,6 +51,7 @@ The two Bituin images. The repository's Playwright flows (`scripts/`) and Vitest
 4. Local-first and honest: no account, no hidden server, no claims the app cannot back up.
 5. Stylus-first, everything else supported: touch, mouse and keyboard stay fully usable.
 6. Write first, Tala organizes: the user never files, tags or picks a category; anything Tala read on its own can be undone in one tap.
+7. Type, don't click: the one gold control on every screen is Write, a line can be written from anywhere (Ctrl/⌘ Shift Space, the app-icon shortcut, the phone's centre button), and a view's buttons are shortcuts for lines, never the only way.
 
 ## Accessibility & Inclusion
 

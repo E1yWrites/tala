@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   NotebookText,
   PanelLeft,
+  PenLine,
   Plus,
   Search,
   Settings as SettingsIcon,
@@ -39,6 +40,7 @@ import { useTick } from '@/hooks/useTick'
 import { DropdownMenu, type MenuItem } from '../UI/DropdownMenu'
 import { ConfirmDialog } from '../UI/ConfirmDialog'
 import { shortcut } from '@/utils/keys'
+import { ISIP } from '@/isip/copy'
 
 /** Initials on the rail: a star-yellow chip, readable on green in both themes. */
 const RAIL_AVATAR = 'border-transparent bg-gold font-semibold text-gold-fg'
@@ -167,15 +169,31 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* New note: the one gold control */}
-      <button
-        type="button"
-        onClick={() => openModal({ kind: 'new-note' })}
-        className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-card bg-gold text-[15px] font-semibold text-gold-fg transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.98]"
-      >
-        <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
-        New note
-      </button>
+      {/* Write a line: the one gold control, since writing it down is the first thing; a new note sits beside it */}
+      <div className="mt-4 flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            if (variant === 'drawer') setSidebarDrawer(false)
+            openModal({ kind: 'capture' })
+          }}
+          aria-keyshortcuts="Control+Shift+Space"
+          className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-card bg-gold text-[15px] font-semibold text-gold-fg transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.98]"
+        >
+          <PenLine size={17} strokeWidth={2.4} aria-hidden="true" />
+          {ISIP.capture.title}
+        </button>
+        <Tooltip label="New note" side="bottom">
+          <button
+            type="button"
+            onClick={() => openModal({ kind: 'new-note' })}
+            aria-label="New note"
+            className="grid size-11 shrink-0 place-items-center rounded-card border border-rail-line text-rail-fg transition-[background-color,transform] duration-150 hover:bg-rail-active active:scale-[0.98]"
+          >
+            <Plus size={18} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </Tooltip>
+      </div>
 
       <div className="-mx-1 mt-2 min-h-0 flex-1 overflow-y-auto px-1 pb-4 no-scrollbar [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]">
         <SectionHeader label="Isip" className="mt-2" />

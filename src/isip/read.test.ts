@@ -167,6 +167,23 @@ describe('reading', () => {
   })
 })
 
+describe('no marker to type', () => {
+  const habits: EntryContext = { ...ctx, ticks: ['water', 'gym'] }
+  it('a habit’s name is a tick: "water 3", "nag-gym", "did gym", "gym done"', () => {
+    expect(readLine('water 3', habits)[0]).toMatchObject({ status: 'auto', entry: { kind: 'tick', name: 'water', count: 3 } })
+    for (const line of ['nag-gym', 'did gym', 'gym done', 'Gym']) expect(readLine(line, habits)[0]?.entry).toMatchObject({ kind: 'tick', name: 'gym' })
+    expect(readLine('water the plants', habits)).toEqual([])
+  })
+
+  it('a time is an event: counted with a day today or later, asked without one', () => {
+    expect(readLine('dentist fri 2pm')[0]).toMatchObject({ status: 'auto', entry: { kind: 'event', text: 'dentist', when: { day: '2026-10-09', time: '14:00' } } })
+    expect(readLine('meeting bukas 3pm !30m')[0]).toMatchObject({ status: 'auto', entry: { kind: 'event', text: 'meeting', remind: 30 } })
+    expect(readLine('meeting 3pm')[0]).toMatchObject({ status: 'suggested', entry: { kind: 'event' } })
+    expect(readLine('lunch 150 at 1pm')[0]!.entry.kind).toBe('money')
+    expect(readLine('slept 8 hours')).toEqual([])
+  })
+})
+
 describe('the day a line counts for', () => {
   it('moves back with a day word when it holds an expense, tick or lift', () => {
     expect(entryDay('lunch 150 kahapon', DAY, ctx)).toBe('2026-10-07')

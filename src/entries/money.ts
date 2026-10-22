@@ -6,7 +6,7 @@ import type { Entry } from './parse'
 import type { EntryRef } from './scan'
 
 /*
-  Money, read from the ₱ lines on every page. Pure: the Library's accounts and
+  Money, read from the ₱ Readings in Isip. Pure: the Library's accounts and
   category choices come in as arguments (library/money.ts keeps them).
 
   A balance is every line for that account plus an adjustment, which "set

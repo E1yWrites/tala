@@ -163,8 +163,9 @@ check('mobile: onboarding completes', await completeOnboarding(mpage))
 check('mobile: bottom nav visible', await mpage.isVisible('nav[aria-label="Primary"]'))
 const tabs = await mpage.locator('nav[aria-label="Primary"] button').allTextContents()
 check(
-  'mobile: tab bar has Notes, Today, Search and a New note button',
+  'mobile: tab bar has Notes, Today, Search, the gold Write button and New note',
   ['Notes', 'Today', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
+    (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="Write a line in Isip"]')) &&
     (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="New note"]')),
 )
 await mpage.click('nav[aria-label="Primary"] >> text=Today')

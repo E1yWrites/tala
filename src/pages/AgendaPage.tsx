@@ -7,6 +7,7 @@ import { AgendaList } from '@/components/Agenda/AgendaList'
 import { useEntries } from '@/components/Agenda/useAgenda'
 import { EmptyState } from '@/components/UI/EmptyState'
 import { QuickCapture } from '@/components/QuickCapture'
+import { ISIP } from '@/isip/copy'
 import { PlannerSection, PlannerView } from '@/components/Planner/PlannerView'
 
 const STEP_DAYS = 14
@@ -42,7 +43,7 @@ export function AgendaPage(): React.ReactNode {
       {items.length === 0 && due.length === 0 ? (
         <EmptyState
           title="Nothing coming up"
-          description={'Write a line with a date above ("@ fri 2pm dentist", "@ MWF 9-10:30 Calc 1"), or a dated task in a note ("[ ] essay due fri").'}
+          description={ISIP.empty.upcoming}
         />
       ) : (
         <>

@@ -267,6 +267,26 @@ function readClause(clause: string, context: string, day: DayKey, ctx: EntryCont
   return moneyIn(clause, context, day, ctx)
 }
 
+/** Words around a habit's name that mean "did it": "nag-gym", "did yoga", "water done". */
+const DID = /^(?:nag-?|did\s+|done\s+|tapos\s+na\s+(?:ang\s+)?)|\s+(?:done|na|ulit)$/giu
+
+/**
+ * A line with no marker that still says something certain enough: a habit's
+ * name ("water 3", "nag-gym kahapon") is a tick; a time ("dentist fri 2pm")
+ * is an event, counted when a day today or later is named too, else asked.
+ */
+function unmarked(line: string, written: DayKey, ctx: EntryContext): Omit<Found, 'span'> | undefined {
+  const bare = line.replace(DID, '').trim()
+  const tick = parseLine(`✓ ${bare}`, written, ctx)
+  if (tick?.kind === 'tick' && ctx.ticks.some((n) => n.toLowerCase() === tick.name.toLowerCase())) return { entry: tick, score: 0.9 }
+  const d = readDates(line, written)
+  if (!d.when?.time) return undefined
+  const event = parseLine(`@ ${line}`, written, ctx)
+  if (event?.kind !== 'event' || !event.text) return undefined
+  const ahead = d.when.day !== undefined && d.when.day >= written
+  return { entry: event, score: ahead ? 0.85 : 0.65 }
+}
+
 /** Everything an Entry says, with each Reading's status. Readings below 0.5 are dropped. */
 export function read(entry: Pick<IsipEntry, 'text' | 'day' | 'createdAt' | 'decisions'>, ctx: EntryContext = entryContext()): Reading[] {
   const text = entry.text
@@ -297,6 +317,12 @@ export function read(entry: Pick<IsipEntry, 'text' | 'day' | 'createdAt' | 'deci
       const r = readClause(text.slice(...span), context, written, ctx)
       return r ? [{ ...r, span }] : []
     })
+    // Nothing priced or lifted: maybe a habit done or a time to be somewhere, without the ✓ or @ to type
+    if (found.length === 0) {
+      const lead = text.length - text.trimStart().length
+      const r = unmarked(text.trim(), written, ctx)
+      if (r) found = [{ ...r, span: [lead, lead + text.trim().length] }]
+    }
   }
   return found
     .map((f): Reading => {

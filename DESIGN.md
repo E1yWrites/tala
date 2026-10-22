@@ -279,12 +279,12 @@ Tala's library is a star atlas. A forest-green rail, cut from the app icon's til
 
 The world is quiet and exact rather than cute. One typeface, Hanken Grotesk, does all the work, with hierarchy made by size and weight alone. Panes are divided by one-pixel seams, not shadows; shadows are kept for things that genuinely float (the pen dock, menus, dialogs). Colour carries meaning: green acts and selects, star yellow marks stars, ballpoint blue is ink, links and focus, red is destructive. Density is a study desk at tablet scale: rows are tight enough to scan a term of notes, controls grow to 44 px under a finger or stylus.
 
-The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the same atlas read as a logbook: one frame for all six views, small-caps groups over white seamed cards on the shelf, figures said in sentences rather than shouted in red. Habits plot their week as dots the way the rail plots Study days as stars, and money's remaining days run out as a line of points to the next income day.
+Tala is written first and organized second: one line typed into the capture box ("lunch 150", "bench 40kg 3x10", "dentist fri 2pm") is filed by Tala, so the box heads every planner view, opens from anywhere, and is the one gold button. The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the same atlas read as a logbook: one frame for all six views, small-caps groups over white seamed cards on the shelf, figures said in sentences rather than shouted in red. Habits plot their week as dots the way the rail plots Study days as stars, and money's remaining days run out as a line of points to the next income day.
 
 The released world (doodle icons, Kalam and Patrick Hand display type, Inter, a scrapbook mood) is retired by owner decision, and the generic grey-card notes shell is refused. Bituin, the star mascot, and the name Tala are the only pinned brand assets.
 
 **Key Characteristics:**
-- Forest-green rail (both themes) with pale green text; the one star-yellow New note button sits at its top.
+- Forest-green rail (both themes) with pale green text; the one star-yellow Write in Isip button sits at its top, a quiet New note square beside it. Writing a line down is the first thing; a note is one place it can go.
 - Green-tinted chart ground with a 24 px coordinate dot grid behind white page sheets (tablet and up).
 - Hanken Grotesk Variable only; spaced small-caps labels head list groups; tabular figures for every number.
 - Catalogue numbers (№ 001) on every note row, in creation order.
@@ -307,7 +307,7 @@ The palette is the app icon spread over a whole screen: tile green, star yellow,
 - **Rail Text / Rail Muted** (rail-text, rail-muted): labels on the rail, and secondary text, counts and idle icons (6.3:1 on the rail).
 
 ### Tertiary
-- **Star Yellow** (star-yellow): stars. Bituin, Study-day stars in the constellation and on the Habits list, the starred-note star, the New note button on the rail and the mobile New note button. Text on solid yellow is **On Star** (on-star).
+- **Star Yellow** (star-yellow): stars. Bituin, Study-day stars in the constellation and on the Habits list, the starred-note star, the Write in Isip button on the rail and the mobile Write button. Text on solid yellow is **On Star** (on-star).
 - **Star Wash / Star Ink** (star-wash, star-ink): the active Starred toggle in the editor header.
 - **Ballpoint Blue** (ballpoint-blue): the default ink, the text caret, links in the page, the focus ring (2 px outline, 2 px offset) and text selection at 22% alpha. **Ballpoint Wash** is its tint.
 - **Marker Red** (marker-red): destructive actions, the recording dot and the live Record state (on **Marker Wash**).
@@ -325,7 +325,7 @@ The palette is the app icon spread over a whole screen: tile green, star yellow,
 Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folderColor.ts`); green and yellow are deliberately left out of it.
 
 ### Named Rules
-**The One Star Rule.** Star yellow means a star: Bituin, Study days (in the rail's constellation and as Study's done days on the Habits list), starred notes, and the single New note button. Every other habit's done day is a green dot. On the rail it also marks "you are here" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.
+**The One Star Rule.** Star yellow means a star: Bituin, Study days (in the rail's constellation and as Study's done days on the Habits list), starred notes, and the single Write button (Write in Isip on the rail, the raised Write circle on phones). Every other habit's done day is a green dot. On the rail it also marks "you are here" (the active nav icon) and the profile initials chip, and it fills the theme toggle's sun and moon. It is never a general accent, a hover colour, a badge or a second primary button.
 
 **The Steering Green Rule.** Green on white means "act" or "selected". The rail is the same green at full strength and is never itself a button; nothing on white is filled with rail-forest.
 
@@ -365,7 +365,7 @@ Folder dots use a fixed six-hue set derived from the folder id (`src/utils/folde
 Navigation is a responsive three-pane atlas:
 - **Desktop and tablet landscape (1024 px and up):** a 232 px rail, a note list pane (300 px, 360 px from 1280 px) on the shelf colour, and the editor filling the rest. Both columns resize from a drag handle on their right edge (rail 180 to 360 px, dragging under 140 px hides it; list 260 to 480 px); the handle is a 2 px line that turns control-line on hover, tile green while dragging and a 3 px ballpoint line on keyboard focus. The rail can be hidden; a "Show sidebar" button then leads every view's header, where the rail's "Hide sidebar" button sat.
 - **Tablet portrait (768 to 1023 px):** the rail becomes a 256 px drawer over a scrim; list and editor remain.
-- **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, Today, a raised star-yellow New note button, Search, You), which mirrors for left-handed users. Today is lit for every planner view; Notes for every library view.
+- **Phone (767 px and down):** one pane at a time with a fixed forest-green bottom tab bar (Notes, Today, a raised star-yellow Write button, New, Search, You), which mirrors for left-handed users. Today is lit for every planner view; Notes for every library view.
 - **Below 1024 px (rail not docked):** every planner view carries the hub strip under its header, a horizontally scrolling row of pill tabs (Today, Upcoming, Tasks, Money, Habits, Workouts) that is the one tap between them. With the rail docked the rail's PLANNER group does that job and the strip is gone.
 
 The planner views share one frame. A header (title, note line, the Show sidebar button when the rail is hidden), the hub strip where it applies, then a scrolling body on the shelf colour (12 px side padding on phones, 24 px from 768 px, 40 px at the bottom) holding groups 24 px apart. In the list pane beside an open note, or on a phone, the body is one column. With no note open on tablet and desktop the planner takes the whole pane, and once that pane is 848 px wide (container query) the frame widens to 1120 px: views with a side column split 7 : 5 with a 32 px gap, one-column views keep a 720 px column. Header, strip and body share the frame's left edge.
@@ -386,7 +386,7 @@ Depth is mostly flat: surfaces are separated by tone (chart ground, shelf, white
 
 ### Shadow Vocabulary
 - **Rest** (`box-shadow: 0 1px 1px rgb(20 38 26 / 0.05)`): the barely-there edge on primary and subtle buttons.
-- **Raise** (`box-shadow: 0 1px 2px rgb(20 38 26 / 0.06), 0 6px 16px rgb(20 38 26 / 0.08)`): hover on primary buttons and grid cards, the mobile New note button.
+- **Raise** (`box-shadow: 0 1px 2px rgb(20 38 26 / 0.06), 0 6px 16px rgb(20 38 26 / 0.08)`): hover on primary buttons and grid cards, the mobile Write button.
 - **Float** (`box-shadow: 0 2px 6px rgb(20 38 26 / 0.08), 0 18px 44px rgb(20 38 26 / 0.18)`): the pen dock, menus, popovers, dialogs and the compact Bituin pill.
 - **Sheet** (`box-shadow: 0 1px 2px rgb(20 38 26 / 0.08), 0 8px 28px rgb(20 38 26 / 0.08)`): the white page on the chart ground (tablet and up).
 
@@ -395,7 +395,7 @@ Depth is mostly flat: surfaces are separated by tone (chart ground, shelf, white
 
 ## Shapes
 
-Corners are gently rounded and tiered by size: 8 px for controls (buttons, inputs, nav items, rows, segments), 10 px for cards and containers (list cards, the constellation, primary 40 px buttons, the New note button), 14 px for floating surfaces (the pen dock). The page sheet is nearly square (4 px) so it reads as paper. Fully round shapes are reserved for chips, tag pills, the planner tabs, dots (habit days, runway points), a habit's round Done check, the avatar and the mobile New note button.
+Corners are gently rounded and tiered by size: 8 px for controls (buttons, inputs, nav items, rows, segments), 10 px for cards and containers (list cards, the constellation, primary 40 px buttons, the Write in Isip button), 14 px for floating surfaces (the pen dock). The page sheet is nearly square (4 px) so it reads as paper. Fully round shapes are reserved for chips, tag pills, the planner tabs, dots (habit days, runway points), a habit's round Done check, the avatar and the mobile Write button.
 
 Borders are one pixel: seam for dividers and idle chips, control-line where a border must read as a control. The selected note row is marked with a one-pixel ink line on its left edge inside a green-wash fill; multi-selection uses a one-pixel green inset ring.
 
@@ -405,7 +405,7 @@ Borders are one pixel: seam for dividers and idle chips, control-line where a bo
 Calm and solid; one green, one gold, everything else quiet.
 - **Shape:** gently rounded (8 px at 32 px tall, 10 px at 40 px tall).
 - **Primary:** tile green with white text, rest shadow; hover deepens to tile-green-deep and lifts to the raise shadow; press scales to 0.98. Disabled is 50% opacity.
-- **New note:** the one star-yellow button, full rail width, 44 px tall, 15 px semibold with a plus; hover brightens 5%, press scales to 0.98. On phones it is a 56 px yellow circle raised out of the tab bar with a 4 px rail-coloured ring.
+- **Write in Isip:** the one star-yellow button, the rail's width less a 44 px square New note button (rail-line border, plus icon) beside it, 44 px tall, 15 px semibold with a pen; hover brightens 5%, press scales to 0.98. It opens the capture box (also Ctrl/⌘ Shift Space). On phones it is a 56 px yellow circle with a pen, raised out of the tab bar with a 4 px rail-coloured ring; New note is a plain tab beside it.
 - **Subtle / Outline / Ghost:** white with a seam border, transparent with a control-line border, or text-only in ink-muted; all hover to hover-well.
 - **Danger:** marker red with white text; **Danger outline:** red text with a 60% red border, hover marker-wash.
 - **Focus:** the global ballpoint ring (2 px, 2 px offset) on every control.
@@ -427,8 +427,8 @@ Calm and solid; one green, one gold, everything else quiet.
 - **Placeholder:** ink-faint.
 
 ### Navigation
-- **Rail:** forest green, 12 px padding. Top: the Hide sidebar button, app icon (30 px, 8 px corners) and the Tala wordmark, then New note. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. The nav list is grouped under small-caps labels: PLANNER (Today, Upcoming, Tasks, Money, Habits, Workouts), then NOTEBOOK (All Notes, Starred, and the Search row with its shortcut hint last), then FOLDERS (a coloured dot each) and TAGS. The week constellation, then Archive, Trash and theme icon buttons over a rail seam, then the profile row with backup status and the settings gear.
-- **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding: Notes, Today, the raised New note, Search, and You (the profile picture on a yellow chip, opening Settings, Quiet mode and Back up now). Labels are 11 px; active icons turn star yellow and thicken.
+- **Rail:** forest green, 12 px padding. Top: the Hide sidebar button, app icon (30 px, 8 px corners) and the Tala wordmark, then Write in Isip with New note beside it. Nav items are 36 px rows, 14 px medium in rail-text at 90%; hover fills rail-active at 60%, active fills rail-active, the active icon turns star yellow and thickens. Counts sit right in tabular rail-muted. The nav list is grouped under small-caps labels: ISIP (Today, Upcoming, Tasks, Money, Habits, Workouts), then NOTEBOOK (All Notes, Starred, and the Search row with its shortcut hint last), then FOLDERS (a coloured dot each) and TAGS. The week constellation, then Archive, Trash and theme icon buttons over a rail seam, then the profile row with backup status and the settings gear.
+- **Mobile tab bar:** the same forest green, fixed to the bottom with safe-area padding: Notes, Today, the raised Write, New, Search, and You (the profile picture on a yellow chip, opening Settings, Quiet mode and Back up now). Labels are 11 px; active icons turn star yellow and thicken.
 - **Planner hub strip:** below 1024 px, a row of 36 px pill tabs (40 px on touch) in 13.5 px medium, 4 px apart. The active tab fills tile green with white text; idle tabs are ink-muted text on nothing and hover to hover-well with ink text. Switching changes colour only, no movement or underline; press scales to 0.97 over 150 ms. The strip scrolls sideways with no scrollbar, keeps the current tab in view with 24 px of scroll padding, and fades whichever edge can still scroll (a 28 px mask) so a cut-off tab reads as more.
 
 ### Planner Frame and Cards
@@ -468,7 +468,7 @@ A split screen: a forest-green panel (42%, up to 520 px) with the app icon, word
 
 ### Do:
 - **Do** take every colour from the `--c-*` tokens (`bg-canvas`, `bg-shelf`, `bg-panel`, `text-ink`, `bg-rail`, `bg-accent`, `bg-gold`) so light and dark swap by variable.
-- **Do** keep exactly one star-yellow button per screen: New note.
+- **Do** keep exactly one star-yellow button per screen: Write.
 - **Do** lead every note row with its catalogue number (№ 000, tabular, ink-faint).
 - **Do** divide panes and rows with one-pixel seams and keep shadows for the pen dock, menus, dialogs and the page sheet.
 - **Do** set every count, time and number with tabular figures.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useNoteStore } from '@/store/noteStore'
 import { usePageStore } from '@/store/pageStore'
@@ -16,6 +16,7 @@ import { CARD, PlannerSection, PlannerView } from '@/components/Planner/PlannerV
 import { StartList } from '@/components/NoteEditor/EditorPlaceholder'
 import { QuickCapture } from '@/components/QuickCapture'
 import { DayEntries } from '@/components/Isip/DayEntries'
+import { ISIP } from '@/isip/copy'
 import { displayTitle } from '@/utils/noteFilters'
 import { catalogNumbers, formatCatalog } from '@/utils/catalog'
 import { pagesText, textPreview } from '@/utils/doc'
@@ -23,6 +24,7 @@ import { formatRelative, timeOfDayGreeting } from '@/utils/dates'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useTick } from '@/hooks/useTick'
+import { dayKey } from '@/coach/study'
 import { Bituin } from '@/coach/Bituin'
 import { BituinNudge } from '@/coach/BituinNudge'
 import { BITUIN } from '@/coach/copy'
@@ -37,6 +39,11 @@ import { DoneButton } from './HabitsPage'
  */
 export function HomePage(): React.ReactNode {
   useTick(60_000) // keep greeting + relative times fresh
+  // The day the Entries list shows, and the box above writes for; null follows today past midnight
+  const today = dayKey(Date.now())
+  const [picked, setPicked] = useState<string | null>(null)
+  const day = picked ?? today
+  const setDay = useCallback((d: string) => setPicked(d === dayKey(Date.now()) ? null : d), [])
   const hasNotes = useNoteStore((s) => s.notes.some((n) => !n.isDeleted && !n.isArchived))
   const hydrated = useNoteStore((s) => s.hydrated)
   const openModal = useUIStore((s) => s.openModal)
@@ -68,10 +75,10 @@ export function HomePage(): React.ReactNode {
         </>
       }
     >
-      <QuickCapture />
+      <QuickCapture day={day === today ? undefined : day} />
       <BituinNudge placement="card" className="" />
       <TodayAgenda />
-      <DayEntries />
+      <DayEntries day={day} onDay={setDay} />
     </PlannerView>
   )
 }
@@ -90,7 +97,7 @@ function TodayAgenda(): React.ReactNode {
         <AgendaList items={items} />
       ) : (
         <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-          Nothing planned. Write “@ 2pm dentist” above, or “[ ] essay fri” in a note.
+          {ISIP.empty.today}
         </p>
       )}
       {hasReminders && alerts === 'default' && (

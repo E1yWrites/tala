@@ -70,7 +70,7 @@ export function MoneyPage(): React.ReactNode {
       <PlannerSection id="money-month" title={monthName.format(new Date())}>
         {month.byCategory.length === 0 ? (
           <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-            No spending yet this month. Write “P150 lunch gcash” above.
+            {ISIP.empty.money}
           </p>
         ) : (
           <div className={CARD}>

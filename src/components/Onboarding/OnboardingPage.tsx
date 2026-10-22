@@ -1,21 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { Camera, ArrowRight, AudioLines, FileUp, HardDrive, PenLine } from 'lucide-react'
-import { toast } from 'sonner'
+import { useEffect, useState } from 'react'
+import { ArrowRight, FileUp, HardDrive, ListChecks, PenLine } from 'lucide-react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/UI/Button'
-import { processImageFile } from '@/utils/image'
-import { Avatar } from '@/components/UI/Avatar'
 import { Bituin } from '@/coach/Bituin'
 import { BITUIN } from '@/coach/copy'
 import { detectEnv } from '@/coach/env'
+import { ISIP } from '@/isip/copy'
 
-const AVATAR_SIZE = 256
-/** Must match the formats promised in the UI copy. */
-const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-type OnboardingStep = 'welcome' | 'name' | 'avatar' | 'safety' | 'complete'
+type OnboardingStep = 'welcome' | 'name' | 'safety' | 'complete'
 
 function OnboardingContent(): React.ReactNode {
   const { settings, update } = useSettingsStore()
@@ -24,83 +19,16 @@ function OnboardingContent(): React.ReactNode {
   const env = detectEnv()
   const steps: OnboardingStep[] =
     (env.platform === 'ios' || env.platform === 'android') && !env.standalone
-      ? ['welcome', 'name', 'avatar', 'safety', 'complete']
-      : ['welcome', 'name', 'avatar', 'complete']
+      ? ['welcome', 'name', 'safety', 'complete']
+      : ['welcome', 'name', 'complete']
   const [step, setStep] = useState<OnboardingStep>('welcome')
   const [name, setName] = useState('')
-  const [avatar, setAvatar] = useState<string | null>(settings.profile.avatar ?? null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(settings.profile.avatar ?? null)
-  const [isDragging, setIsDragging] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-
-  const cropAndResize = async (dataUrl: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return reject(new Error('Canvas context not available'))
-
-        const size = AVATAR_SIZE
-        canvas.width = size
-        canvas.height = size
-
-        const sourceSize = Math.min(img.width, img.height)
-        const sourceX = (img.width - sourceSize) / 2
-        const sourceY = (img.height - sourceSize) / 2
-
-        ctx.drawImage(img, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size)
-
-        const keepAlpha = dataUrl.startsWith('data:image/png') || dataUrl.startsWith('data:image/webp')
-        resolve(canvas.toDataURL(keepAlpha ? 'image/png' : 'image/jpeg', keepAlpha ? undefined : 0.9))
-      }
-      img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = dataUrl
-    })
-  }
-
-  const handleFileSelect = async (file: File): Promise<void> => {
-    if (!AVATAR_TYPES.includes(file.type)) {
-      toast.error('Unsupported file type', {
-        description: 'Please choose a JPG, PNG or WebP image.',
-      })
-      return
-    }
-    try {
-      const dataUrl = await processImageFile(file)
-      const cropped = await cropAndResize(dataUrl)
-      setAvatarPreview(cropped)
-      setAvatar(cropped)
-    } catch {
-      toast.error("Couldn't read that image", {
-        description: 'The file may be corrupted — try a different picture.',
-      })
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent): void => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) void handleFileSelect(file)
-  }
-
-  const handleDragOver = (e: React.DragEvent): void => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent): void => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
-
   const nextStep = (): void => setStep(steps[Math.min(steps.length - 1, steps.indexOf(step) + 1)]!)
   const prevStep = (): void => setStep(steps[Math.max(0, steps.indexOf(step) - 1)]!)
 
   const completeOnboarding = async (): Promise<void> => {
     await update({
-      profile: { ...settings.profile, name: name.trim(), avatar },
+      profile: { ...settings.profile, name: name.trim() },
       setupCompleted: true,
     })
     setView({ kind: 'home' })
@@ -114,7 +42,7 @@ function OnboardingContent(): React.ReactNode {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, avatar])
+  }, [name])
 
   const stepIndex = steps.indexOf(step)
 
@@ -129,13 +57,14 @@ function OnboardingContent(): React.ReactNode {
         <div className="my-auto hidden pt-10 md:block">
           <StepSky count={steps.length} current={stepIndex} />
           <p className="mt-8 text-[30px] font-bold leading-[1.15] tracking-[-0.025em]">
-            A notebook for lectures, kept on this device.
+            {ISIP.onboarding.headline}
           </p>
           <ul className="mt-6 space-y-3.5 text-[14.5px] leading-snug text-rail-muted">
-            <PromiseRow icon={PenLine}>Type and write with a pen on the same page.</PromiseRow>
-            <PromiseRow icon={FileUp}>Import PDF slides and mark them up, even offline.</PromiseRow>
-            <PromiseRow icon={AudioLines}>Record the lecture alongside your notes.</PromiseRow>
-            <PromiseRow icon={HardDrive}>No account. Notes stay here unless you export or share them.</PromiseRow>
+            {ISIP.onboarding.promises.map((line, i) => (
+              <PromiseRow key={line} icon={[PenLine, ListChecks, FileUp, HardDrive][i]!}>
+                {line}
+              </PromiseRow>
+            ))}
           </ul>
         </div>
         <p className="hidden text-xs text-rail-muted md:block">Pagtatala, made simple.</p>
@@ -174,10 +103,11 @@ function OnboardingContent(): React.ReactNode {
             className="space-y-4 text-center md:text-left"
             onSubmit={(e) => {
               e.preventDefault()
-              if (name.trim()) nextStep()
+              nextStep()
             }}
           >
             <h1 className="font-bold tracking-[-0.02em] text-2xl leading-tight">What should we call you?</h1>
+            <p className="text-sm text-muted">{ISIP.onboarding.nameNote}</p>
             <input
               type="text"
               value={name}
@@ -185,7 +115,6 @@ function OnboardingContent(): React.ReactNode {
               placeholder="Your name"
               autoFocus
               aria-label="Your name"
-              required
               className="h-12 w-full rounded-control border border-line bg-panel px-4 text-center text-lg outline-none transition focus:border-ballpoint focus:ring-2 focus:ring-ballpoint/20 md:text-left"
               maxLength={40}
             />
@@ -193,7 +122,7 @@ function OnboardingContent(): React.ReactNode {
               <Button variant="ghost" size="md" type="button" className="flex-1" onClick={prevStep}>
                 Back
               </Button>
-              <Button variant="primary" size="md" type="submit" className="flex-1" disabled={!name.trim()}>
+              <Button variant="primary" size="md" type="submit" className="flex-1">
                 <span className="flex items-center justify-center gap-2">
                   Continue
                   <ArrowRight className="size-4" />
@@ -201,65 +130,6 @@ function OnboardingContent(): React.ReactNode {
               </Button>
             </div>
           </form>
-        )}
-
-        {step === 'avatar' && (
-          <div className="space-y-4 text-center md:text-left">
-            <h1 className="font-bold tracking-[-0.02em] text-2xl leading-tight">Add a profile picture</h1>
-            <p className="text-sm text-muted">Choose a picture so you can personalize your workspace.</p>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={cn(
-                'relative mx-auto md:mx-0 size-24 shrink-0 rounded-full border-4 flex items-center justify-center overflow-hidden transition-colors cursor-pointer',
-                isDragging ? 'border-accent bg-accent-soft' : 'border-lineSoft hover:border-ballpoint/40',
-              )}
-            >
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Profile picture preview" className="size-full object-cover" />
-              ) : (
-                <>
-                  {/* Live placeholder — exactly what appears if they skip */}
-                  <div className="absolute inset-0">
-                    <Avatar src={null} name={name} size="xl" className="size-full border-0" />
-                  </div>
-                  <span
-                    className="absolute bottom-0 right-0 z-10 grid size-7 translate-x-1 translate-y-1 place-items-center rounded-full border border-lineSoft bg-panel text-faint shadow-rest"
-                    aria-hidden="true"
-                  >
-                    <Camera className="size-3.5" />
-                  </span>
-                </>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) void handleFileSelect(file)
-                }}
-                aria-label="Choose profile picture"
-              />
-            </div>
-            <p className="text-xs text-faint">JPG, PNG or WebP, cropped to a circle. It stays on this device.</p>
-            <div className="flex gap-3">
-              <Button variant="ghost" size="md" className="flex-1" onClick={prevStep}>
-                Back
-              </Button>
-              <Button variant="primary" size="md" className="flex-1" onClick={nextStep}>
-                <span className="flex items-center justify-center gap-2">
-                  Continue
-                  <ArrowRight className="size-4" />
-                </span>
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => { setAvatar(null); setAvatarPreview(null); nextStep(); }}>
-              Skip for now
-            </Button>
-          </div>
         )}
 
         {step === 'safety' && (
@@ -296,12 +166,14 @@ function OnboardingContent(): React.ReactNode {
             <Bituin size={96} motion="cheer" blink className="mx-auto md:mx-0" />
             <div className="space-y-1">
               <h1 className="font-bold tracking-[-0.02em] text-2xl leading-tight">You're all set, {name.trim() || 'there'}!</h1>
-              <p className="text-muted">Three things worth knowing:</p>
+              <p className="text-muted">{ISIP.onboarding.tipsIntro}</p>
             </div>
             <ol className="space-y-3 text-left text-sm leading-relaxed">
-              <TipRow n={1} title="Type or Write">Tap Write in a note for the pen. The tools sit on the page edge.</TipRow>
-              <TipRow n={2} title="Record">Record a lecture while you write; tap a stroke later to hear that moment.</TipRow>
-              <TipRow n={3} title="Back up">Notes live on this device only. Save a backup from Settings now and then.</TipRow>
+              {ISIP.onboarding.tips.map(([title, body], i) => (
+                <TipRow key={title} n={i + 1} title={title}>
+                  {body}
+                </TipRow>
+              ))}
             </ol>
             <Button variant="primary" size="md" className="w-full" onClick={completeOnboarding}>
               <span className="flex items-center justify-center gap-2">

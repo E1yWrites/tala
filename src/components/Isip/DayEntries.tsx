@@ -22,13 +22,12 @@ const ARROW =
 const FIELD = 'h-9 min-w-0 rounded-control border border-lineSoft bg-canvas px-2.5 text-sm text-ink [@media(pointer:coarse)]:h-11'
 
 /** The Entries written for one day (today, or another picked with ‹ ›), each with what it reads as. Edit in place; delete with Undo. */
-export function DayEntries(): React.ReactNode {
+export function DayEntries({ day, onDay: setDay }: { day: string; onDay: (day: string) => void }): React.ReactNode {
   // Re-renders when the words that decide a reading change (accounts, corrections)
   const { today } = useEntries()
   const entries = useIsipStore((s) => s.entries)
   const pending = useUIStore((s) => s.pendingEntryId)
   const clearPending = useUIStore((s) => s.clearPendingEntry)
-  const [day, setDay] = useState(today)
   const [editing, setEditing] = useState<string | null>(null)
 
   // Money, Workouts and the Agenda open an Entry here
@@ -40,7 +39,7 @@ export function DayEntries(): React.ReactNode {
       setEditing(e.id)
     }
     clearPending()
-  }, [pending, entries, clearPending])
+  }, [pending, entries, clearPending, setDay])
 
   const list = entries.filter((e) => e.day === day)
   const go = (d: string): void => {

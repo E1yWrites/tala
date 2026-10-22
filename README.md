@@ -9,9 +9,10 @@
 <h1 align="center">Tala</h1>
 
 <p align="center">
-  <strong>Pagtatala, made simple.</strong><br/>
-  A local-first notebook for typed notes, handwriting, PDF annotation and the small
-  records of daily life: tasks, events, money, habits and workouts.
+  <strong>Pagtatala, made simple. Write it once, find it organized.</strong><br/>
+  Type a line about your day (“lunch 150”, “bench 60x5x3”, “dentist fri 2pm”) and Tala files it
+  under money, workouts, habits and your calendar. No forms, no categories to pick.
+  Typed notes, handwriting and PDF markup live alongside it, all on your device.
 </p>
 
 <p align="center">

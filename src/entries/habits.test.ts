@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { habitLogs, habitRule, habitStatus, strength, studyHabit } from './habits'
+import { habitLogs, habitRule, habitStatus, strength, studyHabit, untracked } from './habits'
 import type { Habit } from './habits'
 import { DEFAULT_CONTEXT, parseLine } from './parse'
 import type { EntryRef } from './scan'
@@ -64,5 +64,19 @@ describe('status', () => {
   it('says its rule', () => {
     expect(habitRule({ days: 7, target: 1 })).toBe('Every day')
     expect(habitRule({ days: 3, target: 8 })).toBe('3 days a week · 8 a day')
+  })
+})
+
+describe('ticked, not kept yet', () => {
+  it('lists ✓ names that are not habits, with what keeping them would start with', () => {
+    const lines = [
+      ...daily(6, TODAY, '✓ Meditate'), // the last 6 days: every day
+      line('✓ stretch 2', addDays(TODAY, -3)), line('✓ stretch 2', addDays(TODAY, -10)), line('✓ stretch 4', addDays(TODAY, -17)),
+      line('✓ gym'), line('✓ read skip'), line('✓ old', addDays(TODAY, -40)),
+    ]
+    expect(untracked(lines, [habit()], TODAY)).toEqual([
+      { name: 'Meditate', days: 6, perWeek: 6, target: 1 },
+      { name: 'stretch', days: 3, perWeek: 1, target: 3 },
+    ])
   })
 })

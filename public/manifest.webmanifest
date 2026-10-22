@@ -2,7 +2,7 @@
   "name": "Tala",
   "short_name": "Tala",
   "id": "tala",
-  "description": "Free, local-first notes with handwriting and PDF markup. No account, no server, works offline.",
+  "description": "Write it once, find it organized: type a line and Tala files it under money, habits, workouts and plans. Notes and PDF markup too. Local-first, works offline.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1f4a2b",
@@ -30,6 +30,16 @@
   "lang": "en",
   "categories": [
     "productivity",
+    "lifestyle",
     "education"
+  ],
+  "shortcuts": [
+    {
+      "name": "Write a line",
+      "short_name": "Write",
+      "description": "Write a line in Isip; Tala sorts it out",
+      "url": "./?write",
+      "icons": [{ "src": "./app-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

@@ -32,6 +32,7 @@ import { captureLine, previewLine } from '@/components/QuickCapture'
 import { ISIP } from '@/isip/copy'
 import { formatDay } from '@/entries/parse'
 import { useIsipStore } from '@/store/isipStore'
+import { searchEntries } from '@/library/isip'
 
 interface CommandEntry {
   id: string
@@ -143,24 +144,16 @@ export function CommandPalette(): React.ReactNode {
     // Anything typed can be saved as an Isip Entry; it leads only when it reads as one,
     // so "settings" + Enter still opens Settings
     // Entries that contain what was typed, newest first; one opens Today on its day
-    const q = line.toLowerCase()
-    const found: CommandEntry[] =
-      q.length < 2
-        ? []
-        : entries
-            .filter((e) => e.text.toLowerCase().includes(q))
-            .slice(-5)
-            .reverse()
-            .map((e) => ({
-              id: `entry-${e.id}`,
-              label: e.text,
-              hint: ISIP.search.hint(formatDay(e.day)),
-              icon: PenLine,
-              run: () => {
-                closeAllModals()
-                openEntry(e.id)
-              },
-            }))
+    const found: CommandEntry[] = searchEntries(entries, line, 5).map((e) => ({
+      id: `entry-${e.id}`,
+      label: e.text,
+      hint: ISIP.search.hint(formatDay(e.day)),
+      icon: PenLine,
+      run: () => {
+        closeAllModals()
+        openEntry(e.id)
+      },
+    }))
     const preview = previewLine(line)
     const log: CommandEntry = {
       id: 'log',
