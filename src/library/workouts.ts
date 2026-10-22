@@ -5,6 +5,7 @@ import { liftNote } from '@/entries/workouts'
 import type { Lift } from '@/entries/workouts'
 import { libraryRefs } from './isip'
 import { notify } from './reminders'
+import { ISIP } from '@/isip/copy'
 
 /*
   Workouts beside Isip: the "last time" hint on a lift, and the rest
@@ -32,7 +33,7 @@ export function startRest(seconds: number, now = Date.now()): void {
   useRestStore.setState({ endsAt: now + seconds * 1000, seconds })
   timer = setTimeout(() => {
     useRestStore.setState({ endsAt: null })
-    notify('Rest is over', `${formatRest(seconds)} up. Next set.`, 'tala-rest')
+    notify(ISIP.workouts.restOver, ISIP.workouts.restOverBody(formatRest(seconds)), 'tala-rest')
   }, seconds * 1000)
 }
 

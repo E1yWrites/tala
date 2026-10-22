@@ -17,7 +17,7 @@ const field = 'h-9 min-w-0 flex-1 rounded-control border border-lineSoft bg-canv
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 /** Strength is shown once a habit has this many days behind it. */
 const WEEK_OF_HISTORY = 7
-const STATE_WORDS: Record<DayState, string> = { done: 'done', part: 'started', off: 'day off', none: 'not done', later: 'to come' }
+const STATE_WORDS: Record<DayState, string> = ISIP.habits.states
 
 /** Each habit with its week and strength, from the ✓ lines; Study (from writing time) comes first. */
 export function HabitsPage(): React.ReactNode {
@@ -30,9 +30,9 @@ export function HabitsPage(): React.ReactNode {
   const loose = useMemo(() => untracked(refs, habits, today), [refs, habits, today])
 
   return (
-    <PlannerView label="Habits" title="Habits" note={ISIP.habits.note}>
+    <PlannerView label={ISIP.habits.title} title={ISIP.habits.title} note={ISIP.habits.note}>
       <QuickCapture />
-      <PlannerSection id="habits-list" title="This week">
+      <PlannerSection id="habits-list" title={ISIP.habits.week}>
         <ul className={cn(CARD, 'habit-list')}>
           <HabitRow habit={study} log={studyLog} today={today} study />
           {habits.map((h) => (
@@ -73,14 +73,14 @@ export function HabitsPage(): React.ReactNode {
 function HabitRow({ habit, log, today, study = false }: { habit: Habit; log: HabitLog; today: string; study?: boolean }): React.ReactNode {
   const s = useMemo(() => habitStatus(habit, log, today), [habit, log, today])
   const [open, setOpen] = useState(false)
-  const rule = study ? `${habitRule(habit)} · 5 minutes of writing makes a day` : habitRule(habit)
+  const rule = study ? ISIP.habits.studyRule(habitRule(habit)) : habitRule(habit)
   return (
     <li className="habit-row border-b border-lineSoft last:border-b-0">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          aria-label={`${habit.name}: edit`}
+          aria-label={ISIP.habits.edit(habit.name)}
           className="habit-name flex min-h-11 min-w-0 items-center gap-2 text-left"
         >
           <ChevronRight size={14} className={cn('shrink-0 text-faint transition-transform', open && 'rotate-90')} aria-hidden="true" />
@@ -114,9 +114,9 @@ function Strength({ status }: { status: HabitStatus }): React.ReactNode {
   return (
     <span className="habit-strength flex flex-col items-end leading-tight">
       <span className={cn('text-xs tabular-nums', young ? 'text-faint' : 'font-semibold text-ink')}>
-        {young ? 'new' : `${Math.round(status.strength * 100)}%`}
+        {young ? ISIP.habits.new : `${Math.round(status.strength * 100)}%`}
       </span>
-      <span className="text-[10.5px] text-faint">{young ? 'first week' : 'strength'}</span>
+      <span className="text-[10.5px] text-faint">{young ? ISIP.habits.firstWeek : ISIP.habits.strength}</span>
     </span>
   )
 }
@@ -134,7 +134,7 @@ export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatu
       <button
         type="button"
         onClick={() => tickHabit(habit.name)}
-        aria-label={`${habit.name}: one more (${status.count} of ${habit.target} today)`}
+        aria-label={ISIP.habits.oneMore(habit.name, status.count, habit.target)}
         className={cn(
           'flex h-9 shrink-0 items-center gap-1 rounded-control border px-2.5 text-xs font-semibold tabular-nums transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] [@media(pointer:coarse)]:h-11',
           status.done ? 'border-accent bg-accent text-accent-fg' : 'border-lineSoft text-ink hover:border-line',
@@ -150,7 +150,7 @@ export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatu
       type="button"
       onClick={() => tickHabit(habit.name)}
       disabled={status.done}
-      aria-label={status.done ? `${habit.name}: done today` : `${habit.name}: done today?`}
+      aria-label={ISIP.habits.doneToday(habit.name, status.done)}
       aria-pressed={status.done}
       className={cn(
         'grid size-9 shrink-0 place-items-center rounded-full border-[1.5px] transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.94] [@media(pointer:coarse)]:size-11',
@@ -165,7 +165,7 @@ export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatu
 /** Monday..Sunday. A done day fills green; Study's done days are the rail constellation's stars. */
 function WeekDots({ days, name, today, stars = false }: { days: HabitStatus['days']; name: string; today: string; stars?: boolean }): React.ReactNode {
   return (
-    <ol aria-label={`${name} this week`} className="habit-dots flex gap-1.5">
+    <ol aria-label={ISIP.habits.thisWeek(name)} className="habit-dots flex gap-1.5">
       {days.map((d, i) => (
         <li key={d.day} className="flex flex-col items-center gap-0.5">
           {stars && d.state === 'done' ? (
@@ -198,33 +198,33 @@ function HabitFields({ value, onChange }: { value: HabitInput; onChange: (v: Hab
   return (
     <>
       <label className="flex items-center gap-2 text-xs text-muted">
-        <span className="w-20 shrink-0">Name</span>
-        <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} aria-label="Habit name" placeholder="water, gym, read" className={field} />
+        <span className="w-20 shrink-0">{ISIP.habits.fields.name}</span>
+        <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} aria-label={ISIP.habits.fields.nameLabel} placeholder={ISIP.habits.fields.namePlaceholder} className={field} />
       </label>
       <label className="flex items-center gap-2 text-xs text-muted">
-        <span className="w-20 shrink-0">How often</span>
+        <span className="w-20 shrink-0">{ISIP.habits.fields.often}</span>
         <DaysSelect value={value.days} onChange={(days) => onChange({ ...value, days })} />
       </label>
       <label className="flex items-center gap-2 text-xs text-muted">
-        <span className="w-20 shrink-0">A day’s goal</span>
+        <span className="w-20 shrink-0">{ISIP.habits.fields.target}</span>
         <input
           inputMode="numeric"
           value={value.target === 1 ? '' : String(value.target)}
           onChange={(e) => onChange({ ...value, target: Number(e.target.value.replace(/\D/g, '')) || 1 })}
-          placeholder="1 (just done or not)"
-          aria-label="How many make a day done"
+          placeholder={ISIP.habits.fields.targetPlaceholder}
+          aria-label={ISIP.habits.fields.targetLabel}
           className={field}
         />
       </label>
       <label className="flex items-center gap-2 text-xs text-muted">
-        <span className="w-20 shrink-0">Remind me</span>
-        <input type="time" value={value.remind ?? ''} onChange={(e) => onChange({ ...value, remind: e.target.value || undefined })} aria-label="Reminder time" className={field} />
+        <span className="w-20 shrink-0">{ISIP.habits.fields.remind}</span>
+        <input type="time" value={value.remind ?? ''} onChange={(e) => onChange({ ...value, remind: e.target.value || undefined })} aria-label={ISIP.habits.fields.remindLabel} className={field} />
       </label>
     </>
   )
 }
 
-function DaysSelect({ value, onChange, ariaLabel = 'Days a week' }: { value: number; onChange: (n: number) => void; ariaLabel?: string }): React.ReactNode {
+function DaysSelect({ value, onChange, ariaLabel = ISIP.habits.fields.days }: { value: number; onChange: (n: number) => void; ariaLabel?: string }): React.ReactNode {
   return (
     <select value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={ariaLabel} className={field}>
       {[7, 6, 5, 4, 3, 2, 1].map((n) => (
@@ -249,19 +249,19 @@ function EditHabit({ habit, status, onDone }: { habit: Habit; status: HabitStatu
       }}
     >
       <HabitFields value={value} onChange={setValue} />
-      <p className="text-xs text-faint">Renaming keeps old ✓ lines under the old name.</p>
+      <p className="text-xs text-faint">{ISIP.habits.renameNote}</p>
       {error && <p className="text-xs text-danger">{error}</p>}
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => removeHabit(habit.id)} className="text-xs font-medium text-danger hover:underline">
-          Remove
+          {ISIP.habits.remove}
         </button>
         {status.due && (
           <button type="button" onClick={() => (skipHabit(habit.name), onDone())} className="text-xs font-medium text-muted hover:text-ink hover:underline">
-            Day off today
+            {ISIP.habits.dayOff}
           </button>
         )}
         <button type="submit" className="ml-auto rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg">
-          Save
+          {ISIP.habits.save}
         </button>
       </div>
     </form>
@@ -273,10 +273,10 @@ function StudyForm({ onDone }: { onDone: () => void }): React.ReactNode {
   return (
     <div className="space-y-2 pb-1 pt-2">
       <label className="flex items-center gap-2 text-xs text-muted">
-        <span className="w-20 shrink-0">How often</span>
-        <DaysSelect value={goal} onChange={(n) => (setWeeklyGoal(n), onDone())} ariaLabel="Study days a week" />
+        <span className="w-20 shrink-0">{ISIP.habits.fields.often}</span>
+        <DaysSelect value={goal} onChange={(n) => (setWeeklyGoal(n), onDone())} ariaLabel={ISIP.habits.fields.studyDays} />
       </label>
-      <p className="text-xs text-faint">Study ticks itself: Bituin counts the days with 5 minutes of writing. This is the weekly goal in Settings.</p>
+      <p className="text-xs text-faint">{ISIP.habits.studyNote}</p>
     </div>
   )
 }
@@ -290,7 +290,7 @@ function AddHabit(): React.ReactNode {
       <li>
         <button type="button" onClick={() => setOpen(true)} className="flex min-h-12 w-full items-center gap-2 px-3.5 text-left text-sm text-faint hover:bg-raise hover:text-ink">
           <Plus size={14} aria-hidden="true" />
-          Add a habit
+          {ISIP.habits.add}
         </button>
       </li>
     )
@@ -311,10 +311,10 @@ function AddHabit(): React.ReactNode {
         {error && <p className="text-xs text-danger">{error}</p>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={() => setOpen(false)} className="text-xs font-medium text-muted hover:text-ink">
-            Cancel
+            {ISIP.habits.cancel}
           </button>
           <button type="submit" className="rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg">
-            Add habit
+            {ISIP.habits.addSubmit}
           </button>
         </div>
       </form>

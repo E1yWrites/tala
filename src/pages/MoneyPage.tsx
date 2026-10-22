@@ -5,7 +5,8 @@ import { balances, monthSummary, safeToSpend } from '@/entries/money'
 import type { Account, MoneyRef, SafeToSpend } from '@/entries/money'
 import { accountName, formatDay, formatPeso } from '@/entries/parse'
 import { ISIP } from '@/isip/copy'
-import { foodMix, gymFood, priceChanges, recurring } from '@/isip/insights'
+import { foodMix, gymFood, planLine, priceChanges, recurring } from '@/isip/insights'
+import { captureLine } from '@/components/QuickCapture'
 import type { FoodMix, GymFood, PriceChange, Recurring } from '@/isip/insights'
 import { addAccount, removeAccount, renameAccount, setBalance, setCategory, setKeep, useMoneyStore } from '@/library/money'
 import { useEntries } from '@/components/Agenda/useAgenda'
@@ -33,18 +34,18 @@ export function MoneyPage(): React.ReactNode {
 
   return (
     <PlannerView
-      label="Money"
-      title="Money"
-      note="From every ₱ line you write in Isip"
+      label={ISIP.money.title}
+      title={ISIP.money.title}
+      note={ISIP.money.note}
       aside={
         <>
-          <PlannerSection id="money-accounts" title="Accounts">
+          <PlannerSection id="money-accounts" title={ISIP.money.accounts}>
             <ul className={CARD}>
               {accounts.map((a) => (
                 <AccountRow key={a.id} account={a} balance={bal.get(a.id) ?? 0} canRemove={accounts.length > 1} />
               ))}
               <li className="flex min-h-11 items-center border-b border-lineSoft bg-shelf/60 px-3.5 text-[14px]">
-                <span className="flex-1 font-medium text-muted">All accounts</span>
+                <span className="flex-1 font-medium text-muted">{ISIP.money.allAccounts}</span>
                 <span className="font-semibold tabular-nums">{formatPeso(Math.round(safe.total))}</span>
               </li>
               <AddAccount />
@@ -53,7 +54,7 @@ export function MoneyPage(): React.ReactNode {
           </PlannerSection>
 
           {month.lines.length > 0 && (
-            <PlannerSection id="money-lines" title="Lines this month">
+            <PlannerSection id="money-lines" title={ISIP.money.lines}>
               <ul className={CARD}>
                 {month.lines.slice(0, 50).map((r, i) => (
                   <MoneyLine key={`${r.isip}-${i}`} r={r} category={r.entry.category ?? categoryOf(r.entry.text, categories)} />
@@ -76,12 +77,12 @@ export function MoneyPage(): React.ReactNode {
           <div className={CARD}>
             <dl className="flex gap-6 border-b border-lineSoft px-3.5 py-2.5 text-[14px]">
               <div className="flex items-baseline gap-1.5">
-                <dt className="text-muted">Spent</dt>
+                <dt className="text-muted">{ISIP.money.spent}</dt>
                 <dd className="font-semibold tabular-nums">{formatPeso(month.spent)}</dd>
               </div>
               {month.income > 0 && (
                 <div className="flex items-baseline gap-1.5">
-                  <dt className="text-muted">In</dt>
+                  <dt className="text-muted">{ISIP.money.in}</dt>
                   <dd className="font-semibold tabular-nums">{formatPeso(month.income)}</dd>
                 </div>
               )}
@@ -115,7 +116,12 @@ export function MoneyPage(): React.ReactNode {
 
       {mix && <FoodMixCard mix={mix} />}
       {gym && <GymFoodCard gym={gym} />}
-      {back.length > 0 && <RecurringCard list={back} />}
+      {back.length > 0 && (
+        <RecurringCard
+          list={back}
+          planned={new Set(refs.flatMap((r) => (r.entry.kind === 'event' && r.entry.repeat && r.entry.amount ? [r.entry.amount] : [])))}
+        />
+      )}
       {prices.length > 0 && <PricesCard list={prices} />}
     </PlannerView>
   )
@@ -168,7 +174,8 @@ function GymFoodCard({ gym }: { gym: GymFood }): React.ReactNode {
   )
 }
 
-function RecurringCard({ list }: { list: Recurring[] }): React.ReactNode {
+/** Costs that come back; one tap plans one as a repeating bill, so safe to spend counts it before it is due. */
+function RecurringCard({ list, planned }: { list: Recurring[]; planned: Set<number> }): React.ReactNode {
   const c = ISIP.insight.recurring
   return (
     <PlannerSection id="money-recurring" title={c.title}>
@@ -182,6 +189,18 @@ function RecurringCard({ list }: { list: Recurring[] }): React.ReactNode {
               </span>
             </span>
             <span className="shrink-0 text-[14px] font-semibold tabular-nums">{formatPeso(r.amount)}</span>
+            {planned.has(r.amount) ? (
+              <span className="shrink-0 text-xs text-faint">{c.planned}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => captureLine(planLine(r))}
+                aria-label={c.planLabel(formatPeso(r.amount), r.text || categoryLabel(r.category))}
+                className="min-h-9 shrink-0 rounded-control border border-lineSoft px-3 text-xs font-semibold transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11"
+              >
+                {c.plan}
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -221,24 +240,24 @@ export function SafeCard({ safe, keep, compact = false }: { safe: SafeToSpend; k
     <div className={cn(CARD, 'px-4 py-3.5')}>
       <p className="text-[21px] font-bold leading-snug tracking-[-0.02em]">
         <span className="tabular-nums">{formatPeso(Math.round(Math.abs(safe.leftToday)))}</span>{' '}
-        <span className={over ? '' : 'font-semibold text-muted'}>{over ? 'over today’s share' : 'to spend today'}</span>
+        <span className={over ? '' : 'font-semibold text-muted'}>{over ? ISIP.money.over : ISIP.money.toSpend}</span>
       </p>
       <p className="mt-0.5 text-[13px] text-muted">
         {over && safe.days > 1
-          ? `${formatPeso(Math.round(fromTomorrow))} a day from tomorrow until ${until}`
-          : `${formatPeso(Math.round(Math.max(0, safe.perDay)))} a day until ${until}`}
+          ? ISIP.money.fromTomorrow(formatPeso(Math.round(fromTomorrow)), until)
+          : ISIP.money.perDay(formatPeso(Math.round(Math.max(0, safe.perDay))), until)}
       </p>
       {!compact && <Runway days={safe.days} over={over} />}
       {!compact && (
         <p className="mt-2 text-xs tabular-nums text-faint">
-          Spent today {formatPeso(safe.spentToday)}
-          {safe.bills > 0 && ` · bills before then ${formatPeso(safe.bills)}`}
-          {keep > 0 && ` · keeping ${formatPeso(keep)}`}
+          {ISIP.money.spentToday(formatPeso(safe.spentToday))}
+          {safe.bills > 0 && ISIP.money.bills(formatPeso(safe.bills))}
+          {keep > 0 && ISIP.money.keeping(formatPeso(keep))}
         </p>
       )}
       {!compact && !safe.incomeName && (
         <p className="mt-2 text-xs text-muted">
-          Counting to the month’s end. To count to your next baon or sweldo, write a line like “@ tuwing kinsenas at katapusan +P8000 sweldo”.
+          {ISIP.money.noIncome}
         </p>
       )}
     </div>
@@ -293,7 +312,7 @@ function AccountRow({ account, balance, canRemove }: { account: Account; balance
           className="space-y-2 px-3.5 pb-3"
           onSubmit={(e) => {
             e.preventDefault()
-            if (name.trim() !== account.name && !renameAccount(account.id, name)) return setError('That word is taken by another account.')
+            if (name.trim() !== account.name && !renameAccount(account.id, name)) return setError(ISIP.money.wordTaken)
             const n = parseAmount(amount)
             if (amount.trim() && Number.isFinite(n)) setBalance(account.id, n)
             setAmount('')
@@ -302,39 +321,39 @@ function AccountRow({ account, balance, canRemove }: { account: Account; balance
           }}
         >
           <label className="flex items-center gap-2 text-xs text-muted">
-            <span className="w-16 shrink-0">Has now</span>
+            <span className="w-16 shrink-0">{ISIP.money.hasNow}</span>
             <input
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder={formatPeso(balance)}
-              aria-label={`What ${account.name} has now`}
+              aria-label={ISIP.money.hasNowLabel(account.name)}
               className="h-9 min-w-0 flex-1 rounded-control border border-lineSoft bg-canvas px-2.5 text-sm text-ink tabular-nums"
             />
           </label>
           <label className="flex items-center gap-2 text-xs text-muted">
-            <span className="w-16 shrink-0">Name</span>
+            <span className="w-16 shrink-0">{ISIP.money.name}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              aria-label="Account name"
+              aria-label={ISIP.money.nameLabel}
               className="h-9 min-w-0 flex-1 rounded-control border border-lineSoft bg-canvas px-2.5 text-sm text-ink"
             />
           </label>
           <p className="text-xs text-faint">
-            Type “{account.tag}” in a line to use it: “P150 lunch {account.tag}”.
+            {ISIP.money.useWord(account.tag)}
           </p>
           {error && <p className="text-xs text-danger">{error}</p>}
           <div className="flex justify-between">
             {canRemove ? (
               <button type="button" onClick={() => removeAccount(account.id)} className="text-xs font-medium text-danger hover:underline">
-                Remove account
+                {ISIP.money.removeAccount}
               </button>
             ) : (
               <span />
             )}
             <button type="submit" className="rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg">
-              Save
+              {ISIP.money.save}
             </button>
           </div>
         </form>
@@ -353,7 +372,7 @@ function AddAccount(): React.ReactNode {
         onSubmit={(e) => {
           e.preventDefault()
           if (!name.trim()) return
-          if (!addAccount(name)) return setError('Pick a name whose first word no other account uses.')
+          if (!addAccount(name)) return setError(ISIP.money.nameTaken)
           setName('')
           setError('')
         }}
@@ -362,8 +381,8 @@ function AddAccount(): React.ReactNode {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Add an account (BPI, Seabank, Ipon jar)"
-          aria-label="New account name"
+          placeholder={ISIP.money.addPlaceholder}
+          aria-label={ISIP.money.addLabel}
           className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
         />
         {error && <span className="shrink-0 text-xs text-danger">{error}</span>}
@@ -376,14 +395,14 @@ function KeepRow({ keep }: { keep: number }): React.ReactNode {
   const [value, setValue] = useState(keep ? String(keep) : '')
   return (
     <label className="mt-2 flex items-center gap-2 px-1 text-xs text-muted">
-      <span className="min-w-0 flex-1">Keep aside (ipon), not counted as spendable</span>
+      <span className="min-w-0 flex-1">{ISIP.money.keep}</span>
       <input
         inputMode="decimal"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={() => setKeep(parseAmount(value || '0'))}
         placeholder="₱0"
-        aria-label="Amount to keep aside"
+        aria-label={ISIP.money.keepLabel}
         className="h-8 w-28 shrink-0 rounded-control border border-lineSoft bg-panel px-2 text-sm text-ink tabular-nums"
       />
     </label>
@@ -401,7 +420,7 @@ function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.Re
       <button type="button" onClick={() => r.isip && openEntry(r.isip)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 pl-3.5 text-left hover:bg-raise">
         <span className="w-12 shrink-0 text-xs tabular-nums text-faint">{formatDay(e.day).replace(/^\w+,\s*/, '')}</span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px]">{e.text || (e.flow === 'move' ? 'Transfer' : 'Untitled')}</span>
+          <span className="block truncate text-[14px]">{e.text || (e.flow === 'move' ? ISIP.money.transfer : ISIP.money.untitled)}</span>
           <span className="block truncate text-xs text-faint">
             {e.flow === 'move' ? `${accountName(e.account!)} → ${accountName(e.to!)}` : e.account ? accountName(e.account) : ''}
           </span>
@@ -418,7 +437,7 @@ function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.Re
             <button
               {...props}
               type="button"
-              aria-label={`Category for “${word}”: ${categoryLabel(category)}`}
+              aria-label={ISIP.money.categoryFor(word, categoryLabel(category))}
               className="mr-2 shrink-0 rounded-full border border-lineSoft px-2 py-0.5 text-[11px] font-medium text-muted hover:border-line hover:text-ink"
             >
               {categoryLabel(category)}

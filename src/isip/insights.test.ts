@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { addDays } from '@/entries/dates'
 import { DEFAULT_CONTEXT } from '@/entries/parse'
 import { isipRefs } from '@/entries/scan'
-import { foodMix, gymFood, mentions, priceChanges, recurring, usualSplit, weekOf, weeklyTops } from './insights'
+import { foodMix, gymFood, mentions, planLine, priceChanges, recurring, usualSplit, weekOf, weeklyTops } from './insights'
+import { parseLine } from '@/entries/parse'
 
 const TODAY = '2026-10-22' // a Thursday
 const ctx = { ...DEFAULT_CONTEXT, ticks: ['gym'], aliases: { exercise: {}, merchant: {} }, categories: {} }
@@ -50,6 +51,21 @@ describe('money', () => {
       ['2026-09-02', 'gym 500'], ['2026-09-09', 'gym 500'], ['2026-10-20', 'gym 500'],
     ])
     expect(recurring(r)).toEqual([{ amount: 149, category: 'Bills & load', text: 'netflix', every: 31, last: '2026-10-08', next: '2026-11-08', times: 3 }])
+  })
+
+  it('a recurring cost plans as a repeating bill line the parser reads back', () => {
+    const base = { amount: 149, category: 'Bills & load', text: 'netflix', last: '2026-10-08', times: 3 }
+    const cases: Array<[number, string, string, Record<string, unknown>]> = [
+      [31, '2026-11-08', '@ every 8th P149 netflix', { unit: 'month', every: 1, on: [8] }],
+      [7, '2026-10-15', '@ every thu P149 netflix', { unit: 'week', every: 1, on: [4] }],
+      [14, '2026-10-22', '@ every other thu P149 netflix', { unit: 'week', every: 2, on: [4] }],
+      [21, '2026-10-29', '@ every 3 weeks P149 netflix', { unit: 'week', every: 3 }],
+      [10, '2026-10-18', '@ every 10 days P149 netflix', { unit: 'day', every: 10 }],
+    ]
+    for (const [every, next, line, repeat] of cases) {
+      expect(planLine({ ...base, every, next })).toBe(line)
+      expect(parseLine(line, TODAY)).toMatchObject({ kind: 'event', amount: 149, text: 'netflix', repeat })
+    }
   })
 
   it('a grocery Item bought twice: the last price against the one before', () => {

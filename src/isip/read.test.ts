@@ -184,6 +184,28 @@ describe('no marker to type', () => {
   })
 })
 
+describe('money in, money moved, reminders', () => {
+  it('income words make money in, with or without the +', () => {
+    expect(readLine('sweldo 8000 bank')[0]).toMatchObject({ status: 'auto', entry: { kind: 'money', flow: 'in', amount: 8000, account: 'bank' } })
+    expect(readLine('baon 500')[0]!.entry).toMatchObject({ flow: 'in', amount: 500 })
+    expect(readLine('P8000 sweldo')[0]!.entry).toMatchObject({ flow: 'in', amount: 8000 })
+    expect(readLine('P8000 sweldo')[0]!.entry).not.toHaveProperty('category')
+    expect(readLine('lunch 150')[0]!.entry).toMatchObject({ flow: 'out' })
+  })
+
+  it('two accounts and a moving word make a transfer', () => {
+    expect(readLine('gcash to cash 500')[0]).toMatchObject({ status: 'auto', entry: { kind: 'money', flow: 'move', amount: 500, account: 'gcash', to: 'cash' } })
+    expect(readLine('transfer 1,000 bank gcash')[0]!.entry).toMatchObject({ flow: 'move', amount: 1000, account: 'bank', to: 'gcash' })
+    expect(readLine('lunch 150 gcash')[0]!.entry).toMatchObject({ flow: 'out', account: 'gcash' })
+  })
+
+  it('"remind me to" is an event that reminds, today when no day is said', () => {
+    expect(readLine('remind me to call mom fri 3pm')[0]).toMatchObject({ status: 'auto', entry: { kind: 'event', text: 'call mom', remind: 0, when: { day: '2026-10-09', time: '15:00' } } })
+    expect(readLine('paalala: pay meralco 1420 bukas !1d')[0]!.entry).toMatchObject({ kind: 'event', remind: 1440, when: { day: '2026-10-09' } })
+    expect(readLine('remind me to buy eggs')[0]!.entry).toMatchObject({ kind: 'event', text: 'buy eggs', remind: 0, when: { day: DAY } })
+  })
+})
+
 describe('the day a line counts for', () => {
   it('moves back with a day word when it holds an expense, tick or lift', () => {
     expect(entryDay('lunch 150 kahapon', DAY, ctx)).toBe('2026-10-07')

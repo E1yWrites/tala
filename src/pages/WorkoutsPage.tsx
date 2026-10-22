@@ -26,9 +26,9 @@ export function WorkoutsPage(): React.ReactNode {
 
   return (
     <PlannerView
-      label="Workouts"
-      title="Workouts"
-      note="From the lifts you write in Isip"
+      label={ISIP.workouts.title}
+      title={ISIP.workouts.title}
+      note={ISIP.workouts.note}
       aside={
         (split.length > 0 || tops.length > 0) && (
           <>
@@ -68,10 +68,10 @@ export function WorkoutsPage(): React.ReactNode {
     >
       <QuickCapture />
       <RestTimer />
-      <PlannerSection id="workouts-list" title="Exercises">
+      <PlannerSection id="workouts-list" title={ISIP.workouts.exercises}>
         {list.length === 0 ? (
           <p className="rounded-card border border-dashed border-lineSoft px-4 py-3 text-sm text-muted">
-            No lifts yet. In the field above, write “bench 60x5x3 @8”: weight × reps × sets, and RPE if you like.
+            {ISIP.workouts.empty}
           </p>
         ) : (
           <>
@@ -86,7 +86,7 @@ export function WorkoutsPage(): React.ReactNode {
               className="mt-1 flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium text-accent hover:underline [@media(pointer:coarse)]:min-h-11"
             >
               <Download size={13} aria-hidden="true" />
-              Export for Strong (CSV)
+              {ISIP.workouts.export}
             </button>
           </>
         )}
@@ -97,7 +97,7 @@ export function WorkoutsPage(): React.ReactNode {
 
 function ExerciseRow({ e }: { e: Exercise }): React.ReactNode {
   const openEntry = useUIStore((s) => s.openEntry)
-  const best = e.best.weight ? `${Math.round(e1rm(e.best) * 10) / 10}${e.best.unit ?? 'kg'}` : `${e.best.reps} reps`
+  const best = e.best.weight ? `${Math.round(e1rm(e.best) * 10) / 10}${e.best.unit ?? 'kg'}` : ISIP.workouts.reps(e.best.reps)
   return (
     <li className="border-b border-lineSoft last:border-b-0">
       <button
@@ -113,7 +113,7 @@ function ExerciseRow({ e }: { e: Exercise }): React.ReactNode {
         </span>
         <span className="shrink-0 text-right">
           <span className="block text-[14px] font-semibold tabular-nums">{best}</span>
-          <span className="block text-[10.5px] text-faint">{e.best.weight ? 'best e1RM' : 'best'}</span>
+          <span className="block text-[10.5px] text-faint">{e.best.weight ? ISIP.workouts.bestE1rm : ISIP.workouts.best}</span>
         </span>
       </button>
     </li>
@@ -133,24 +133,24 @@ function RestTimer(): React.ReactNode {
         <Timer size={16} className="shrink-0 text-faint" aria-hidden="true" />
         {endsAt ? (
           <>
-            <span role="timer" aria-label="Rest left" className="text-[21px] font-bold tabular-nums">
+            <span role="timer" aria-label={ISIP.workouts.restLeft} className="text-[21px] font-bold tabular-nums">
               {formatRest(left)}
             </span>
-            <span className="text-xs text-faint">of {formatRest(seconds)}</span>
+            <span className="text-xs text-faint">{ISIP.workouts.of(formatRest(seconds))}</span>
             <button type="button" onClick={stopRest} className="ml-auto min-h-9 rounded-control border border-lineSoft px-3 text-xs font-medium transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11">
-              Stop
+              {ISIP.workouts.stop}
             </button>
           </>
         ) : (
           <>
-            <span className="text-sm text-muted">Rest</span>
+            <span className="text-sm text-muted">{ISIP.workouts.rest}</span>
             <div className="ml-auto flex gap-1.5">
               {REST_CHOICES.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => startRest(s)}
-                  aria-label={`Rest ${formatRest(s)}`}
+                  aria-label={ISIP.workouts.restFor(formatRest(s))}
                   className="min-h-9 rounded-control border border-lineSoft px-3 text-xs font-semibold tabular-nums transition-[border-color,transform] duration-150 ease-out hover:border-line active:scale-[0.97] [@media(pointer:coarse)]:min-h-11"
                 >
                   {formatRest(s)}
@@ -162,7 +162,7 @@ function RestTimer(): React.ReactNode {
       </div>
       {alerts === 'default' && (
         <button type="button" onClick={() => void askNotifications().then(setAlerts)} className="px-3.5 pb-2.5 text-xs font-medium text-accent hover:underline">
-          Allow an alert when the rest is over and Tala is in the background
+          {ISIP.workouts.allowAlert}
         </button>
       )}
     </div>

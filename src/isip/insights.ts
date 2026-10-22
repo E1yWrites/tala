@@ -133,6 +133,25 @@ export function recurring(refs: EntryRef[]): Recurring[] {
   return out.sort((a, b) => b.amount - a.amount)
 }
 
+const WD = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+const nth = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
+
+/** The line that plans a cost that comes back as a bill on Upcoming: "@ every 8th P149 netflix". */
+export function planLine(r: Recurring): string {
+  const next = toDate(r.next)
+  const when =
+    r.every >= 28 && r.every <= 31
+      ? `every ${nth(next.getDate())}`
+      : r.every === 7
+        ? `every ${WD[next.getDay()]}`
+        : r.every === 14
+          ? `every other ${WD[next.getDay()]}`
+          : r.every % 7 === 0
+            ? `every ${r.every / 7} weeks`
+            : `every ${r.every} days`
+  return `@ ${when} P${r.amount} ${r.text || r.category}`
+}
+
 export interface PriceChange {
   /** As written the last time. */
   name: string

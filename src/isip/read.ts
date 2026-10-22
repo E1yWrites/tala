@@ -92,6 +92,10 @@ const MEALS: Record<string, Meal> = {
   dinner: 'dinner', hapunan: 'dinner',
   merienda: 'merienda', meryenda: 'merienda',
 }
+/** Money coming in: "sweldo 8000", "baon 500", "refund 299". */
+const INCOME = new Set(['sweldo', 'sahod', 'salary', 'allowance', 'baon', 'income', 'bonus', 'refund', 'cashback', 'received', 'natanggap', 'padala', 'commission', 'sideline', 'kita'])
+/** Between two accounts, money moving: "gcash to cash", "lipat bpi gcash". */
+const MOVE = new Set(['to', 'into', 'papunta', 'transfer', 'transferred', 'lipat', 'nilipat', '→', '->', '>'])
 const VERBS = new Set(['paid', 'pay', 'bayad', 'nagbayad', 'binayaran', 'gastos', 'gumastos', 'spent', 'spend', 'bought', 'bumili', 'binili', 'cost'])
 const PESO_WORDS = new Set(['pesos', 'peso', 'php', 'piso'])
 /** Numbers after these are not money: "page 12", "3 x 10". */
@@ -193,14 +197,19 @@ function moneyIn(clause: string, context: string, day: DayKey, ctx: EntryContext
   if (total === undefined) return undefined
 
   const rest = ts.filter((_, i) => !used.has(i))
+  // "gcash to cash 500", "transfer 500 gcash cash": two accounts and a word that moves money is a transfer
+  const accts = [...new Set(rest.filter((t) => ctx.accounts.includes(t.low)).map((t) => t.low))]
+  const move = accts.length === 2 && rest.some((t) => MOVE.has(t.low)) ? { account: accts[0]!, to: accts[1]! } : undefined
   let account: string | undefined
   const words = rest.filter((t) => {
-    if (!account && ctx.accounts.includes(t.low)) {
+    if (move && (accts.includes(t.low) || MOVE.has(t.low))) return false
+    if (!move && !account && ctx.accounts.includes(t.low)) {
       account = t.low
       return false
     }
     return true
   })
+  const income = !move && words.some((t) => INCOME.has(t.low))
   const meal = words.map((t) => MEALS[t.low]).find(Boolean)
   const place = placeOf(ts)
   const key = place?.toLowerCase()
@@ -210,15 +219,15 @@ function moneyIn(clause: string, context: string, day: DayKey, ctx: EntryContext
   // "Went to the gym. … Paid 150": a clause said as money takes its context's category when it has none of its own
   const category = findCategory(head, chosen, key) ?? (grocery ? 'Groceries' : undefined) ?? (clue && context ? findCategory(context, {}) : undefined)
   // A bare amount with no clue as to what it was for never counts on its own
-  const score = category || items?.length ? 0.9 : clue ? 0.7 : 0.4
+  const score = move || income || category || items?.length ? 0.9 : clue ? 0.7 : 0.4
   const gap = items?.length && amount !== undefined && amount !== sum ? amount - sum : undefined
   // A correction is saved under the place, else the first word that is not "paid" or "spent"
   const fixKey = key ?? words.map((t) => t.low).find((w) => /^\p{L}/u.test(w) && !VERBS.has(w))
   return {
     entry: {
-      kind: 'money', flow: 'out', amount: total, text, day,
-      ...(account ? { account } : {}),
-      ...(category ? { category } : {}),
+      kind: 'money', flow: move ? 'move' : income ? 'in' : 'out', amount: total, text, day,
+      ...(move ?? (account ? { account } : {})),
+      ...(category && !move && !income ? { category } : {}),
       ...(meal ? { meal } : {}),
       ...(merchant ? { merchant } : {}),
       ...(items?.length ? { items } : {}),
@@ -267,6 +276,17 @@ function readClause(clause: string, context: string, day: DayKey, ctx: EntryCont
   return moneyIn(clause, context, day, ctx)
 }
 
+/** "remind me to…", "paalala:": a line to be reminded of, not a record of something done. */
+const REMIND = /^\s*(?:remind\s+me(?:\s+to)?|paalala|ipaalala|reminder)\b[:,]?\s*/iu
+
+/** "remind me to call mom fri 3pm": an event that reminds at its time (an untimed day reminds at 09:00); with no day, today. */
+function reminder(line: string, written: DayKey, ctx: EntryContext): Omit<Found, 'span'> | undefined {
+  const what = line.replace(REMIND, '')
+  const event = parseLine(`@ ${what}${/(?:^|\s)!\S*/.test(what) ? '' : ' !'}`, written, ctx)
+  if (event?.kind !== 'event' || !event.text) return undefined
+  return { entry: event.when ? event : { ...event, when: { day: written } }, score: 0.9 }
+}
+
 /** Words around a habit's name that mean "did it": "nag-gym", "did yoga", "water done". */
 const DID = /^(?:nag-?|did\s+|done\s+|tapos\s+na\s+(?:ang\s+)?)|\s+(?:done|na|ulit)$/giu
 
@@ -305,10 +325,18 @@ export function read(entry: Pick<IsipEntry, 'text' | 'day' | 'createdAt' | 'deci
     if (whole.kind === 'money' && whole.flow === 'out') {
       // The marker says it is money; the reader still says what for
       const m = moneyIn(`${whole.amount} ${whole.text}`, '', written, ctx)
-      const { category, meal, merchant } = m?.entry.kind === 'money' ? m.entry : {}
-      found[0]!.entry = { ...whole, ...(category ? { category } : {}), ...(meal ? { meal } : {}), ...(merchant ? { merchant } : {}) }
+      const { category, meal, merchant, flow } = m?.entry.kind === 'money' ? m.entry : {}
+      // "P8000 sweldo" is money in, even without the +
+      found[0]!.entry =
+        flow === 'in'
+          ? { ...whole, flow }
+          : { ...whole, ...(category ? { category } : {}), ...(meal ? { meal } : {}), ...(merchant ? { merchant } : {}) }
       found[0]!.key = m?.key
     }
+  } else if (REMIND.test(text)) {
+    const lead = text.length - text.trimStart().length
+    const r = reminder(text.trim(), written, ctx)
+    found = r ? [{ ...r, span: [lead, lead + text.trim().length] }] : []
   } else {
     const spans = clauses(text)
     // The clauses with no numbers say where it happened ("Went to the gym")
