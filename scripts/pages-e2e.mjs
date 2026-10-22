@@ -1053,6 +1053,49 @@ async function nudgeSession(prefs) {
   await c.close()
 }
 
+/* ---- 7b. No markers: a cost that comes back is planned in one tap; income, transfers, reminders -- */
+{
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const pg = await c.newPage()
+  pg.on('pageerror', (err) => { failures++; console.log('FAIL  page error —', err.message) })
+  await pg.goto(BASE, { waitUntil: 'networkidle' })
+  await ready(pg)
+  await onboard(pg)
+  const box = 'input[aria-label="Write a line in Isip"]'
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const daysAgo = (n) => dayKey(new Date(Date.now() - n * 86_400_000))
+  // The box writes for the day on screen: three Netflix payments two weeks apart
+  for (const n of [42, 28, 14]) {
+    await pg.fill('input[aria-label="Pick a day"]', daysAgo(n))
+    await wait(200)
+    await pg.fill(box, 'netflix 149')
+    await pg.keyboard.press('Enter')
+    await wait(300)
+  }
+  await pg.locator('section[aria-labelledby="home-entries"] button:text-is("Today")').click()
+  await wait(200)
+  for (const line of ['sweldo 8000 bank', 'gcash to cash 500', 'remind me to call mom tomorrow 3pm']) {
+    await pg.fill(box, line)
+    await pg.keyboard.press('Enter')
+    await wait(300)
+  }
+  const chip = async (line) => (await pg.locator(`section[aria-labelledby="home-entries"] li:has-text("${line}") .entry-chip`).first().textContent()) ?? ''
+  check('income without the +', (await chip('sweldo 8000 bank')).startsWith('+₱8,000'), await chip('sweldo 8000 bank'))
+  check('a transfer without the >', (await chip('gcash to cash 500')).includes('GCash → Cash'), await chip('gcash to cash 500'))
+  check('"remind me to" is a reminder', (await chip('remind me to call mom')).includes('remind at the time'), await chip('remind me to call mom'))
+  await pg.click('nav >> text=Money')
+  await wait(500)
+  const back = pg.locator('section[aria-labelledby="money-recurring"]')
+  check('a cost that comes back is listed', ((await back.textContent()) ?? '').includes('every 2 weeks'), (await back.textContent()) ?? '')
+  await back.locator('button:has-text("Plan it")').click()
+  await wait(500)
+  check('Plan it marks it planned', ((await back.textContent()) ?? '').includes('Planned') && (await back.locator('button:has-text("Plan it")').count()) === 0)
+  await pg.click('nav >> text=Upcoming')
+  await wait(500)
+  check('…and the bill is on Upcoming', ((await pg.locator('section[aria-label="Upcoming"]').textContent()) ?? '').includes('netflix'))
+  await c.close()
+}
+
 /* ---- 8. Data safety on iPad Safari and the phone's corner chip ---------------- */
 {
   const IPAD = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'

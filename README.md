@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/tala-banner.jpg" alt="Tala — Pagtatala, made simple." width="100%" />
+  <img src="assets/tala-banner.jpg" alt="Tala: write it once, Tala sorts it out. Typed lines filed as spending, workouts, plans and habits." width="100%" />
 </p>
 
 <p align="center">

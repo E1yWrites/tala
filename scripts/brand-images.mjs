@@ -1,7 +1,9 @@
 /*
-  Renders public/og-image.jpg (1200×630, the Open Graph and Twitter card) from
-  the HTML below, in the app's own colours, font and Bituin. No preview needed:
-    node scripts/og-image.mjs
+  Renders Tala's two brand images from the HTML below, in the app's own
+  colours (DESIGN.md, Planisphere), font and Bituin. No preview needed:
+    node scripts/brand-images.mjs
+  public/og-image.jpg   1200×630, the Open Graph and Twitter card
+  assets/tala-banner.jpg 2048×1152, the README banner (16:9, drawn at 1200×675)
   The headless shell needs LD_LIBRARY_PATH as in pages-e2e.mjs.
 */
 import { chromium } from 'playwright-core'
@@ -15,7 +17,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:H;src:url(${ROOT}/node_modules/@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
 @font-face{font-family:H;src:url(${ROOT}/node_modules/@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-ext-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0100-024F,U+20B1}
 *{box-sizing:border-box;margin:0}
-body{width:1200px;height:630px;font-family:H,system-ui,sans-serif;background:#1f4a2b;color:#eef6ee;overflow:hidden;position:relative}
+body{width:100vw;height:100vh;font-family:H,system-ui,sans-serif;background:#1f4a2b;color:#eef6ee;overflow:hidden;position:relative}
 .grid{position:absolute;inset:0;background-image:radial-gradient(rgba(238,246,238,.10) 1.2px,transparent 1.3px);background-size:24px 24px}
 .left{position:absolute;left:72px;top:64px;width:560px}
 .brand{display:flex;align-items:center;gap:14px}
@@ -55,9 +57,16 @@ p.foot{position:absolute;left:72px;bottom:52px;font-size:19px;color:#b7cfba;font
 const file = join(tmpdir(), 'tala-og.html')
 await writeFile(file, html)
 const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage', '--allow-file-access-from-files'] })
-const page = await browser.newPage({ viewport: { width: 1200, height: 630 } })
-await page.goto(pathToFileURL(file).href)
-await page.waitForTimeout(600)
-await page.screenshot({ path: resolve(import.meta.dirname, '../public/og-image.jpg'), type: 'jpeg', quality: 88 })
+const shots = [
+  { out: 'public/og-image.jpg', width: 1200, height: 630, scale: 1 },
+  { out: 'assets/tala-banner.jpg', width: 1200, height: 675, scale: 2048 / 1200 },
+]
+for (const { out, width, height, scale } of shots) {
+  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale })
+  await page.goto(pathToFileURL(file).href)
+  await page.waitForTimeout(600)
+  await page.screenshot({ path: resolve(import.meta.dirname, '..', out), type: 'jpeg', quality: 88 })
+  await page.close()
+  console.log(`wrote ${out}`)
+}
 await browser.close()
-console.log('wrote public/og-image.jpg')
