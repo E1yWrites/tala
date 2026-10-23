@@ -287,7 +287,7 @@ function formatWhen(w: When | undefined): string[] {
   return [w.day ? formatDay(w.day) : '', time].filter(Boolean)
 }
 
-function formatRepeat(r: Repeat): string {
+export function formatRepeat(r: Repeat): string {
   const every = r.every > 1 ? `every ${r.approx ? '~' : ''}${r.every} ${r.unit}s` : `every ${r.unit}`
   let s = every
   if (r.unit === 'week' && r.on?.length) {

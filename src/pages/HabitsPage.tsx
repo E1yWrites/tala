@@ -121,14 +121,33 @@ function Strength({ status }: { status: HabitStatus }): React.ReactNode {
   )
 }
 
-/** ✓ for a yes/no habit; +1 (with the count) for a measurable one. Writes today's `✓ name N` Entry. */
-export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatus }): React.ReactNode {
+/** ✓ for a yes/no habit; +1 (with the count) for a measurable one, round with "5/8" inside when `ring` (Today's tile). Writes today's `✓ name N` Entry. */
+export function DoneButton({ habit, status, ring = false }: { habit: Habit; status: HabitStatus; ring?: boolean }): React.ReactNode {
   // Draw the check only when it turns done here, not every time the list opens
   const wasDone = useRef(status.done)
   const justDone = status.done && !wasDone.current
   useEffect(() => {
     wasDone.current = status.done
   }, [status.done])
+  if (habit.target > 1 && ring) {
+    return (
+      <button
+        type="button"
+        onClick={() => tickHabit(habit.name)}
+        aria-label={ISIP.habits.oneMore(habit.name, status.count, habit.target)}
+        className={cn(
+          'grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] text-[11.5px] font-bold tabular-nums transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.94] [@media(pointer:coarse)]:size-11',
+          status.done
+            ? 'border-accent bg-accent text-accent-fg'
+            : status.count > 0
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-line text-muted hover:border-ink hover:text-ink',
+        )}
+      >
+        {status.count}/{habit.target}
+      </button>
+    )
+  }
   if (habit.target > 1) {
     return (
       <button
@@ -153,7 +172,8 @@ export function DoneButton({ habit, status }: { habit: Habit; status: HabitStatu
       aria-label={ISIP.habits.doneToday(habit.name, status.done)}
       aria-pressed={status.done}
       className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-full border-[1.5px] transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.94] [@media(pointer:coarse)]:size-11',
+        'grid shrink-0 place-items-center rounded-full border-[1.5px] transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.94] [@media(pointer:coarse)]:size-11',
+        ring ? 'size-10' : 'size-9',
         status.done ? 'border-accent bg-accent text-accent-fg' : 'border-line text-faint hover:border-ink hover:text-ink',
       )}
     >

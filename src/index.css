@@ -217,6 +217,98 @@
   }
 }
 
+/* Today's tiles: a row you swipe in a narrow pane, four abreast once there is room */
+.today-tiles {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 164px;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 12px;
+  margin-inline: -12px;
+  padding-inline: 12px;
+  scrollbar-width: none;
+}
+.today-tiles::-webkit-scrollbar {
+  display: none;
+}
+.today-tiles > * {
+  scroll-snap-align: start;
+}
+@container planner (min-width: 640px) {
+  .today-tiles {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+/* Today's thread: a line written just now rises from the box below, Bituin's
+   reply follows a beat later from the left; an edit form settles in. Entry
+   only (@starting-style), so older lines and other days never move. */
+.thread-in,
+.form-in {
+  transition:
+    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.thread-in-mine {
+  transform-origin: bottom right;
+}
+.thread-in-reply {
+  transform-origin: bottom left;
+  transition-delay: 90ms;
+}
+.form-in {
+  transition-duration: 180ms;
+}
+@starting-style {
+  .thread-in {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  .form-in {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+/* Reduced motion: still a gentle fade, no movement */
+@media (prefers-reduced-motion: reduce) {
+  .thread-in,
+  .form-in {
+    transition-property: opacity !important;
+    transition-duration: 200ms !important;
+  }
+}
+
+/* Today's composer: the box's own suggestion list is enough, without Chrome's ▾ */
+.capture-docked::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+/* Today: the tiles head the page while narrow; once wide they stack in a
+   side column that stays in view while the thread scrolls */
+.planner[data-aside-first] .planner-cols > :nth-child(2) {
+  order: -1;
+}
+@container planner (min-width: 848px) {
+  .planner[data-aside-first] .planner-cols {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+  .planner[data-aside-first] .planner-cols > :nth-child(2) {
+    order: 0;
+    position: sticky;
+    top: 0.5rem;
+  }
+  .planner[data-aside-first] .today-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The hub strip: the side that can still scroll fades, so a cut-off tab reads as "more" */
 .planner-tabs {
   scroll-padding-inline: 1.5rem;

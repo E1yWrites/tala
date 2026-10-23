@@ -9,6 +9,7 @@ export const BITUIN = {
 
   home: {
     line: 'Write anything. I’ll sort it out.',
+    left: (n: number): string => `${n === 1 ? 'One thing' : `${n} things`} left. You’ve got this.`,
   },
 
   welcome: {

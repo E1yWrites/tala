@@ -37,6 +37,8 @@ export function PlannerView({
   trailing,
   large = false,
   aside,
+  footer,
+  asideFirst = false,
   children,
 }: {
   /** The section's accessible name ("Money"). */
@@ -51,10 +53,19 @@ export function PlannerView({
   large?: boolean
   /** The side column; stacks under the main one when the pane is narrow. */
   aside?: ReactNode
+  /** Docked under the scrolling body (Today's capture box), on the body's column. */
+  footer?: ReactNode
+  /** Today: the aside heads the page while narrow, and is a 300px column beside it once wide. */
+  asideFirst?: boolean
   children: ReactNode
 }): ReactNode {
   return (
-    <section aria-label={label} data-split={aside ? '' : undefined} className="planner flex h-full min-h-0 flex-col bg-shelf">
+    <section
+      aria-label={label}
+      data-split={aside ? '' : undefined}
+      data-aside-first={asideFirst ? '' : undefined}
+      className="planner flex h-full min-h-0 flex-col bg-shelf"
+    >
       <header className="px-4 pb-3 pt-4 md:px-6 md:pt-6">
         <div className="planner-frame flex items-center gap-3">
           <SidebarToggle className="-ml-1.5" />
@@ -75,6 +86,12 @@ export function PlannerView({
           {aside && <div className="flex min-w-0 flex-col gap-6">{aside}</div>}
         </div>
       </div>
+      {footer && (
+        // On phones the gold Write rises 24px out of the tab bar: keep clear of it
+        <div className="px-3 pb-8 pt-2 md:px-6 md:pb-5">
+          <div className="planner-frame planner-cols">{footer}</div>
+        </div>
+      )}
     </section>
   )
 }
