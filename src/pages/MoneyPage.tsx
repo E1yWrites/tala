@@ -265,7 +265,7 @@ export function SafeCard({ safe, keep, compact = false }: { safe: SafeToSpend; k
 }
 
 /** The days the money has to last, plotted like the week in the rail: today first, the income day last. */
-function Runway({ days, over }: { days: number; over: boolean }): React.ReactNode {
+export function Runway({ days, over }: { days: number; over: boolean }): React.ReactNode {
   const n = Math.min(days, 31)
   return (
     <div aria-hidden="true" className="relative mt-3 flex h-3 items-center justify-between">
