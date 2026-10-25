@@ -26,6 +26,7 @@ export const ISIP = {
     saved: (n: number): string => (n === 1 ? 'Saved' : `${n} lines saved`),
     palette: (line: string): string => `Write in Isip: “${line}”`,
     forDay: (day: string): string => `Write it down for ${day}…`,
+    send: 'Save line',
     again: 'Again',
     againLabel: (line: string): string => `Write “${line}” again`,
     /** What the box suggests before you have written anything yourself: common lines to start from. */
@@ -38,11 +39,83 @@ export const ISIP = {
   day: {
     title: 'Written',
     empty: 'Nothing written this day.',
-    emptyToday: 'What you write above lands here, sorted: “lunch 150 gcash”, “dentist fri 2pm”, “bench 60x5x3”, “✓ water”.',
+    emptyToday: 'Write a line below and I’ll sort it: “lunch 150 gcash”, “dentist fri 2pm”, “bench 60x5x3”, “✓ water”.',
     prev: 'Day before',
     next: 'Day after',
     today: 'Today',
     pick: 'Pick a day',
+  },
+  /**
+   * Bituin's answer under each line on Today. Several wordings each, picked by
+   * the Entry's id so a line keeps its reply; the specifics come from the line
+   * and the day (isip/reply.ts).
+   */
+  reply: {
+    unsure: (label: string): string[] => [
+      `Did you mean ${label}? Tap confirm and I’ll count it.`,
+      `I think that’s ${label}. Right?`,
+      `Is that ${label}? Confirm and I’ll add it.`,
+    ],
+    dismissed: ['Okay, I won’t count it.', 'Got it, I’ll leave that one alone.'],
+    plain: ['Kept for today.', 'Noted. It stays with today.', 'Got it, saved for today.', 'Written down. Salamat!'],
+    spent: (amount: string, what: string, from: string): string[] => [
+      `Got it: ${amount} on ${what}${from}.`,
+      `${amount} for ${what}${from}, noted.`,
+      `Counted ${amount} on ${what}${from}.`,
+    ],
+    from: (account: string): string => `, from ${account}`,
+    dayTotal: (total: string, category: string): string => `That’s ${total} on ${category} today.`,
+    items: (n: number): string => `${n} items. I’ll watch their prices for you.`,
+    received: (amount: string, into: string): string[] => [`Nice, +${amount}${into}!`, `+${amount}${into}. Yay!`, `Ayos! +${amount}${into}.`],
+    into: (account: string): string => ` into ${account}`,
+    moved: (amount: string, from: string, to: string): string => `Moved ${amount} from ${from} to ${to}.`,
+    event: (title: string, when: string): string[] => [`${title}, ${when}. It’s on your calendar.`, `Saved: ${title}, ${when}.`, `Okay! ${title}, ${when}.`],
+    repeats: (title: string, rule: string): string => `${title}, ${rule}. I’ll put it on each day.`,
+    income: (amount: string, rule: string): string => `${amount} ${rule}. I’ll count it in safe to spend.`,
+    remind: (lead: string): string => `I’ll remind you ${lead}.`,
+    today: 'today',
+    tomorrow: 'tomorrow',
+    at: (time: string): string => ` at ${time}`,
+    task: (title: string, when: string): string[] => [`Added “${title}” to your list${when}.`, `“${title}” is on your to-do${when}.`],
+    due: (day: string): string => `, due ${day}`,
+    on: (day: string): string => ` for ${day}`,
+    tick: (name: string): string[] => [`${first(name)}, done! Nice.`, `Ticked off ${name}.`, `${first(name)} done. Keep it up!`],
+    count: (name: string, n: number, target: number): string =>
+      n >= target ? `${first(name)}: ${n} of ${target}. Done for the day!` : `${first(name)}: ${n} of ${target} today, ${target - n} to go.`,
+    dayOff: (name: string): string => `Day off from ${name}. Rest counts too.`,
+    lift: (name: string, sets: string): string => `${name}, ${sets}.`,
+    pr: 'That’s a PR!',
+    last: (note: string): string => `Last time: ${note}.`,
+    firstLift: 'First one logged. Here we go!',
+    more: (n: number): string => `I read ${n} more in it, below.`,
+    /** A plain line that says how the day feels: the first rule whose words it has. */
+    moods: [
+      { words: /\b(tired|pagod|antok|sleepy|exhausted|puyat)\b/i, say: ['Pahinga ka muna. You’ve done a lot today.', 'Rest counts too. Sleep early if you can.'] },
+      { words: /\b(stress(ed)?|kabado|anxious|nervous|overwhelmed)\b/i, say: ['One thing at a time. You’ve got this.', 'Breathe. Write the next small step and start there.'] },
+      { words: /\b(happy|masaya|saya|yay|proud|excited)\b/i, say: ['Love that! Keeping this one.', 'Yay! Good days deserve a note.'] },
+      { words: /\b(sick|sakit|lagnat|ubo|sipon|headache)\b/i, say: ['Get well soon. Water and rest first.', 'Take it easy today. Pagaling ka!'] },
+      { words: /\b(exam|quiz|test|midterms?|finals?|recit)\b/i, say: ['Kaya mo ’yan! Good luck.', 'Noted. Want to write the topics down as tasks?'] },
+    ],
+  },
+  /** The four tiles at the top of Today. */
+  tiles: {
+    next: 'Next up',
+    nothingNext: 'Nothing else today',
+    tryNext: 'Try “dentist fri 2pm”',
+    inMinutes: (min: number): string => (min <= 0 ? 'now' : min < 60 ? `in ${min} min` : `in ${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ''}`),
+    then: (time: string, title: string): string => `then ${time} ${title}`,
+    more: (n: number): string => `+${n} more today`,
+    money: 'Money',
+    tryMoney: 'Try “lunch 150”',
+    noMoney: 'Not tracking yet',
+    habits: 'Habits',
+    habitsDone: (done: number, n: number): string => (done === n ? 'All done for today.' : `${done} of ${n} done today`),
+    noHabits: 'No habits yet',
+    tryHabits: 'Try “✓ water”',
+    todo: 'To do',
+    nothingToDo: 'Nothing due',
+    tryTodo: 'Try “essay fri”',
+    moreTasks: (n: number): string => `+${n} more`,
   },
   entry: {
     edit: (text: string): string => `Edit: ${text}`,

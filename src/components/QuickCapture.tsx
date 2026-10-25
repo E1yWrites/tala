@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from 'react'
-import { PenLine } from 'lucide-react'
+import { ArrowUp, PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { dayKey } from '@/coach/study'
 import { formatDay } from '@/entries/parse'
@@ -22,11 +22,11 @@ export function previewLine(text: string, now = Date.now(), day = dayKey(now)): 
   return r && label ? { kind: r.entry.kind, label, suggested: r.status === 'suggested' } : null
 }
 
-/** Saves each line of `text` as an Isip Entry (for `day`, else today), with an Undo. */
-export function captureLine(text: string, day?: string): void {
+/** Saves each line of `text` as an Isip Entry (for `day`, else today), with an Undo; `quiet` where the line shows up right above anyway (Today's thread). */
+export function captureLine(text: string, day?: string, quiet = false): void {
   const now = Date.now()
   const added = addEntries(text, now, day ?? dayKey(now))
-  if (added.length === 0) return
+  if (added.length === 0 || quiet) return
   toast.success(ISIP.capture.saved(added.length), {
     action: { label: ISIP.undo, onClick: () => deleteEntries(added.map((e) => e.id)) },
   })
@@ -39,6 +39,7 @@ export function QuickCapture({
   onSaved,
   day,
   again = false,
+  docked = false,
 }: {
   className?: string
   autoFocus?: boolean
@@ -47,6 +48,8 @@ export function QuickCapture({
   day?: string
   /** Offer the lines you usually write as one-tap chips (Today and the capture popup). */
   again?: boolean
+  /** Today's composer at the foot of the view: a larger field with a send button, the usual lines above it. */
+  docked?: boolean
 }): React.ReactNode {
   const [text, setText] = useState('')
   const preview = previewLine(text, Date.now(), day)
@@ -58,13 +61,16 @@ export function QuickCapture({
   const usual = useMemo(() => (again && !day ? usualLines(entries, Date.now()) : []), [again, day, entries])
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-2', docked && 'flex-col-reverse', className)}>
     <form
-      className="flex items-center gap-2 rounded-card border border-lineSoft bg-panel px-3 focus-within:border-line"
+      className={cn(
+        'flex items-center gap-2 border bg-panel focus-within:border-line',
+        docked ? 'rounded-[20px] border-line py-1.5 pl-4 pr-1.5 shadow-raise' : 'rounded-card border-lineSoft px-3',
+      )}
       onSubmit={(e) => {
         e.preventDefault()
         if (!text.trim()) return
-        captureLine(text, day)
+        captureLine(text, day, docked)
         setText('')
         onSaved?.()
       }}
@@ -79,7 +85,7 @@ export function QuickCapture({
           if (!/\n/.test(pasted.trim())) return
           e.preventDefault()
           const el = e.currentTarget
-          captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length), day)
+          captureLine(text.slice(0, el.selectionStart ?? text.length) + pasted + text.slice(el.selectionEnd ?? text.length), day, docked)
           setText('')
           onSaved?.()
         }}
@@ -89,10 +95,20 @@ export function QuickCapture({
         list={listId}
         enterKeyHint="done"
         autoComplete="off"
-        className="h-11 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
+        className={cn('h-11 min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint', docked ? 'capture-docked text-[15.5px]' : 'text-[14px]')}
       />
       {preview && (
         <span className={cn(`entry-chip entry-chip-${preview.kind} shrink-0`, preview.suggested && 'entry-chip-suggested')}>{preview.label}</span>
+      )}
+      {docked && (
+        <button
+          type="submit"
+          aria-label={ISIP.capture.send}
+          disabled={!text.trim()}
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-accent-strong active:scale-[0.94] disabled:opacity-40"
+        >
+          <ArrowUp size={19} strokeWidth={2.4} aria-hidden="true" />
+        </button>
       )}
       <datalist id={listId}>
         {offers.map((o) => (
@@ -108,7 +124,7 @@ export function QuickCapture({
             key={line}
             type="button"
             onClick={() => {
-              captureLine(line)
+              captureLine(line, undefined, docked)
               onSaved?.()
             }}
             aria-label={ISIP.capture.againLabel(line)}

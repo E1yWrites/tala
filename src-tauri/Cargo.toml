@@ -1,6 +1,6 @@
 [package]
 name = "tala"
-version = "2.2.0"
+version = "2.3.0"
 description = "A thoughtful, doodle-inspired note-taking workspace."
 authors = ["e1yu"]
 license = "MIT"
