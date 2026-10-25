@@ -2,6 +2,17 @@
 
 All notable changes to Tala are documented here.
 
+## [2.3.0] - 2026-10-25
+
+Today now reads like a conversation: write a line and Bituin answers it with what she filed.
+
+### Added
+- **Bituin replies to each line on Today**: your line is a green bubble on the right, and under it Bituin says what was filed plus one fact from the day, such as food so far, "water 5 of 8" or a new PR. The replies are plain rules over what you wrote, computed on your device.
+- **Four tiles sum up the day**: Next up, Money, Habits and To do. Each acts in place (tick a to-do, check a habit) and its header opens the full view. They swipe in a row on narrow screens and stack beside the thread on wide ones.
+
+### Changed
+- The capture box now sits docked at the foot of Today and writes without a "Saved" toast, since the line appears right above it.
+
 ## [2.2.0] - 2026-10-22
 
 Tala now organizes your day as well as your notes: type a line ("lunch 150", "bench 40kg 3x10", "dentist fri 2pm") and it is filed under Money, Workouts, Habits or Upcoming. No forms, no categories to pick, and it all runs on your device.
