@@ -1,8 +1,13 @@
 import { create } from 'zustand'
-import type { ModalIntent, ViewRef } from '@/types/models'
+import type { ModalIntent, ViewKind, ViewRef } from '@/types/models'
+
+/** The planner views that live under the phone's Plan tab. */
+export const PLAN_SUBVIEWS: ReadonlySet<ViewKind> = new Set(['agenda', 'tasks', 'money', 'habits', 'workouts'])
 
 interface UIState {
   activeView: ViewRef
+  /** Where the current planner view was opened from (Today's tiles, or the Plan list): Back goes there, and that phone tab stays lit. */
+  planOrigin: 'home' | 'plan'
   selectedNoteId: string | null
   /** Page to show when the next note opens (set by Tasks); NoteEditor consumes it. */
   pendingPageId: string | null
@@ -59,6 +64,7 @@ let modalIdSeq = 0
 
 export const useUIStore = create<UIState>()((set, get) => ({
   activeView: { kind: 'home' },
+  planOrigin: 'plan',
   selectedNoteId: null,
   pendingPageId: null,
   pendingEntryId: null,
@@ -73,7 +79,10 @@ export const useUIStore = create<UIState>()((set, get) => ({
   selectedNoteIds: [],
 
   setView(view) {
-    set({ activeView: view, selectedNoteId: null, searchQuery: '', filterTagIds: [], filterFavoritesOnly: false, multiSelectMode: false, selectedNoteIds: [] })
+    const from = get().activeView.kind
+    // Remember the way in only when entering from outside the planner views; hopping between them keeps it
+    const planOrigin = PLAN_SUBVIEWS.has(view.kind) && !PLAN_SUBVIEWS.has(from) ? (from === 'home' ? 'home' : 'plan') : get().planOrigin
+    set({ planOrigin, activeView: view, selectedNoteId: null, searchQuery: '', filterTagIds: [], filterFavoritesOnly: false, multiSelectMode: false, selectedNoteIds: [] })
   },
 
   selectNote(id, pageId) {

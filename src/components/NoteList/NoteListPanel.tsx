@@ -39,6 +39,7 @@ import { NoteGridCard, NoteRow } from './NoteListItem'
 import { NotePreviewCard } from './NotePreviewCard'
 import { useLongPress } from '@/hooks/useLongPress'
 import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { ProfileMenu } from '@/components/layout/ProfileMenu'
 
 interface NoteListPanelProps {
   view: ViewRef
@@ -316,7 +317,7 @@ export function NoteListPanel({
         <div className="min-w-0 flex-1">
           <h1 className="flex items-baseline gap-2 text-[21px] font-bold leading-tight tracking-[-0.02em]">
             <span className="truncate">{meta.title}</span>
-            {hydrated && <span className="shrink-0 text-[13px] font-medium tabular-nums text-faint">{visibleNotes.length}</span>}
+            {hydrated && <span className="shrink-0 text-[13px] font-medium tabular-nums text-faint"> {visibleNotes.length}</span>}
           </h1>
           {(meta.description || !hydrated) && (
             <p className="truncate text-xs text-faint">{hydrated ? meta.description : 'Loading…'}</p>
@@ -329,11 +330,14 @@ export function NoteListPanel({
               openModal({ kind: 'new-note' })
             }
             aria-label="New note"
-            className="btn-primary hidden size-9 shrink-0 rounded-control md:inline-flex [@media(pointer:coarse)]:size-11"
+            className="btn-primary size-9 shrink-0 rounded-control [@media(pointer:coarse)]:size-11"
           >
             <Plus size={19} strokeWidth={2.3} />
           </button>
         </Tooltip>
+        <div className="-mr-1 md:hidden">
+          <ProfileMenu />
+        </div>
       </header>
 
       {/* Phone: Starred lives inside Notes as a second view of the same list */}

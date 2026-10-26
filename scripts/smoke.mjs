@@ -163,18 +163,23 @@ check('mobile: onboarding completes', await completeOnboarding(mpage))
 check('mobile: bottom nav visible', await mpage.isVisible('nav[aria-label="Primary"]'))
 const tabs = await mpage.locator('nav[aria-label="Primary"] button').allTextContents()
 check(
-  'mobile: tab bar has Notes, Today, Search, the gold Write button and New note',
-  ['Notes', 'Today', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
-    (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="Write a line in Isip"]')) &&
-    (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="New note"]')),
+  'mobile: tab bar has Today, Plan, Notes, Search and the gold Write button',
+  ['Today', 'Plan', 'Notes', 'Search'].every((t) => tabs.some((x) => x.includes(t))) &&
+    (await mpage.isVisible('nav[aria-label="Primary"] button[aria-label="Write a line in Isip"]')),
 )
 await mpage.click('nav[aria-label="Primary"] >> text=Today')
 await waitFor(350)
 check('mobile: Today tab opens Today', await mpage.isVisible('section[aria-label="Today"]'))
-await mpage.click('section[aria-label="Today"] button:has-text("Upcoming")')
+await mpage.click('nav[aria-label="Primary"] >> text=Plan')
 await waitFor(350)
-check('mobile: Upcoming opens from Today', await mpage.isVisible('section[aria-label="Upcoming"]'))
-await mpage.click('nav[aria-label="Primary"] button[aria-label*="settings and more"]')
+check('mobile: Plan tab lists the planner views', await mpage.isVisible('section[aria-label="Plan"]'))
+await mpage.click('section[aria-label="Plan"] button:has-text("Upcoming")')
+await waitFor(350)
+check('mobile: Upcoming opens from Plan, with a Back link to Plan', (await mpage.isVisible('section[aria-label="Upcoming"]')) && (await mpage.isVisible('button:has-text("Plan")')))
+await mpage.click('section[aria-label="Upcoming"] >> button:has-text("Plan")')
+await waitFor(350)
+check('mobile: Back returns to the Plan list', await mpage.isVisible('section[aria-label="Plan"]'))
+await mpage.click('button[aria-label*="settings and more"]:visible')
 await waitFor(250)
 await mpage.click('[role="menu"] >> text=Settings')
 await waitFor(400)

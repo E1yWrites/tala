@@ -4,7 +4,6 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
 import { Extension, InputRule } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import ImageExtension from '@tiptap/extension-image'
 import { Placeholder } from '@tiptap/extensions'
@@ -156,7 +155,6 @@ function TypedPage({
           heading: { levels: [1, 2, 3] },
           link: { openOnClick: false, autolink: true },
         }),
-        Underline,
         TaskList,
         TaskItem.configure({ nested: true }),
         ImageExtension,

@@ -12,6 +12,7 @@ import { NoteListPanel } from '@/components/NoteList/NoteListPanel'
 import { NoteEditor } from '@/components/NoteEditor/NoteEditor'
 import { EditorPlaceholder } from '@/components/NoteEditor/EditorPlaceholder'
 import { HomePage } from '@/pages/HomePage'
+import { PlanPage } from '@/pages/PlanPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { AgendaPage } from '@/pages/AgendaPage'
@@ -22,6 +23,24 @@ import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
 import type { ViewRef } from '@/types/models'
 import { cn } from '@/utils/cn'
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage'
+
+const MAIN_ID = 'main-content'
+
+/** The first stop in tab order: past the sidebar straight to the page. Hidden until it has focus. */
+function SkipLink(): React.ReactNode {
+  return (
+    <a
+      href={`#${MAIN_ID}`}
+      onClick={(e) => {
+        e.preventDefault()
+        document.getElementById(MAIN_ID)?.focus()
+      }}
+      className="sr-only rounded-control bg-panel px-3 py-2 text-sm font-semibold text-ink shadow-float focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50"
+    >
+      Skip to content
+    </a>
+  )
+}
 
 /**
  * Responsive three-pane shell.
@@ -38,6 +57,7 @@ export function AppShell(): React.ReactNode {
   const focusMode = useUIStore((s) => s.focusMode)
   const sidebarDrawerOpen = useUIStore((s) => s.sidebarDrawerOpen)
   const setSidebarDrawer = useUIStore((s) => s.setSidebarDrawer)
+  const setView = useUIStore((s) => s.setView)
   const sidebarCollapsed = usePrefsStore((s) => s.sidebarCollapsed)
   const toggleSidebar = usePrefsStore((s) => s.toggleSidebar)
   const sidebarWidth = usePrefsStore((s) => s.sidebarWidth)
@@ -51,6 +71,11 @@ export function AppShell(): React.ReactNode {
 
   // Global keyboard shortcuts
   useHotkeys()
+
+  // Plan is the phone's front door to the planner; the rail and hub strip do that job on wider screens
+  useEffect(() => {
+    if (!isMobile && activeView.kind === 'plan') setView({ kind: 'home' })
+  }, [isMobile, activeView.kind, setView])
 
   // The drawer declares aria-modal — move focus in and keep Tab inside.
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -104,6 +129,8 @@ export function AppShell(): React.ReactNode {
   let viewContent: React.ReactNode
   if (view.kind === 'home') {
     viewContent = <HomePage />
+  } else if (view.kind === 'plan') {
+    viewContent = <PlanPage />
   } else if (view.kind === 'tasks') {
     viewContent = <TasksPage />
   } else if (view.kind === 'agenda') {
@@ -144,13 +171,14 @@ export function AppShell(): React.ReactNode {
   if (isMobile) {
     return (
       <div className="flex h-full flex-col pt-[env(safe-area-inset-top)]">
-        <div className={cn('min-h-0 flex-1', !selectedNoteId && 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]')}>
+        <SkipLink />
+        <main id={MAIN_ID} tabIndex={-1} className={cn('min-h-0 flex-1 outline-none', !selectedNoteId && 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]')}>
           {selectedNoteId ? (
             <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
           ) : (
             viewContent
           )}
-        </div>
+        </main>
         {!selectedNoteId && <MobileNav />}
         {drawer}
         <ModalHost />
@@ -164,8 +192,9 @@ export function AppShell(): React.ReactNode {
 
   return (
     <div className="flex h-full overflow-hidden pt-[env(safe-area-inset-top)]">
+      <SkipLink />
       {showDockedSidebar && (
-        <aside style={{ flexBasis: sidebarWidth, minWidth: PANE_WIDTHS.sidebar.min }} className="relative h-full shrink">
+        <aside aria-label="Sidebar" style={{ flexBasis: sidebarWidth, minWidth: PANE_WIDTHS.sidebar.min }} className="relative h-full shrink">
           <Sidebar variant="dock" />
           <PaneResizer
             label="Resize sidebar"
@@ -181,7 +210,7 @@ export function AppShell(): React.ReactNode {
       )}
 
       {isSettingsArea || plannerWide ? (
-        <main className="min-h-0 min-w-0 flex-1">
+        <main id={MAIN_ID} tabIndex={-1} className="min-h-0 min-w-0 flex-1 outline-none">
           {focusMode && selectedNoteId ? (
             <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
           ) : (
@@ -192,6 +221,7 @@ export function AppShell(): React.ReactNode {
         <>
           {!focusMode && (
             <aside
+              aria-label="Note list"
               style={{ flexBasis: listWidth ?? undefined, minWidth: PANE_WIDTHS.list.min }}
               className="relative h-full min-h-0 shrink basis-[300px] xl:basis-[360px]"
             >
@@ -208,13 +238,13 @@ export function AppShell(): React.ReactNode {
               )}
             </aside>
           )}
-          <section aria-label="Editor" className="min-h-0 min-w-[480px] flex-1">
+          <main id={MAIN_ID} tabIndex={-1} aria-label="Editor" className="min-h-0 min-w-[480px] flex-1 outline-none">
             {selectedNoteId ? (
               <NoteEditor key={selectedNoteId} noteId={selectedNoteId} />
             ) : (
               <EditorPlaceholder />
             )}
-          </section>
+          </main>
         </>
       )}
 

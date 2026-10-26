@@ -232,21 +232,24 @@ function PricesCard({ list }: { list: PriceChange[] }): React.ReactNode {
  * over is said plainly, never in red: tomorrow's share already takes it in.
  */
 export function SafeCard({ safe, keep, compact = false }: { safe: SafeToSpend; keep: number; compact?: boolean }): React.ReactNode {
-  const over = safe.leftToday < 0
+  const noShare = safe.perDay <= 0 // nothing to spread yet, so spending is not "over" anything
+  const over = !noShare && safe.leftToday < 0
   const until = `${formatDay(safe.until)}${safe.incomeName ? ` · ${safe.incomeName}` : ''}`
   // From tomorrow, what is left spreads over one day fewer
   const fromTomorrow = safe.days > 1 ? Math.max(0, (safe.total - keep - safe.bills) / (safe.days - 1)) : 0
   return (
     <div className={cn(CARD, 'px-4 py-3.5')}>
       <p className="text-[21px] font-bold leading-snug tracking-[-0.02em]">
-        <span className="tabular-nums">{formatPeso(Math.round(Math.abs(safe.leftToday)))}</span>{' '}
-        <span className={over ? '' : 'font-semibold text-muted'}>{over ? ISIP.money.over : ISIP.money.toSpend}</span>
+        <span className="tabular-nums">{formatPeso(Math.round(noShare ? safe.spentToday : Math.abs(safe.leftToday)))}</span>{' '}
+        <span className={over ? '' : 'font-semibold text-muted'}>{noShare ? ISIP.money.spentOnly : over ? ISIP.money.over : ISIP.money.toSpend}</span>
       </p>
-      <p className="mt-0.5 text-[13px] text-muted">
-        {over && safe.days > 1
-          ? ISIP.money.fromTomorrow(formatPeso(Math.round(fromTomorrow)), until)
-          : ISIP.money.perDay(formatPeso(Math.round(Math.max(0, safe.perDay))), until)}
-      </p>
+      {!noShare && (
+        <p className="mt-0.5 text-[13px] text-muted">
+          {over && safe.days > 1
+            ? ISIP.money.fromTomorrow(formatPeso(Math.round(fromTomorrow)), until)
+            : ISIP.money.perDay(formatPeso(Math.round(Math.max(0, safe.perDay))), until)}
+        </p>
+      )}
       {!compact && <Runway days={safe.days} over={over} />}
       {!compact && (
         <p className="mt-2 text-xs tabular-nums text-faint">
@@ -438,7 +441,7 @@ function MoneyLine({ r, category }: { r: MoneyRef; category: string }): React.Re
               {...props}
               type="button"
               aria-label={ISIP.money.categoryFor(word, categoryLabel(category))}
-              className="mr-2 shrink-0 rounded-full border border-lineSoft px-2 py-0.5 text-[11px] font-medium text-muted hover:border-line hover:text-ink"
+              className="mr-2 inline-flex min-h-6 shrink-0 items-center rounded-full border border-lineSoft px-2 text-[11px] font-medium text-muted hover:border-line hover:text-ink"
             >
               {categoryLabel(category)}
             </button>

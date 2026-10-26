@@ -1,35 +1,40 @@
-import { CalendarCheck, NotebookText, PenLine, Plus, Search } from 'lucide-react'
+import { CalendarCheck, Compass, NotebookText, PenLine, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useUIStore } from '@/store/uiStore'
+import { PLAN_SUBVIEWS, useUIStore } from '@/store/uiStore'
 import { usePrefsStore } from '@/store/prefsStore'
-import { useSettingsStore } from '@/store/settingsStore'
-import { downloadBackup } from '@/utils/exportImport'
-import { Avatar } from '@/components/UI/Avatar'
-import { DropdownMenu } from '@/components/UI/DropdownMenu'
 import { cn } from '@/utils/cn'
-import { PLANNER_VIEWS } from '@/components/Planner/PlannerView'
 import { ISIP } from '@/isip/copy'
 
 /** Height of the bar itself; the page above reserves this plus the safe area. */
 export const MOBILE_NAV_HEIGHT = '3.75rem'
 
 /**
- * Phone bottom bar on the green rail: Notes, Today (with Upcoming, Tasks, Money, Habits and Workouts inside),
- * the gold Write (a line in Isip, the first thing to do), New note, Search, and the profile menu (Settings lives under the
- * picture). Left-handed mode mirrors it.
+ * Phone bottom bar on the green rail: Today, Plan (Upcoming, Tasks, Money, Habits
+ * and Workouts inside), the gold Write (a line in Isip, the first thing to do),
+ * Notes and Search. New note sits in the Notes header; Settings, Quiet mode and
+ * backup under the profile picture in each header. Left-handed mode mirrors it.
  */
 export function MobileNav(): React.ReactNode {
   const activeView = useUIStore((s) => s.activeView)
+  const planOrigin = useUIStore((s) => s.planOrigin)
   const setView = useUIStore((s) => s.setView)
   const openModal = useUIStore((s) => s.openModal)
+  const searching = useUIStore((s) => s.modalStack.some((m) => m.intent.kind === 'search'))
   const leftHanded = usePrefsStore((s) => s.leftHanded)
-  const quietMode = usePrefsStore((s) => s.quietMode)
-  const toggleQuietMode = usePrefsStore((s) => s.toggleQuietMode)
-  const profile = useSettingsStore((s) => s.settings.profile)
 
-  // The planner (Today, Upcoming, Tasks, Money, Habits, Workouts) is the Today tab; every library view is Notes
-  const todayActive = PLANNER_VIEWS.has(activeView.kind)
-  const notesActive = !todayActive && activeView.kind !== 'settings'
+  // A planner view lights the tab it was opened from (a Today tile, or the Plan list)
+  const kind = activeView.kind
+  const sub = PLAN_SUBVIEWS.has(kind)
+  const todayOn = kind === 'home' || (sub && planOrigin === 'home')
+  const planOn = kind === 'plan' || (sub && planOrigin === 'plan')
+  const notesOn = !todayOn && !planOn && kind !== 'settings'
+
+  // On Today the box is already on screen: Write just puts the cursor in it. Elsewhere it opens the capture sheet.
+  const write = (): void => {
+    const box = kind === 'home' ? document.querySelector<HTMLInputElement>('.capture-docked') : null
+    if (box) box.focus()
+    else openModal({ kind: 'capture' })
+  }
 
   return (
     <nav
@@ -40,97 +45,45 @@ export function MobileNav(): React.ReactNode {
         leftHanded && 'flex-row-reverse',
       )}
     >
-      <NavTab
-        label="Notes"
-        icon={NotebookText}
-        active={notesActive}
-        onClick={() => setView({ kind: 'all' })}
-      />
-      <NavTab label="Today" icon={CalendarCheck} active={todayActive} onClick={() => setView({ kind: 'home' })} />
+      <NavTab label="Today" icon={CalendarCheck} active={todayOn && !searching} onClick={() => setView({ kind: 'home' })} />
+      <NavTab label="Plan" icon={Compass} active={planOn && !searching} onClick={() => setView({ kind: 'plan' })} />
 
-      <div className="flex flex-1 items-start justify-center">
+      <div className="flex flex-1 flex-col items-center">
         <button
           type="button"
-          onClick={() => openModal({ kind: 'capture' })}
+          onClick={write}
           aria-label={ISIP.capture.label}
-          className="-mt-5 grid size-14 place-items-center rounded-full bg-gold text-gold-fg shadow-raise ring-4 ring-rail transition-transform active:scale-95"
+          className="-mt-5 grid size-14 place-items-center rounded-full bg-gold text-gold-fg shadow-raise ring-4 ring-rail transition-transform duration-150 ease-out active:scale-95"
         >
           <PenLine size={24} strokeWidth={2.4} aria-hidden="true" />
         </button>
+        <span aria-hidden="true" className="mt-0.5 text-[11px] font-semibold">
+          Write
+        </span>
       </div>
 
-      <NavTab label="New" ariaLabel="New note" icon={Plus} active={false} onClick={() => openModal({ kind: 'new-note' })} />
-      <NavTab label="Search" icon={Search} active={false} onClick={() => openModal({ kind: 'search' })} />
-
-      <div className="flex flex-1 items-stretch [&>div]:flex-1">
-        <DropdownMenu
-          side="top"
-          align={leftHanded ? 'start' : 'end'}
-          items={[
-            { id: 'settings', label: 'Settings', onSelect: () => setView({ kind: 'settings' }) },
-            {
-              id: 'quiet',
-              label: 'Quiet mode (Bituin)',
-              checked: quietMode,
-              onSelect: toggleQuietMode,
-            },
-            { id: 'sep', label: '', type: 'separator', onSelect: () => {} },
-            { id: 'backup', label: 'Back up now', onSelect: () => void downloadBackup() },
-          ]}
-          trigger={(props) => (
-            <button
-              {...props}
-              type="button"
-              aria-label={`${profile.name || 'Profile'}: settings and more`}
-              className={cn(
-                'flex w-full flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
-                activeView.kind === 'settings' ? 'text-rail-fg' : 'text-rail-muted hover:text-rail-fg',
-              )}
-            >
-              <Avatar src={profile.avatar} name={profile.name} size="xs" className="border-transparent bg-gold font-semibold text-gold-fg" />
-              <span className="text-[11px]">You</span>
-            </button>
-          )}
-        />
-      </div>
+      <NavTab label="Notes" icon={NotebookText} active={notesOn && !searching} onClick={() => setView({ kind: 'all' })} />
+      <NavTab label="Search" icon={Search} active={searching} onClick={() => openModal({ kind: 'search' })} />
     </nav>
   )
 }
 
-function NavTab({
-  label,
-  ariaLabel,
-  icon: Icon,
-  active,
-  onClick,
-}: {
-  label: string
-  /** When the visible word is short for something longer ("New" for "New note"). */
-  ariaLabel?: string
-  icon: LucideIcon
-  active: boolean
-  onClick: () => void
-}): React.ReactNode {
+/** The active tab has a shape (a pill behind the icon) and weight as well as colour. */
+function NavTab({ label, icon: Icon, active, onClick }: { label: string; icon: LucideIcon; active: boolean; onClick: () => void }): React.ReactNode {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 transition-colors',
+        'flex flex-1 flex-col items-center justify-center gap-0.5 pt-1 transition-colors',
         active ? 'text-rail-fg' : 'text-rail-muted hover:text-rail-fg',
       )}
     >
-      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" className={active ? 'text-gold' : undefined} />
-      <span
-        className={cn(
-          'text-[11px] font-medium',
-          active && 'font-semibold',
-        )}
-      >
-        {label}
+      <span className={cn('grid h-[30px] w-[52px] place-items-center rounded-full transition-colors duration-150', active && 'bg-rail-active')}>
+        <Icon size={20} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" className={active ? 'text-gold' : undefined} />
       </span>
+      <span className={cn('text-[11px] font-medium', active && 'font-semibold')}>{label}</span>
     </button>
   )
 }
