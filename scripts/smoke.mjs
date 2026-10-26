@@ -173,7 +173,7 @@ check('mobile: Today tab opens Today', await mpage.isVisible('section[aria-label
 await mpage.click('nav[aria-label="Primary"] >> text=Plan')
 await waitFor(350)
 check('mobile: Plan tab lists the planner views', await mpage.isVisible('section[aria-label="Plan"]'))
-await mpage.click('section[aria-label="Plan"] button:has-text("Upcoming")')
+await mpage.click('section[aria-label="Plan"] button:has-text("Upcoming"):visible')
 await waitFor(350)
 check('mobile: Upcoming opens from Plan, with a Back link to Plan', (await mpage.isVisible('section[aria-label="Upcoming"]')) && (await mpage.isVisible('button:has-text("Plan")')))
 await mpage.click('section[aria-label="Upcoming"] >> button:has-text("Plan")')
