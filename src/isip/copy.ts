@@ -98,6 +98,16 @@ export const ISIP = {
     ],
   },
   /** The four tiles at the top of Today. */
+  plan: {
+    title: 'Plan',
+    note: 'What Tala reads from the lines you write.',
+    coming: 'Coming up',
+    trackers: 'Trackers',
+    more: (n: number): string => `${n} more this week`,
+    toDo: (n: number): string => `${n} to do`,
+    lastLift: (name: string, day: string): string => `Last: ${name}, ${day}`,
+    tryLift: 'Try “bench 60x5x3”',
+  },
   tiles: {
     next: 'Next up',
     nothingNext: 'Nothing else today',
@@ -236,6 +246,8 @@ export const ISIP = {
     in: 'In',
     over: 'over today’s share',
     toSpend: 'to spend today',
+    /** No income, keep or balance to spread yet: say what was spent, never that it is "over". */
+    spentOnly: 'spent today',
     fromTomorrow: (perDay: string, until: string): string => `${perDay} a day from tomorrow until ${until}`,
     perDay: (perDay: string, until: string): string => `${perDay} a day until ${until}`,
     spentToday: (n: string): string => `Spent today ${n}`,

@@ -62,7 +62,7 @@ export function HomePage(): React.ReactNode {
           type="button"
           onClick={() => openModal({ kind: 'search' })}
           aria-label="Search notes"
-          className="grid size-10 shrink-0 place-items-center rounded-control border border-lineSoft bg-panel text-muted transition-colors hover:border-line hover:text-ink [@media(pointer:coarse)]:size-11"
+          className="hidden size-10 shrink-0 place-items-center rounded-control border border-lineSoft bg-panel text-muted transition-colors hover:border-line hover:text-ink md:grid [@media(pointer:coarse)]:size-11"
         >
           <Search size={17} />
         </button>
@@ -93,7 +93,7 @@ const minutes = (hm: string): number => {
 }
 
 /** Everything the tiles read, worked out once per render of Today. */
-function useToday() {
+export function useToday() {
   const { refs, today } = useEntries()
   const habitList = useHabitStore((s) => s.habits)
   const { accounts, keep } = useMoneyStore()
@@ -208,11 +208,13 @@ function MoneyTile({ t }: { t: Today }): React.ReactNode {
       </Tile>
     )
   }
-  const over = safe.leftToday < 0
+  // Nothing to spread yet (no income, balance or keep): the day's spending is not "over" anything
+  const noShare = safe.perDay <= 0
+  const over = !noShare && safe.leftToday < 0
   return (
-    <Tile id="home-money" icon={Wallet} title={ISIP.tiles.money} view="money" foot={ISIP.money.perDay(formatPeso(Math.round(Math.max(0, safe.perDay))), formatDay(safe.until))}>
-      <p className={BIG}>{formatPeso(Math.round(Math.abs(safe.leftToday)))}</p>
-      <p className="mt-1.5 text-[13.5px] font-semibold text-muted">{over ? ISIP.money.over : ISIP.money.toSpend}</p>
+    <Tile id="home-money" icon={Wallet} title={ISIP.tiles.money} view="money" foot={noShare ? undefined : ISIP.money.perDay(formatPeso(Math.round(Math.max(0, safe.perDay))), formatDay(safe.until))}>
+      <p className={BIG}>{formatPeso(Math.round(noShare ? safe.spentToday : Math.abs(safe.leftToday)))}</p>
+      <p className="mt-1.5 text-[13.5px] font-semibold text-muted">{noShare ? ISIP.money.spentOnly : over ? ISIP.money.over : ISIP.money.toSpend}</p>
       <Runway days={Math.min(safe.days, 7)} over={over} />
     </Tile>
   )

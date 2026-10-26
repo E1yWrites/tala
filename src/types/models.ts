@@ -167,6 +167,7 @@ export interface AppSettings {
 
 export type ViewKind =
   | 'home'
+  | 'plan'
   | 'all'
   | 'favorites'
   | 'pinned'

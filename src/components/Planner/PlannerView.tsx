@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ViewKind } from '@/types/models'
-import { useUIStore } from '@/store/uiStore'
+import { ChevronLeft } from 'lucide-react'
+import { PLAN_SUBVIEWS, useUIStore } from '@/store/uiStore'
 import { SidebarToggle } from '@/components/layout/SidebarToggle'
+import { ProfileMenu } from '@/components/layout/ProfileMenu'
 import { cn } from '@/utils/cn'
 
 /*
@@ -66,6 +68,7 @@ export function PlannerView({
       data-aside-first={asideFirst ? '' : undefined}
       className="planner flex h-full min-h-0 flex-col bg-shelf"
     >
+      <PhoneBack />
       <header className="px-4 pb-3 pt-4 md:px-6 md:pt-6">
         <div className="planner-frame flex items-center gap-3">
           <SidebarToggle className="-ml-1.5" />
@@ -77,6 +80,10 @@ export function PlannerView({
             {note && <p className="truncate text-[13px] text-muted">{note}</p>}
           </div>
           {trailing}
+          {/* Phones: the bar has no You tab, so the profile menu lives in the header */}
+          <div className="-mr-1 md:hidden">
+            <ProfileMenu />
+          </div>
         </div>
       </header>
       <PlannerTabs />
@@ -131,6 +138,27 @@ export function PlannerSection({
   )
 }
 
+/** Phones: a planner view sits under Plan (or under Today when a tile opened it); Back names where it goes. */
+function PhoneBack(): ReactNode {
+  const kind = useUIStore((s) => s.activeView.kind)
+  const origin = useUIStore((s) => s.planOrigin)
+  const setView = useUIStore((s) => s.setView)
+  if (!PLAN_SUBVIEWS.has(kind)) return null
+  const to = origin === 'home' ? 'home' : 'plan'
+  return (
+    <div className="px-2 pt-1 md:hidden">
+      <button
+        type="button"
+        onClick={() => setView({ kind: to })}
+        className="inline-flex min-h-11 items-center gap-0.5 rounded-control pl-1 pr-3 text-[15px] font-medium text-accent transition-transform duration-150 ease-out active:scale-[0.97]"
+      >
+        <ChevronLeft size={22} strokeWidth={2.2} aria-hidden="true" />
+        {to === 'home' ? 'Today' : 'Plan'}
+      </button>
+    </div>
+  )
+}
+
 /**
  * One tap between the planner's views where the rail is not docked (phones and
  * portrait tablets). Switching is frequent, so it only changes colour.
@@ -155,7 +183,7 @@ function PlannerTabs(): ReactNode {
   }, [active])
 
   return (
-    <nav aria-label="Isip" className="px-3 pb-2 md:px-5 lg:hidden">
+    <nav aria-label="Isip" className="hidden px-3 pb-2 md:block md:px-5 lg:hidden">
       <div ref={strip} onScroll={measure} data-fade={fade} className="planner-tabs planner-frame no-scrollbar flex gap-1 overflow-x-auto">
         {TABS.map((t) => {
           const on = active === t.kind

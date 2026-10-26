@@ -2,6 +2,23 @@
 
 All notable changes to Tala are documented here.
 
+## [2.3.1] - 2026-10-26
+
+A new way around Tala on phones, and a round of keyboard and screen-reader fixes for the web and desktop apps.
+
+### Changed
+- **Phone navigation**: the bottom bar is now Today, Plan, Write, Notes and Search. Plan is a new list of Upcoming, Tasks, Money, Habits and Workouts, each row saying where that view stands ("2 of 4 done today", "Dentist · Fri, Oct 30 2pm"). A planner view has a "‹ Plan" back link, or "‹ Today" when a Today tile opened it, in place of the pill strip (tablets keep the strip).
+- The gold Write button now carries a label. On Today it puts the cursor in the box; elsewhere it opens the capture sheet. The active tab has a pill behind its icon as well as its colour.
+- New note is the green plus in the Notes header, and the profile menu (Settings, Quiet mode, Back up now) sits in each header, both with 44 px targets.
+- Money and Today say "₱150 spent today" when there is no income or balance to spread yet, instead of "over today's share".
+
+### Fixed
+- Keyboard users can press Tab once and choose "Skip to content" instead of tabbing through the whole sidebar.
+- Every layout has one main landmark (the editor when a note is open) and the side panes are labelled, so screen readers can jump to the page.
+- The note list heading reads "All Notes 3", not "All Notes3".
+- Money's category buttons reach the 24 px minimum target size.
+- A console warning about a duplicate underline extension in the editor is gone.
+
 ## [2.3.0] - 2026-10-25
 
 Today now reads like a conversation: write a line and Bituin answers it with what she filed.
